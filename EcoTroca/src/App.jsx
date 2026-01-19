@@ -1,16 +1,7 @@
-import { useState } from 'react'
-
-
-function App() {
-  // eslint-disable-next-line no-empty-pattern
-  const [] = useState(0)
-
+export default function App() {
   return (
-    <>
-     
-     <div className='bg-red'>Avers</div>
-         </>
+    <div className="bg-red-500 text-white p-10">
+      EcoTroca
+    </div>
   )
 }
-
-export default App
