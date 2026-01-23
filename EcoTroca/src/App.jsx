@@ -1,7 +1,19 @@
-export default function App() {
+import NavBar from "./Components/NavBar.jsx";
+
+
+
+
+
+
+ function App() {
   return (
-    <div className="bg-green-500 text-blue-900 p-10">
-      EcoTroca
-    </div>
-  )
-}
+  <div>
+    
+    <NavBar />
+
+
+  </div>
+)
+ }
+
+export default App
