@@ -1,5 +1,5 @@
 
-import logo from "../assets/Ecotroca-logo.png"
+import logo from "../assets/Ecotroca-logo-2.0.png"
 
 
 export const NavBar = () => {
@@ -10,11 +10,9 @@ export const NavBar = () => {
 
             <div className="flex items-center gap-2">
                 <div className='flex shrink-0 items-center justify-center '>
-                    <img className="mx-1 w-28 " src={logo} alt='logo-EcoTroca'/>
+                    <img className="mx-1 w-35 " src={logo} alt='logo-EcoTroca'/>
                 </div>
-                <span className="text-2xl font-bold text-green-700">
-                    EcoTroca 
-                </span> 
+               
             </div>
                         
         {/* links */} 
@@ -39,8 +37,8 @@ export const NavBar = () => {
                     Começar Agora
             </button>
         
-
-
+                
+            
 
 
   
@@ -48,6 +46,8 @@ export const NavBar = () => {
    
    
     </nav>
+
+    
   )
 }
  export default NavBar
