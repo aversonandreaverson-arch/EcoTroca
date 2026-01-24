@@ -13,11 +13,11 @@ export const NavBar = () => {
                     <img className="mx-1 w-28 " src={logo} alt='logo-EcoTroca'/>
                 </div>
                 <span className="text-2xl font-bold text-green-700">
-                    EcoTroca
-                </span>
+                    EcoTroca 
+                </span> 
             </div>
                         
-        {/* links */}
+        {/* links */} 
 
             <ul className="hidden md:flex items-center gap-8 text-green-700 font-medium">
                 <li className="cursor-pointer hover:text-green-900">
@@ -33,7 +33,7 @@ export const NavBar = () => {
                         Cadastrar
                 </li>           
             </ul>
-        {/* Botao CTA */}
+        {/* Botao CTA */} 
 
             <button className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition">
                     Começar Agora

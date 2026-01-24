@@ -16,4 +16,4 @@ import NavBar from "./Components/NavBar.jsx";
 )
  }
 
-export default App
+export default App 
