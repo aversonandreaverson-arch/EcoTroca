@@ -40,7 +40,7 @@ export const Hero = () => {
             </div>
 
                         {/*  Lado Direito*/}
-
+            
                 <div className="flex justify-center">
                     <div className="bg-green-50 rounded-3xl p-6 shadow-md">
                             <img className="max-w-full h-auto"
