@@ -1,4 +1,5 @@
 import NavBar from "./Components/NavBar.jsx";
+import Hero from "./Components/Hero.jsx"
 
 
 
@@ -10,6 +11,7 @@ import NavBar from "./Components/NavBar.jsx";
   <div>
     
     <NavBar />
+    <Hero />
 
 
   </div>
