@@ -45,8 +45,8 @@ export const Hero = () => {
                {/*  Lado Direito*/}
             
                 <div className="flex justify-center">
-                    <div className="bg-green-50 rounded-3xl  shadow-md">
-                            <img className="max-w-full h-auto"
+                    <div className="bg-green-50 rounded-xl  shadow-md">
+                            <img className="max-w-full h-auto rounded-xl"
                             src={banner} alt="banner EcoTroca" />
                     </div>
 
