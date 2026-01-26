@@ -8,7 +8,8 @@ import ComoFunciona  from "./Components/ComoFunciona.jsx"
 
  function App() {
   return (
-  <div>
+    
+  <div >
     
     <NavBar />
     <Hero />
