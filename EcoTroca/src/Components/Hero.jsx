@@ -2,7 +2,7 @@ import banner from "../assets/ecotroca-banner-5-0.png"
 
 export const Hero = () => {
   return (
-    <section className="w-full px-8 py-16 bg-[#f9faf7">
+    <section className="w-full px-8 py-16 bg-[#f9faf7]">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
              
              
@@ -29,6 +29,7 @@ export const Hero = () => {
                              {/* Beneficios */} {/* colocar icones aqui */}
                             <div className="flex flex-wrap gap-6 mt-10 text-green-800">
                                     <div className="flex items-center gap-2">
+                                        
                                         <span>100% Grátis</span>
                                     </div>
                                 <div className="flex items-center gap-2">
@@ -46,8 +47,9 @@ export const Hero = () => {
             
                 <div className="flex justify-center">
                     <div className="bg-green-50 rounded-xl  shadow-md">
-                            <img className="max-w-full h-auto rounded-xl"
+                            <img className="max-w-full h-auto rounded-xl md:max-w-md"  
                             src={banner} alt="banner EcoTroca" />
+                            {/* md:max-w-md ajuda a fazer com que a img do banner n fique muito grande em telas mais pequenas */}
                     </div>
 
                 </div>
