@@ -47,7 +47,7 @@ export const Hero = () => {
             
                 <div className="flex justify-center">
                     <div className="bg-green-50 rounded-xl  shadow-md">
-                            <img className="max-w-full h-auto rounded-xl md:max-w-md"  
+                            <img className="max-w-full h-auto rounded-xl"  
                             src={banner} alt="banner EcoTroca" />
                             {/* md:max-w-md ajuda a fazer com que a img do banner n fique muito grande em telas mais pequenas */}
                     </div>

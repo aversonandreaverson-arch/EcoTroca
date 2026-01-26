@@ -1,9 +1,11 @@
 import React from 'react'
 
-export const ComoFunciona = () => {
+ const ComoFunciona = () => {
   return (
-    <div>
-      
-    </div>
+    
+      <h1>Como funciona</h1>
+    
   )
 }
+
+export default ComoFunciona
