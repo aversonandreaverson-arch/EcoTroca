@@ -18,13 +18,18 @@ import { User, Truck, Building2, Smartphone, Coins, Home, MapPin, Package, Credi
                 <div className='grid md:grid-cols-3 gap-8 mt-12'>
                     {/*  inicio 1 card */}
                      <div  className='bg-white rounded-2xl p-8 shadow text-center'>
-                    <User size={40} className='text-green-700 mx-auto mb-4'></User>
-                    <p className='text- text-gray-400 '>
+                    <User size={40} className='text-green-700 mx-auto mb-4 bg-amber-50 rounded-2xl '></User>
+                    <p className=' text-gray-400 '>
                         USUÁRIO
                     </p>
                     <h3 className='text-xl font-semibold text-green-900 mb-4'>
                         Eu Tenho Lixo
                     </h3>
+                         <p className=' text-gray-400  '>
+                            Você tem lixo reciclável em casa?
+                            <br />
+                            Nós pagamos por ele!
+                    </p>
 
                     <ul className='space-y-2 text-green-900 text-sm '>
                         <div className=''>
@@ -41,13 +46,18 @@ import { User, Truck, Building2, Smartphone, Coins, Home, MapPin, Package, Credi
 
                         {/*  inicio 2 card */}
                          <div  className='bg-white rounded-2xl p-8 shadow text-center'>
-                    <Truck size={40} className='text-green-700 mx-auto mb-4'></Truck>
+                    <Truck size={40} className='text-green-700 mx-auto mb-4 bg-amber-50 rounded-2xl   '></Truck>
                     <p className=' text-gray-400'>
                         COLETADOR(A)
                     </p>
                     <h3 className='text-xl font-semibold text-green-900 mb-4'>
                         Eu Coleto Lixo
                     </h3>
+                        <p className=' text-gray-400  '>
+                            Quer ganhar dinheiro recolhendo materiais?
+                            <br />
+                            Seja um coletador(a)!
+                    </p>
 
                     <ul className='space-y-2 text-green-900 text-sm'>
                         <div className='bg-white gap-0.5 shadow-black'>
@@ -65,16 +75,21 @@ import { User, Truck, Building2, Smartphone, Coins, Home, MapPin, Package, Credi
                         {/*  inicio 3 card  */}
 
                      <div  className='bg-white rounded-2xl p-8 shadow text-center'>
-                    <Building2 size={40} className='text-green-700 mx-auto mb-4'></Building2>
+                    <Building2 size={40} className='text-green-700 mx-auto mb-4 bg-amber-50 rounded-2xl '></Building2>
                     <p className=' text-gray-400'>
                         EMPRESA
                     </p>
                     <h3 className='text-xl font-semibold text-green-900 mb-4'>
                         Compro Materiais
                     </h3>
+                        <p className=' text-gray-400  '>
+                            Sua empresa compra materiais recicláveis?
+                            <br />
+                            Receba de forma organizada!
+                    </p>
 
                     <ul className='space-y-2 text-green-900 text-sm'>
-                        <div className='bg-white gap-0.5 shadow-black'>
+                        <div className=''>
                                 <li className='bg-gray-300 m-3 rounded-2xl py-3 shadow-2xl'> <Package size={16}></Package> Recebe materiais separados</li>
                                 <li className='bg-gray-300 m-3 rounded-2xl py-3 shadow-2xl'> <Scale size={16}></Scale>Pesa e confirma</li>
                                 <li className='bg-gray-300 m-3 rounded-2xl py-3 shadow-2xl'> <CreditCard size={16}></CreditCard> Paga automaticamente</li>
