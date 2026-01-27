@@ -1,6 +1,7 @@
 import NavBar from "./Components/NavBar.jsx";
 import Hero from "./Components/Hero.jsx"
 import ComoFunciona  from "./Components/ComoFunciona.jsx"
+import Forma from "./Components/Forma.jsx"
 
 
 
@@ -14,6 +15,7 @@ import ComoFunciona  from "./Components/ComoFunciona.jsx"
     <NavBar />
     <Hero />
    <ComoFunciona /> 
+   <Forma/>
 
 
   </div>

@@ -8,9 +8,9 @@ import { User, Truck, Building2, Smartphone, Coins, Home, MapPin, Package, Credi
         
     <section className='py-20 w-full px-8 bg-[#f9faf7] '> {/* É PARA DAR MAIS ESPAÇO */}
         <div className='max-w-7xl mx-auto px-6'>
-            <h2 className='text-4xl font-bold text-green-900 text-center'>
+            <h1 className='text-4xl font-bold text-green-900 text-center'>
                     Como Funciona 
-            </h2>
+            </h1>
                 <p className='text-center text-green-700 mt-2'>
                     É muito fácil! Escolhe o que combina contigo
                 </p>
