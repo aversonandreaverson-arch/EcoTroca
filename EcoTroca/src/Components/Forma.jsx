@@ -36,6 +36,10 @@ import {  Home, MapPin } from 'lucide-react'
          </div>
         
     </section>
+
+    
+
+    
   )
 }
 
