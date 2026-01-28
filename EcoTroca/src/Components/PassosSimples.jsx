@@ -11,7 +11,7 @@ import {  Truck,  Package, CreditCard, Paperclip } from "lucide-react";
 
             </div>
             <div className='grid md:grid-cols-4 gap-5 mt-8 '>
-                <div className='bg-green-600 rounded-2xl p-8 shadow text-center'>
+                <div className='bg-green-600 rounded-2xl p-13 shadow text-center'>
                     <Paperclip size={40} className='text-green-900 mx-auto mb-4   '> </Paperclip>
                     <h1 className='text-3xl font-semibold text-white mb-4'>
                         1
