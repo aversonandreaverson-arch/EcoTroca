@@ -6,7 +6,7 @@ import PassosSimples from "./Components/PassosSimples.jsx"
 import MateriaiasReciclaveis from "./Components/MateriaiasReciclaveis.jsx";
 import DicasRapidas from "./Components/DicasRapidas.jsx"
 import OqueGanhas from "./Components/OqueGanhas.jsx";
-
+import Niveis from "./Components/Niveis.jsx";
 
 
 
@@ -23,6 +23,7 @@ import OqueGanhas from "./Components/OqueGanhas.jsx";
    <MateriaiasReciclaveis/> 
    <DicasRapidas/>
    <OqueGanhas />
+ <Niveis />  
   </div>
 )
  }
