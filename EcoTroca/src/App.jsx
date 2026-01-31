@@ -7,7 +7,7 @@ import MateriaiasReciclaveis from "./Components/MateriaiasReciclaveis.jsx";
 import DicasRapidas from "./Components/DicasRapidas.jsx"
 import OqueGanhas from "./Components/OqueGanhas.jsx";
 import Niveis from "./Components/Niveis.jsx";
-
+import Cadastro from "./Components/Cadastro.jsx";
 
 
  function App() {
@@ -23,7 +23,8 @@ import Niveis from "./Components/Niveis.jsx";
    <MateriaiasReciclaveis/> 
    <DicasRapidas/>
    <OqueGanhas />
- <Niveis />  
+    <Niveis /> 
+    < Cadastro /> 
   </div>
 )
  }
