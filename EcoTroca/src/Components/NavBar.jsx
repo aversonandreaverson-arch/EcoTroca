@@ -61,7 +61,8 @@ import logo from "../assets/Ecotroca-logo-2.0.png";
             <li className="cursor-pointer hover:text-green-900">Materiais</li>
             <li className="cursor-pointer hover:text-green-900">Recompensas</li>
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
-            
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Entrar</li>
+{/* mexerrrrr aqui na parte do entrar, para que quando clicamos no link entrar para redirecionar para a pagina de login */}
             <li>
               <button className="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition" onClick={scrollToCadastro}>
                 Começar Agora
