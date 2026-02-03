@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { User, Truck, Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
+// Componente Tipo de Usuário
 const Tipo = ({ ativo, onClick, icon: Icon, label }) => (
   <div
     onClick={onClick}
@@ -8,14 +10,15 @@ const Tipo = ({ ativo, onClick, icon: Icon, label }) => (
       ${ativo ? "bg-green-800 text-white" : "bg-gray-100 text-gray-800"}
     `}
   >
-    <Icon className="mb-2 w-6 h-6 sm:w-8 sm:h-8" />
+    <Icon className="mb-2 w-6 h-6 sm:w-8 sm:h-8 " />
     <span className="text-sm sm:text-base font-medium">{label}</span>
   </div>
 );
 
+// Componente Campo de formulário
 const Campo = ({ label, obrigatório, type = "text", hint }) => (
   <div className="flex flex-col">
-    <label className="text-gray-700 mb-1 text-sm sm:text-base">
+    <label className="text-green-700 mb-1 text-sm sm:text-base">
       {label} {obrigatório && <span className="text-red-500">*</span>}
     </label>
     <input
@@ -29,8 +32,13 @@ const Campo = ({ label, obrigatório, type = "text", hint }) => (
 const Cadastro = () => {
   const [tipo, setTipo] = useState("USUARIO");
 
+  const handleCriarConta = () => {
+    // Aqui você pode integrar com o back-end depois
+    alert("Cadastro enviado! (ainda não integrado ao back-end)");
+  };
+
   return (
-    <div className="w-full flex justify-center py-12 bg-green-900">
+    <div id="Cadastro" className="w-full flex justify-center py-12 bg-green-900">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 sm:p-8">
         {/* TÍTULO */}
         <div className="text-center mb-6">
@@ -44,24 +52,9 @@ const Cadastro = () => {
 
         {/* TIPOS DE USUÁRIO */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Tipo
-            ativo={tipo === "USUARIO"}
-            onClick={() => setTipo("USUARIO")}
-            icon={User}
-            label="Usuário"
-          />
-          <Tipo
-            ativo={tipo === "COLETADOR"}
-            onClick={() => setTipo("COLETADOR")}
-            icon={Truck}
-            label="Coletador"
-          />
-          <Tipo
-            ativo={tipo === "EMPRESA"}
-            onClick={() => setTipo("EMPRESA")}
-            icon={Building2}
-            label="Empresa"
-          />
+          <Tipo ativo={tipo === "USUARIO"} onClick={() => setTipo("USUARIO")} icon={User} label="Usuário" />
+          <Tipo ativo={tipo === "COLETADOR"} onClick={() => setTipo("COLETADOR")} icon={Truck} label="Coletador(a)" />
+          <Tipo ativo={tipo === "EMPRESA"} onClick={() => setTipo("EMPRESA")} icon={Building2} label="Empresa" />
         </div>
 
         {/* FORMULÁRIO */}
@@ -79,13 +72,8 @@ const Cadastro = () => {
 
           {tipo !== "EMPRESA" && (
             <>
-              <Campo label="BI" obrigatório />
-              <Campo
-                label="Data de nascimento"
-                type="date"
-                obrigatório
-                hint="+18 anos"
-              />
+              <Campo label="BI" />
+              <Campo label="Data de nascimento" type="date" obrigatório hint="+18 anos" />
             </>
           )}
 
@@ -96,24 +84,26 @@ const Cadastro = () => {
             </div>
           )}
 
+          <Campo label="Email" type="email" />
           <Campo label="Senha" type="password" obrigatório />
           <Campo label="Confirmar senha" type="password" obrigatório />
-          <Campo label="Email" type="email" />
           <Campo label="Foto de perfil" type="file" />
         </div>
 
-        <button className="w-full mt-6 bg-green-800 text-white py-3 rounded-xl font-semibold text-base">
+        {/* BOTÃO */}
+        <button
+          onClick={handleCriarConta}
+          className="w-full mt-6 bg-green-800 text-white py-3 rounded-xl font-semibold text-base"
+        >
           Criar conta
         </button>
 
+        {/* LINK PARA LOGIN */}
         <p className="text-xs sm:text-sm text-center mt-4 text-gray-600">
           Já tens uma conta?{" "}
-          <a
-            href="/login"
-            className="font-semibold text-green-800 hover:underline"
-          >
+          <Link to="/login" className="font-semibold text-green-800 hover:underline">
             Entrar
-          </a>
+          </Link>
         </p>
 
         <p className="text-xs text-center mt-2 text-gray-400">

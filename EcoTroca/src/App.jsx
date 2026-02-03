@@ -1,32 +1,17 @@
-import NavBar from "./Components/NavBar.jsx";
-import Hero from "./Components/Hero.jsx"
-import ComoFunciona  from "./Components/ComoFunciona.jsx"
-import Forma from "./Components/Forma.jsx"
-import PassosSimples from "./Components/PassosSimples.jsx"
-import MateriaiasReciclaveis from "./Components/MateriaiasReciclaveis.jsx";
-import DicasRapidas from "./Components/DicasRapidas.jsx"
-import OqueGanhas from "./Components/OqueGanhas.jsx";
-import Niveis from "./Components/Niveis.jsx";
-import Cadastro from "./Components/Cadastro.jsx";
+import {Routes, Route} from 'react-router-dom'
+import Home from './pages/home'
+import Cadastro from './Components/Cadastro'
+import Login from './Components/Login'
 
 
- function App() {
+function App () {
   return (
-    
-  <div >
-    
-    <NavBar />
-    <Hero />
-   <ComoFunciona /> 
-   <Forma/>
-   <PassosSimples/>
-   <MateriaiasReciclaveis/> 
-   <DicasRapidas/>
-   <OqueGanhas />
-    <Niveis /> 
-    < Cadastro /> 
-  </div>
-)
- }
+    <Routes>
+      <Route path='/' element={<Home />}></Route>
+      <Route path ='/' element={<Cadastro />}></Route>
+      <Route path='/' element={<Login />}></Route>
+    </Routes>
+  )
+}
 
-export default App 
+export default App
