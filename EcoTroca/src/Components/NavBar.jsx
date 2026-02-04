@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { useNavigate }  from "react-router-dom";
 import logo from "../assets/Ecotroca-logo-2.0.png";
-
+/* isto é um componente funcional que chamamos de NavBar, permite o jsx que é misturar o html com js */
  const NavBar = () => {
+  /* aqui criamos um estado chamado isOpen. O setIsOpen é uma funcao que nos permite abrir e fechar o menu, 
+  e nesse estado será guardado o useState(false) pois o useState é um hook que guarda um estado que pode mudar 
+  na tela e como esta false ent ele vai guardar o false quando o menu estiver aberto   */
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-
+/* esta funcao nos permite guardar o UseNavigate, 
+ele é que faz com que possamos navegar sem que o site carregue novamente  */
   const scrollToCadastro = () => {
-    if (window.location.pathname !== '/'){
-      navigate ('/')
+    if(window.location.pathname !== '/'){
+      navigate('/')
       /* da um timeout para o dom renderizar */
       setTimeout (() => {
         document.getElementById('Cadastro')?.scrollIntoView({ behavior: 'smooth'})
