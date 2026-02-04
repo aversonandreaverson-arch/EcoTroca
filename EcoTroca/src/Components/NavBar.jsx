@@ -19,6 +19,42 @@ import logo from "../assets/Ecotroca-logo-2.0.png";
     }
     setIsOpen(false) /* fecha menu mobile apos clicar */
   }
+
+  const scrollToComoFunciona = () => {
+    if (window.location.pathname !== '/'){
+      navigate ('/')
+      setTimeout (() => {
+        document.getElementById('ComoFunciona')?.scrollIntoView({ behavior: 'smooth'})
+      }, 200 )
+    } else {
+      document.getElementById('ComoFunciona')?.scrollIntoView({ behavior: 'smooth'})
+    }
+    setIsOpen(false)
+  }
+
+  const scrollToMateriaisReciclaveis = () => {
+    if(window.location.pathname !== '/'){
+      navigate ('/')
+      setTimeout (() => {
+        document.getElementById('MateriaisReciclaveis')?.scrollIntoView({ behavior: 'smooth'})
+      }, 200)
+    } else {
+      document.getElementById('MateriaisReciclaveis')?.scrollIntoView({behavior: 'smooth'})
+    }
+    setIsOpen(false)
+  }
+
+  const scrollToOqueGanhas = () => {
+    if(window.location.pathname !== '/'){
+      navigate ('/')
+      setTimeout (() =>{
+        document.getElementById('OqueGanhas')?.scrollIntoView({ behavior: 'smooth'})
+      }, 200)
+    } else {
+      document.getElementById('OqueGanhas')?.scrollIntoView({behavior: 'smooth'})
+    }
+    setIsOpen(false)
+  }
     /* aqui começa o codigo da navbar com estilizacao*/
   return (
     <nav className="w-full bg-[#fafaf9] shadow-md">
@@ -30,9 +66,9 @@ import logo from "../assets/Ecotroca-logo-2.0.png";
 
         {/* LINKS - desktop */}
         <ul className="hidden md:flex items-center gap-8 text-green-700 font-medium">
-          <li className="cursor-pointer hover:text-green-900">Como Funciona</li>
-          <li className="cursor-pointer hover:text-green-900">Materiais</li>
-          <li className="cursor-pointer hover:text-green-900">Recompensas</li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>Como Funciona</li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>Materiais</li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>Recompensas</li>
           <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
           <li className="cursor-pointer hover:text-green-900" onClick={() => navigate('/Login')}>Entrar</li>
         </ul>
@@ -57,9 +93,9 @@ import logo from "../assets/Ecotroca-logo-2.0.png";
       {isOpen && (
         <div className="md:hidden bg-gray-200 px-8 py-4">
           <ul className="flex flex-col gap-4 text-green-700 font-medium">
-            <li className="cursor-pointer hover:text-green-900">Como Funciona</li>
-            <li className="cursor-pointer hover:text-green-900">Materiais</li>
-            <li className="cursor-pointer hover:text-green-900">Recompensas</li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>Como Funciona</li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>Materiais</li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>Recompensas</li>
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Entrar</li>
 {/* mexerrrrr aqui na parte do entrar, para que quando clicamos no link entrar para redirecionar para a pagina de login */}

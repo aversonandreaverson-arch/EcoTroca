@@ -36,7 +36,7 @@ const Cadastro = () => {
     // Aqui você pode integrar com o back-end depois
     alert("Cadastro enviado! (ainda não integrado ao back-end)");
   };
-
+/* foi necessario colocar um id para identificarmos que esta é a area onde será chamada quando clicado no link da navba que é o Cadastro  */
   return (
     <div id="Cadastro" className="w-full flex justify-center py-12 bg-green-900">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 sm:p-8">

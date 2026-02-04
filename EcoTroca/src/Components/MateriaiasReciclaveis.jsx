@@ -5,7 +5,7 @@ import {  Truck,  Package, CreditCard, Paperclip } from "lucide-react";
  const MateriaiasReciclaveis = () => {
   return (
     
-        <section className='py-20 bg-[#f9faf7] w-full shadow-2xs text-center '>
+        <section id='MateriaisReciclaveis' className='py-20 bg-[#f9faf7] w-full shadow-2xs text-center '>
             <h1 className='text-4xl text-green-900 font-extrabold text-center'>O Que Reciclamos?</h1>
             <p className='text-center text-green-500'>Estes materiais tu podes vender. Vê quanto ganhas por cada quilo(Kg):</p>
             {/* inicio dos cards */}

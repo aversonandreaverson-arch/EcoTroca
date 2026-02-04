@@ -6,7 +6,7 @@ import { User, Truck, Building2, Smartphone, Coins, Home, MapPin, Package, Credi
   return (
     
         
-    <section className='py-20 w-full px-8 bg-[#f9faf7] '> {/* É PARA DAR MAIS ESPAÇO */}
+    <section id='ComoFunciona' className='py-20 w-full px-8 bg-[#f9faf7] '> {/* É PARA DAR MAIS ESPAÇO */}
         <div className='max-w-7xl mx-auto px-6'>
             <h1 className='text-4xl font-bold text-green-900 text-center'>
                     Como Funciona 
