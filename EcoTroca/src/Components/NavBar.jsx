@@ -13,7 +13,7 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
   const scrollToCadastro = () => {
     if(window.location.pathname !== '/'){
       navigate('/')
-      /* da um timeout para o dom renderizar */
+      /* da um atraso de 200ms para o dom renderizar */
       setTimeout (() => {
         document.getElementById('Cadastro')?.scrollIntoView({ behavior: 'smooth'})
       }, 200);
@@ -24,6 +24,8 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
     setIsOpen(false) /* fecha menu mobile apos clicar */
   }
 
+  /* Outro Scroll */
+
   const scrollToComoFunciona = () => {
     if (window.location.pathname !== '/'){
       navigate ('/')
@@ -33,8 +35,10 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
     } else {
       document.getElementById('ComoFunciona')?.scrollIntoView({ behavior: 'smooth'})
     }
-    setIsOpen(false)
+    setIsOpen(false) 
   }
+
+  /* OUTRO SCROLL */
 
   const scrollToMateriaisReciclaveis = () => {
     if(window.location.pathname !== '/'){
@@ -47,6 +51,7 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
     }
     setIsOpen(false)
   }
+  /* OUTRO SCROLL */
 
   const scrollToOqueGanhas = () => {
     if(window.location.pathname !== '/'){
@@ -59,6 +64,8 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
     }
     setIsOpen(false)
   }
+  /* FIm DOS SCROLL'S */
+
     /* aqui começa o codigo da navbar com estilizacao*/
   return (
     <nav className="w-full bg-[#fafaf9] shadow-md">
@@ -87,6 +94,8 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
           className="md:hidden flex flex-col cursor-pointer space-y-1"
           onClick={() => setIsOpen(!isOpen)}
         >
+
+          {/* linhas do menu */}
           <span className="w-6 h-0.5 bg-green-700"></span>
           <span className="w-6 h-0.5 bg-green-700"></span>
           <span className="w-6 h-0.5 bg-green-700"></span>
@@ -101,7 +110,7 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>Materiais</li>
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>Recompensas</li>
             <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
-            <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Entrar</li>
+            <li className="cursor-pointer hover:text-green-900" onClick={() => navigate('/Login')}>Entrar</li>
 {/* mexerrrrr aqui na parte do entrar, para que quando clicamos no link entrar para redirecionar para a pagina de login */}
             <li>
               <button className="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition" onClick={scrollToCadastro}>

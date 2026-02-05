@@ -8,7 +8,7 @@ import DicasRapidas from "../Components/DicasRapidas.jsx"
 import OqueGanhas from "../Components/OqueGanhas.jsx";
 import Niveis from "../Components/Niveis.jsx";
 import Cadastro from "../Components/Cadastro.jsx";
-import Login from "../Components/Login.jsx";
+import Login from "./Login.jsx";
 
 
 
