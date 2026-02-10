@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate }  from "react-router-dom";
 import logo from "../assets/Ecotroca-logo-2.0.png";
+import { Link } from "react-router-dom";
+
 /* isto é um componente funcional que chamamos de NavBar, permite o jsx que é misturar o html com js */
  const NavBar = () => {
   /* aqui criamos um estado chamado isOpen. O setIsOpen é uma funcao que nos permite abrir e fechar o menu, 
