@@ -1,6 +1,7 @@
 import React from 'react'
 
-export default function Dashboard() {
+// eslint-disable-next-line no-undef
+export default function Dashboard ()  {
   // MOCK DATA: substituir pelo backend depois
   const usuario = {
     nome: "Áverson",
@@ -10,7 +11,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 mb-6">
+    <div id='Dashboard' className="bg-white shadow rounded-lg p-6 mb-6">
       <h2 className="text-2xl font-bold text-green-800 mb-2">Bem-vindo, {usuario.nome} </h2>
       <p className="text-gray-600 mb-4">{usuario.nivel}</p>
 
