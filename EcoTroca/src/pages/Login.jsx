@@ -12,7 +12,7 @@ const Login = () => {
     if (email && senha) {
       // Aqui você poderia salvar algo no localStorage se quiser persistência
       alert(`Bem-vindo, ${email}!`);
-      navigate("/UserProfile"); // redireciona para a página de perfil
+      navigate("/PaginaInicial"); // redireciona para a página de perfil
     } else {
       alert("Por favor, preencha todos os campos!");
     }

@@ -8,7 +8,9 @@ import Eventos from "../Components/UserProfile/Eventos.jsx";
 import Educacao from "../Components/UserProfile/Educacao.jsx";
 import Mapa from "../Components/UserProfile/Mapa.jsx";
 import Perfil from "../Components/UserProfile/Perfil.jsx";
-
+import Definicoes from "../Components/UserProfile/Definicoes.jsx";
+import Editar from "../Components/UserProfile/Editar.jsx"
+import NovoResiduo from "../Components/UserProfile/NovoResiduo.jsx";
 
 
 
@@ -57,6 +59,12 @@ export default function UserProfile() {
 
 
       <Perfil />
+
+      <Definicoes />
+
+      <Editar/>
+
+      <NovoResiduo/>
     </div>
 
 
