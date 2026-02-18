@@ -43,4 +43,3 @@ export default function CartaoPedidoEmpresa({ pedido }) {
     </div>
   );
 }
-5
