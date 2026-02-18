@@ -1,76 +1,87 @@
-import { useState } from "react";
-import { useNavigate }  from "react-router-dom";
-import logo from "../assets/Ecotroca-logo-2.0.png";
-import { Link } from "react-router-dom";
+// Importa React e o hook useState para controlar estados internos
+import { useState } from "react"
 
-/* isto é um componente funcional que chamamos de NavBar, permite o jsx que é misturar o html com js */
- const NavBar = () => {
-  /* aqui criamos um estado chamado isOpen. O setIsOpen é uma funcao que nos permite abrir e fechar o menu, 
-  e nesse estado será guardado o useState(false) pois o useState é um hook que guarda um estado que pode mudar 
-  na tela e como esta false ent ele vai guardar o false quando o menu estiver aberto   */
-  const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
-/* esta funcao nos permite guardar o UseNavigate, 
-ele é que faz com que possamos navegar sem que o site carregue novamente  */
+// Importa useNavigate para navegar entre páginas sem recarregar
+import { useNavigate } from "react-router-dom"
+
+// Importa o logo da aplicação
+import logo from "../assets/Ecotroca-logo-2.0.png"
+
+// Importa Link para navegação (não utilizado aqui, mas pode ser usado)
+import { Link } from "react-router-dom"
+
+/* 
+  Componente NavBar
+  Responsável pelo menu do site, desktop e mobile
+*/
+const NavBar = () => {
+  // Estado que guarda se o menu mobile está aberto ou fechado
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Função que permite navegar entre páginas sem recarregar
+  const navigate = useNavigate()
+
+  /* ================= FUNÇÕES DE SCROLL ================= */
+
+  // Função para ir até a seção Cadastro
   const scrollToCadastro = () => {
-    if(window.location.pathname !== '/'){
-      navigate('/')
-      /* da um atraso de 200ms para o dom renderizar */
-      setTimeout (() => {
-        document.getElementById('Cadastro')?.scrollIntoView({ behavior: 'smooth'})
-      }, 200);
+    if (window.location.pathname !== "/") {
+      navigate("/") // vai para a página inicial
+      setTimeout(() => {
+        // espera 200ms para o DOM renderizar
+        document.getElementById("Cadastro")?.scrollIntoView({ behavior: "smooth" })
+      }, 200)
     } else {
-      document.getElementById('Cadastro')?.scrollIntoView({behavior: 'smooth'})
-
+      document.getElementById("Cadastro")?.scrollIntoView({ behavior: "smooth" })
     }
-    setIsOpen(false) /* fecha menu mobile apos clicar */
+    setIsOpen(false) // fecha menu mobile após clicar
   }
 
-  /* Outro Scroll */
-
+  // Função para ir até a seção Como Funciona
   const scrollToComoFunciona = () => {
-    if (window.location.pathname !== '/'){
-      navigate ('/')
-      setTimeout (() => {
-        document.getElementById('ComoFunciona')?.scrollIntoView({ behavior: 'smooth'})
-      }, 200 )
+    if (window.location.pathname !== "/") {
+      navigate("/")
+      setTimeout(() => {
+        document.getElementById("ComoFunciona")?.scrollIntoView({ behavior: "smooth" })
+      }, 200)
     } else {
-      document.getElementById('ComoFunciona')?.scrollIntoView({ behavior: 'smooth'})
+      document.getElementById("ComoFunciona")?.scrollIntoView({ behavior: "smooth" })
     }
-    setIsOpen(false) 
+    setIsOpen(false)
   }
 
-  /* OUTRO SCROLL */
-
+  // Função para ir até a seção Materiais Recicláveis
   const scrollToMateriaisReciclaveis = () => {
-    if(window.location.pathname !== '/'){
-      navigate ('/')
-      setTimeout (() => {
-        document.getElementById('MateriaisReciclaveis')?.scrollIntoView({ behavior: 'smooth'})
+    if (window.location.pathname !== "/") {
+      navigate("/")
+      setTimeout(() => {
+        document.getElementById("MateriaisReciclaveis")?.scrollIntoView({ behavior: "smooth" })
       }, 200)
     } else {
-      document.getElementById('MateriaisReciclaveis')?.scrollIntoView({behavior: 'smooth'})
+      document.getElementById("MateriaisReciclaveis")?.scrollIntoView({ behavior: "smooth" })
     }
     setIsOpen(false)
   }
-  /* OUTRO SCROLL */
 
+  // Função para ir até a seção O Que Ganhas
   const scrollToOqueGanhas = () => {
-    if(window.location.pathname !== '/'){
-      navigate ('/')
-      setTimeout (() =>{
-        document.getElementById('OqueGanhas')?.scrollIntoView({ behavior: 'smooth'})
+    if (window.location.pathname !== "/") {
+      navigate("/")
+      setTimeout(() => {
+        document.getElementById("OqueGanhas")?.scrollIntoView({ behavior: "smooth" })
       }, 200)
     } else {
-      document.getElementById('OqueGanhas')?.scrollIntoView({behavior: 'smooth'})
+      document.getElementById("OqueGanhas")?.scrollIntoView({ behavior: "smooth" })
     }
     setIsOpen(false)
   }
-  /* FIm DOS SCROLL'S */
 
-    /* aqui começa o codigo da navbar com estilizacao*/
+  /* ================= FIM FUNÇÕES DE SCROLL ================= */
+
   return (
+    // Container da navbar
     <nav className="w-full bg-[#fafaf9] shadow-md">
+      {/* Área principal da navbar */}
       <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-4">
         {/* LOGO */}
         <div className="flex items-center gap-2">
@@ -79,15 +90,28 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
 
         {/* LINKS - desktop */}
         <ul className="hidden md:flex items-center gap-8 text-green-700 font-medium">
-          <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>Como Funciona</li>
-          <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>Materiais</li>
-          <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>Recompensas</li>
-          <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
-          <li className="cursor-pointer hover:text-green-900" onClick={() => navigate('/Login')}>Entrar</li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>
+            Como Funciona
+          </li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>
+            Materiais
+          </li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>
+            Recompensas
+          </li>
+          <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>
+            Cadastrar
+          </li>
+          <li className="cursor-pointer hover:text-green-900" onClick={() => navigate("/Login")}>
+            Entrar
+          </li>
         </ul>
 
         {/* BOTÃO CTA - desktop */}
-        <button className="hidden md:block bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition" onClick={scrollToCadastro}>
+        <button
+          className="hidden md:block bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+          onClick={scrollToCadastro}
+        >
           Começar Agora
         </button>
 
@@ -96,26 +120,38 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
           className="md:hidden flex flex-col cursor-pointer space-y-1"
           onClick={() => setIsOpen(!isOpen)}
         >
-
-          {/* linhas do menu */}
+          {/* Linhas do botão hamburguer */}
           <span className="w-6 h-0.5 bg-green-700"></span>
           <span className="w-6 h-0.5 bg-green-700"></span>
           <span className="w-6 h-0.5 bg-green-700"></span>
         </div>
       </div>
 
-      {/* MENU MOBILE*/}
+      {/* MENU MOBILE */}
       {isOpen && (
         <div className="md:hidden bg-gray-200 px-8 py-4">
           <ul className="flex flex-col gap-4 text-green-700 font-medium">
-            <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>Como Funciona</li>
-            <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>Materiais</li>
-            <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>Recompensas</li>
-            <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>Cadastrar</li>
-            <li className="cursor-pointer hover:text-green-900" onClick={() => navigate('/Login')}>Entrar</li>
-{/* mexerrrrr aqui na parte do entrar, para que quando clicamos no link entrar para redirecionar para a pagina de login */}
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToComoFunciona}>
+              Como Funciona
+            </li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToMateriaisReciclaveis}>
+              Materiais
+            </li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToOqueGanhas}>
+              Recompensas
+            </li>
+            <li className="cursor-pointer hover:text-green-900" onClick={scrollToCadastro}>
+              Cadastrar
+            </li>
+            <li className="cursor-pointer hover:text-green-900" onClick={() => navigate("/Login")}>
+              Entrar
+            </li>
+            {/* Botão CTA mobile */}
             <li>
-              <button className="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition" onClick={scrollToCadastro}>
+              <button
+                className="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+                onClick={scrollToCadastro}
+              >
                 Começar Agora
               </button>
             </li>
@@ -123,7 +159,7 @@ ele é que faz com que possamos navegar sem que o site carregue novamente  */
         </div>
       )}
     </nav>
-  );
-};
+  )
+}
 
-export default NavBar;
+export default NavBar
