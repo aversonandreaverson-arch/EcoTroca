@@ -1,11 +1,29 @@
 import React from "react";
-import { useNavigate } from "react-router-dom"; // ✅ IMPORTANTE
-import { Trophy, Repeat, Star, TrendingUp, PlusCircle, Package, DollarSign } from "lucide-react";
+// Importamos o React para poder usar JSX
+
+import { useNavigate } from "react-router-dom";
+// useNavigate serve para mudar de página sem recarregar o site
+
+import { 
+  Trophy, 
+  Repeat, 
+  Star, 
+  TrendingUp, 
+  PlusCircle, 
+  Package, 
+  DollarSign 
+} from "lucide-react";
+// Ícones usados no dashboard
+
 import Header from "./Header"; 
+// Importamos o componente Header (menu do topo)
 
 export default function Dashboard() { 
-  const navigate = useNavigate(); // ✅ Hook de navegação
 
+  // Hook que permite navegar entre páginas
+  const navigate = useNavigate(); 
+
+  // Dados fictícios do usuário (depois virão do backend)
   const usuario = { 
     nome: "Áverson",
     nivel: "EcoAmigo - Nível 3",
@@ -14,6 +32,8 @@ export default function Dashboard() {
     ranking: 12,
     saldo: 12500, 
     progressoNivel: 60,
+
+    // Lista de resíduos publicados pelo usuário
     residuos: [
       { nome: "Plástico PET", empresa: "EcoRecicla", status: "Aguardando troca" },
       { nome: "Papelão", empresa: "GreenCompany", status: "Em processo" },
@@ -21,18 +41,25 @@ export default function Dashboard() {
     ]   
   }; 
 
-  return  ( 
+  return ( 
+    // Container principal do dashboard
     <div id="Dashboard" className="min-h-screen bg-green-700 pt-24 p-6"> 
       
-      {/* Header principal */}
+      {/* Cabeçalho principal com boas-vindas */}
       <div className="bg-linear-to-r from-green-700 to-green-500 text-white rounded-2xl p-6 shadow-lg mb-8">
+        
+        {/* Menu/Header */}
         <Header/>
+
+        {/* Nome do usuário */}
         <h2 className="text-3xl font-bold mb-2">
           Bem-vindo, {usuario.nome}
         </h2>
+
+        {/* Nível atual */}
         <p className="opacity-90">{usuario.nivel}</p>
 
-        {/* Barra de progresso */}
+        {/* Barra de progresso do nível */}
         <div className="mt-4">
           <div className="w-full bg-green-300 rounded-full h-3">
             <div
@@ -40,16 +67,17 @@ export default function Dashboard() {
               style={{ width: `${usuario.progressoNivel}%` }}
             ></div>
           </div>
+
           <p className="text-sm mt-2">
             {usuario.progressoNivel}% para o próximo nível
           </p>
         </div>
       </div>
 
-      {/* Cards principais */}
+      {/* Cards principais com informações rápidas */}
       <div className="grid md:grid-cols-4 gap-6 mb-8">
 
-        {/* Pontos */}
+        {/* Card Pontos */}
         <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-600 font-medium">Pontos</h3>
@@ -60,7 +88,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Trocas */}
+        {/* Card Trocas */}
         <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-600 font-medium">Trocas</h3>
@@ -71,7 +99,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Ranking */}
+        {/* Card Ranking */}
         <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-600 font-medium">Ranking</h3>
@@ -82,7 +110,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Saldo */}
+        {/* Card Saldo */}
         <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-600 font-medium">Saldo</h3>
@@ -95,15 +123,17 @@ export default function Dashboard() {
 
       </div>
 
-      {/* Resíduos */}
+      {/* Secção de resíduos */}
       <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+
+        {/* Cabeçalho da lista de resíduos */}
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-green-700">
             <Package className="text-green-600" />
             Meus Resíduos 
           </h3>
 
-          {/*  BOTÃO de redirecionamento pag novoresiduo */}
+          {/* Botão para ir para a página Novo Resíduo */}
           <button
             onClick={() => navigate("/NovoResiduo")}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm transition"
@@ -113,6 +143,7 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Lista de resíduos */}
         <ul className="space-y-3 text-gray-700">
           {usuario.residuos.map((res, i) => (
             <li
@@ -121,8 +152,12 @@ export default function Dashboard() {
             >
               <div>
                 <p className="font-medium">{res.nome}</p>
-                <p className="text-xs text-gray-500">Para: {res.empresa}</p>
+                <p className="text-xs text-gray-500">
+                  Para: {res.empresa}
+                </p>
               </div>
+
+              {/* Estado do resíduo */}
               <span
                 className={`text-xs font-medium px-2 py-1 rounded-full ${
                   res.status === "Concluído"
