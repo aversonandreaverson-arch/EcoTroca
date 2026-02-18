@@ -2,8 +2,10 @@ import React from "react";
 import { CalendarDays, Tag } from "lucide-react";
 import Header from "./Header";
 
+// Componente Notícias
 export default function Noticias() {
 
+  // Lista de notícias para exibir
   const noticias = [
     {
       titulo: "Reciclagem cresce em Angola",
@@ -24,6 +26,7 @@ export default function Noticias() {
   ];
 
   return (
+    // Container principal da página
     <div id="Noticias" className="min-h-screen bg-green-700 pt-24 p-6">
       
       {/* Header separado */}
@@ -31,9 +34,10 @@ export default function Noticias() {
         <Header />
       </div>
 
+      {/* Conteúdo */}
       <div className="px-6 pb-12">
 
-        {/* Título */}
+        {/* Título da seção */}
         <div className="mb-10">
           <h2 className="text-3xl font-bold text-white">
             Últimas Notícias 
@@ -43,7 +47,7 @@ export default function Noticias() {
           </p>
         </div>
 
-        {/* Lista */}
+        {/* Grid de notícias */}
         <div className="grid md:grid-cols-2 gap-8">
           {noticias.map((noticia, index) => (
             <div
@@ -51,7 +55,7 @@ export default function Noticias() {
               className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
             >
 
-              {/* Imagem */}
+              {/* Imagem da notícia */}
               <img
                 src={noticia.imagem}
                 alt={noticia.titulo}
@@ -60,29 +64,29 @@ export default function Noticias() {
 
               <div className="p-6">
 
-                {/* Categoria */}
+                {/* Categoria da notícia */}
                 <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
                   <Tag size={14} />
                   {noticia.categoria}
                 </span>
 
-                {/* Título */}
+                {/* Título da notícia */}
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">
                   {noticia.titulo}
                 </h3>
 
-                {/* Descrição */}
+                {/* Descrição da notícia */}
                 <p className="text-gray-600 text-sm mb-4">
                   {noticia.descricao}
                 </p>
 
-                {/* Data */}
+                {/* Data da notícia */}
                 <div className="flex items-center gap-2 text-gray-500 text-xs mb-4">
                   <CalendarDays size={14} />
                   <span>{noticia.data}</span>
                 </div>
 
-                {/* Botão */}
+                {/* Botão para ler mais */}
                 <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-xl transition">
                   Ler mais
                 </button>
