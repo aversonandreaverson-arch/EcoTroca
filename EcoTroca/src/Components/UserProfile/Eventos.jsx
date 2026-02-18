@@ -1,9 +1,9 @@
 import React from "react";
-import { CalendarDays, MapPin, Users } from "lucide-react";
-import Header from "./Header";
+import { CalendarDays, MapPin, Users } from "lucide-react"; // Ícones do lucide-react
+import Header from "./Header"; // Navbar/Header separado
 
 export default function Eventos() {
-
+  // Criamos uma lista de eventos para mostrar na tela
   const eventos = [
     {
       titulo: "Limpeza da Praia",
@@ -24,16 +24,17 @@ export default function Eventos() {
   ];
 
   return (
+    // Container principal da página
     <div id="Eventos" className="min-h-screen bg-green-700 pt-24 p-6">
-      
-      {/* Header separado com espaçamento */}
+
+      {/* Chamamos o Header separado */}
       <div className="mb-12">
         <Header />
       </div>
 
       <div className="px-6 pb-12">
-        
-        {/* Título */}
+
+        {/* Título da seção */}
         <div className="mb-10">
           <h2 className="text-3xl font-bold text-white">
             Eventos Sustentáveis 
@@ -43,47 +44,52 @@ export default function Eventos() {
           </p>
         </div>
 
-        {/* Lista de eventos */}
+        {/* Lista de cards de eventos */}
         <div className="grid md:grid-cols-2 gap-8">
           {eventos.map((evento, index) => (
             <div
-              key={index}
+              key={index} // Sempre colocar key quando usamos map
               className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
             >
 
-              {/* Imagem */}
+              {/* Imagem do evento */}
               <img
                 src={evento.imagem}
-                alt={evento.titulo}
+                alt={evento.titulo} // Alt é importante para acessibilidade
                 className="w-full h-48 object-cover"
               />
 
               <div className="p-6">
 
-                {/* Título */}
+                {/* Título do evento */}
                 <h3 className="text-xl font-semibold text-green-700 mb-4">
                   {evento.titulo}
                 </h3>
 
-                {/* Informações */}
+                {/* Informações do evento */}
                 <div className="space-y-3 text-gray-600 text-sm mb-6">
+
+                  {/* Data do evento */}
                   <div className="flex items-center gap-2">
                     <CalendarDays size={18} className="text-green-600" />
                     <span>{evento.data}</span>
                   </div>
 
+                  {/* Local do evento */}
                   <div className="flex items-center gap-2">
                     <MapPin size={18} className="text-green-600" />
                     <span>{evento.local}</span>
                   </div>
 
+                  {/* Número de participantes */}
                   <div className="flex items-center gap-2">
                     <Users size={18} className="text-green-600" />
                     <span>{evento.participantes} participantes</span>
                   </div>
+
                 </div>
 
-                {/* Botão */}
+                {/* Botão para participar */}
                 <button className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-xl transition">
                   Participar
                 </button>
