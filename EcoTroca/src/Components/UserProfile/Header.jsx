@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 // Aqui criamos um array com os links do menu
 // Isso ajuda a não repetir muito código
 const links = [
-  { label: "Página Inicial", to: "/" },
+  { label: "Página Inicial", to: "/PaginaInicial" },
   { label: "Dashboard", to: "/Dashboard" },
   { label: "Eventos", to: "/Eventos" },
   { label: "Notícias", to: "/Noticias" },
