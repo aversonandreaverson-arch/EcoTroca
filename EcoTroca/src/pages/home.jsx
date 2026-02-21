@@ -17,7 +17,7 @@ const Home = () => {
 
     <div >
     
-        <NavBar b/>
+        <NavBar />
         <Hero />
         <ComoFunciona /> 
         <Forma/>
