@@ -18,7 +18,7 @@ const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    // Toda a navbar
+    // Toda a navba
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
       
       {/* Container da navbar */}
