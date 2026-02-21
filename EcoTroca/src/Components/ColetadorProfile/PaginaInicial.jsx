@@ -3,8 +3,6 @@ import { Search, X } from "lucide-react";
 import Actividades from "./Actividades";
 import CartaoPedidoEmpresa from "./CartaoPedidoEmpresa";
 import CartaoColetador from "./CartaoColetador"; 
-
-import CartaoUtilizador from "./CartaoUtilizador"; 
 import Header from './Header';
 
 const pedidosEmpresas = [
@@ -12,14 +10,9 @@ const pedidosEmpresas = [
   { empresa: "EcoLuanda", material: "vidro", quantidadeTotal: 500, quantidadeAtual: 210, precoPorKg: 200 }
 ];
 
-const catadores = [
-  { nome: "João", totalColetado: 150, Município: "Dande" },
-  { nome: "Maria", totalColetado: 200, Município: "Viana" }
-];
-
-const utilizadores = [
-  { nome: "Carlos", Município: "Ingombota" },
-  { nome: "Ana", Município: "Talatona" }
+const coletadores = [
+  { nome: "João", totalColetado: 150, Municipio: "Dande" },
+  { nome: "Maria", totalColetado: 200, Municipio: "Viana" }
 ];
 
 export default function PaginaInicial() {
@@ -35,22 +28,6 @@ export default function PaginaInicial() {
         <p className="text-gray-300">Veja o que está a acontecer agora no Ecotroca-Angola</p>
       </div>
 
-      {/* Cards de Estatísticas */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Resíduos Recolhidos</h3>
-          <p className="text-2xl font-bold text-green-700 mt-2">1.530 Kg</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Empresas Ativas</h3>
-          <p className="text-2xl font-bold text-green-700 mt-2">12</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Utilizadores</h3>
-          <p className="text-2xl font-bold text-green-700 mt-2">248</p>
-        </div>
-      </div> */}
-
       {/* Barra de pesquisa */}
       <div className="relative mb-10">
         <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
@@ -58,8 +35,8 @@ export default function PaginaInicial() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Pesquisar empresas, resíduos ou catadores..."
-          className="w-full pl-12 pr-10 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-00"
+          placeholder="Pesquisar empresas, resíduos ou coletadores..."
+          className="w-full pl-12 pr-10 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         {search && (
           <X 
@@ -81,26 +58,18 @@ export default function PaginaInicial() {
             ))}
           </div>
 
-          {/* Catadores */}
-          <h2 className="text-xl font-semibold text-white mt-10">Catadores em Ação</h2>
+          {/* Coletadores */}
+          <h2 className="text-xl font-semibold text-white mt-10">Coletadores em Ação</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {catadores.map((catador, index) => (
-              <CartaoColetador key={index} catador={catador} />
-            ))}
-          </div>
-
-          {/* Utilizadores */}
-          <h2 className="text-xl font-semibold text-white mt-10">Utilizadores Ativos</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {utilizadores.map((user, index) => (
-              <CartaoUtilizador key={index} user={user} />
+            {coletadores.map((coletador, index) => (
+              <CartaoColetador key={index} coletador={coletador} />
             ))}
           </div>
         </div>
 
         {/* Coluna direita: Atividades recentes */}
         <div className="bg-green-800 p-6 rounded-2xl shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Atividades Recentes</h2>
+          <h2 className="text-xl font-semibold text-gray-200 mb-4">Atividades Recentes</h2>
           <Actividades />
         </div>
 
