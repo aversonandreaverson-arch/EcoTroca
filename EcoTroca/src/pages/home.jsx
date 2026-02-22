@@ -27,6 +27,7 @@ const Home = () => {
         <OqueGanhas />
         <Niveis /> 
         < Cadastro /> 
+        
   </div>
     );
 };
