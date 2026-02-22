@@ -14,7 +14,7 @@ import PaginaInicial from './Components/UserProfile/PaginaInicial'
 import Definicoes from './Components/UserProfile/Definicoes'
 import Editar from './Components/UserProfile/Editar'
 import NovoResiduo from './Components/UserProfile/NovoResiduo'
-
+import Footer from './pages/Footer'
 
 
 function App () {
