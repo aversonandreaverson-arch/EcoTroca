@@ -13,7 +13,7 @@ export default function Footer() {
           {/* Sobre a plataforma + Logo */}
           <div>
             <img src={logo} alt="Ecotroca-Angola Logo" className="w-36 mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Ecotroca-Angola</h3>
+            <h3 className="text-xl font-bold text-green-600 mb-2">Ecotroca-Angola</h3>
             <p className="text-gray-300">
               Uma plataforma para conectar empresas, coletadores e cidadãos,
               promovendo a reciclagem e gestão sustentável de resíduos em Angola.
