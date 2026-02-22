@@ -4,7 +4,7 @@ import logo from "../assets/Ecotroca-logo-2.0.png";
 
 export default function Footer() {
   return (
-    <footer className="bg-green-900 text-gray-200 pt-12">
+    <footer className="bg-green-700 text-gray-200 pt-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
         {/* Grid principal */}
