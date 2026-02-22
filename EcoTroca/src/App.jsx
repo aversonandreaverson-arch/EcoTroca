@@ -35,6 +35,7 @@ function App () {
       <Route path='/Definicoes' element={<Definicoes /> }></Route>
       <Route path='/Editar' element={<Editar />}></Route>
       <Route path='/NovoResiduo' element={<NovoResiduo/>}></Route>
+      <Route path='/Footer'element={<Footer/>}></Route>
     </Routes>
   )
 }
