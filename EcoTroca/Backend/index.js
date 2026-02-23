@@ -1,11 +1,12 @@
-import { listen } from './src/App.js';
+import app from './src/App.js';
 import { PORT } from './src/config/env.js';
-import { getConnection } from './src/config/database.js';
+import pool from './src/config/database.js';
 
-getConnection()
-  .then(() => {
+pool.getConnection()
+  .then((conn) => {
+    conn.release();
     console.log(' Base de dados conectada!');
-    listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(` Servidor rodando em http://localhost:${PORT}`);
     });
   })
