@@ -1,19 +1,16 @@
-// Middleware de autenticação
-const jwt = require('jsonwebtoken');
+import { verificarToken } from '../utils/jwt';
 
-module.exports = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
+export default (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  // Se não houver token, bloqueia acesso
-  if (!token) {
-    return res.status(401).json({ erro: 'Token não fornecido' });
-  }
+  if (!token) return res.status(401).json({ erro: 'Token não fornecido' });
 
   try {
-    // Decodifica o token
-    req.usuario = jwt.verify(token, process.env.JWT_SECRET);
-    next(); // continua
+    const dados = verificarToken(token);
+    req.usuario = dados;
+    next();
   } catch {
-    return res.status(401).json({ erro: 'Token inválido' });
+    res.status(403).json({ erro: 'Token inválido ou expirado' });
   }
 };
