@@ -1,6 +1,6 @@
 import { listen } from './src/App.js';
-import { PORT } from './src/config/env';
-import { getConnection } from './src/config/database';
+import { PORT } from './src/config/env.js';
+import { getConnection } from './src/config/database.js';
 
 getConnection()
   .then(() => {
