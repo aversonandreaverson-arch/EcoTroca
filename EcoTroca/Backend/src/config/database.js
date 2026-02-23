@@ -1,13 +1,13 @@
-const mysql = require('mysql2/promise');
-const env = require('./env');
+import { createPool } from 'mysql2/promise';
+import { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME } from './env';
 
-const pool = mysql.createPool({
-  host: env.DB_HOST,
-  user: env.DB_USER,
-  password: env.DB_PASSWORD,
-  database: env.DB_NAME,
+const pool = createPool({
+  host: DB_HOST,
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
 });
 
-module.exports = pool;
+export default pool;
