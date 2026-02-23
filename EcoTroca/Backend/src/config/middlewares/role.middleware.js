@@ -1,8 +1,7 @@
-// Middleware que valida o tipo de usuário
-export default (tiposPermitidos) => {
+export default (...roles) => {
   return (req, res, next) => {
-    if (!tiposPermitidos.includes(req.usuario.tipo)) {
-      return res.status(403).json({ erro: 'Acesso negado' });
+    if (!roles.includes(req.usuario.tipo_usuario)) {
+      return res.status(403).json({ erro: 'Acesso não autorizado' });
     }
     next();
   };
