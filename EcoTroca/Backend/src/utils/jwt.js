@@ -1,14 +1,12 @@
-// Importa o jsonwebtoken
-import { sign } from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/env';
 
-// Gera token JWT
-export function generateToken(usuario) {
-  return sign(
-    {
-      id: usuario.id_usuario,           // ID do usuário
-      tipo: usuario.tipo_usuario        // tipo de usuário
-    },
-    process.env.JWT_SECRET,             // chave secreta
-    { expiresIn: '24h' }                // validade do token
-  );
-}
+const gerarToken = (payload) => {
+  return sign(payload, JWT_SECRET, { expiresIn: '7d' });
+};
+
+const verificarToken = (token) => {
+  return verify(token, JWT_SECRET);
+};
+
+export default { gerarToken, verificarToken };
