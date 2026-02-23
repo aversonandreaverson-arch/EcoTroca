@@ -1,13 +1,13 @@
-const db = require('../config/database');
+import { execute } from '../config/database';
 
 // Enviar mensagem
-exports.enviar = async (req, res) => {
+export async function enviar(req, res) {
   const { conteudo } = req.body;
 
-  await db.execute(
+  await execute(
     'INSERT INTO Mensagem (id_chat, id_usuario, conteudo) VALUES (?, ?, ?)',
     [req.params.id_chat, req.usuario.id, conteudo]
   );
 
   res.json({ mensagem: 'Mensagem enviada' });
-};
+}
