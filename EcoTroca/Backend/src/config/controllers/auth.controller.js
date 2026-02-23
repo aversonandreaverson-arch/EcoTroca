@@ -1,28 +1,21 @@
-const db = require('../config/database');
-const bcrypt = require('bcryptjs');
-const { generateToken } = require('../config/jwt');
+import { registar as _registar, login as _login } from '../services/auth.service';
 
-// Login
-exports.login = async (req, res) => {
-  const { email, senha } = req.body;
-
-  const [[usuario]] = await db.execute(
-    'SELECT * FROM Usuario WHERE email = ?',
-    [email]
-  );
-
-  if (!usuario) {
-    return res.status(401).json({ erro: 'Usuário não encontrado' });
+const registar = async (req, res) => {
+  try {
+    const resultado = await _registar(req.body);
+    res.status(201).json(resultado);
+  } catch (err) {
+    res.status(400).json({ erro: err.message });
   }
-
-  const senhaValida = await bcrypt.compare(senha, usuario.senha);
-
-  if (!senhaValida) {
-    return res.status(401).json({ erro: 'Senha incorreta' });
-  }
-
-  res.json({
-    token: generateToken(usuario),
-    tipo_usuario: usuario.tipo_usuario
-  });
 };
+
+const login = async (req, res) => {
+  try {
+    const resultado = await _login(req.body);
+    res.json(resultado);
+  } catch (err) {
+    res.status(401).json({ erro: err.message });
+  }
+};
+
+export default { registar, login };
