@@ -1,11 +1,11 @@
-const db = require('../config/database');
+import { execute } from '../config/database';
 
 // Listar notificações
-exports.listar = async (req, res) => {
-  const [notificacoes] = await db.execute(
+export async function listar(req, res) {
+  const [notificacoes] = await execute(
     'SELECT * FROM Notificacao WHERE id_usuario=?',
     [req.usuario.id]
   );
 
   res.json(notificacoes);
-};
+}
