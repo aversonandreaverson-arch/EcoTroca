@@ -1,4 +1,4 @@
-import { execute } from '../config/database';
+import { execute } from '../config/database'; 
 
 // Banir usuário
 export async function banir(req, res) {
