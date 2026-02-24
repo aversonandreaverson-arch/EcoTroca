@@ -12,6 +12,7 @@ app.use(json());
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/entregas', entregaRoutes);
 
 // (as outras rotas vamos adicionar aqui depois)
 
