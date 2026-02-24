@@ -45,21 +45,26 @@ router.post('/:id_entrega/mensagem', auth, async (req, res) => {
       [chat[0].id_chat, req.usuario.id_usuario, conteudo]
     );
 
-    // Cria notificação para o outro utilizador
+    // Busca a entrega e o id_usuario do coletador
     const [entrega] = await pool.query(
-      'SELECT * FROM Entrega WHERE id_entrega = ?',
+      `SELECT e.id_usuario, c.id_usuario as id_usuario_coletador
+       FROM Entrega e
+       LEFT JOIN Coletador c ON e.id_coletador = c.id_coletador
+       WHERE e.id_entrega = ?`,
       [req.params.id_entrega]
     );
 
-    const id_destino = req.usuario.id_usuario === entrega[0].id_usuario
-      ? entrega[0].id_coletador
-      : entrega[0].id_usuario;
+    if (entrega.length > 0) {
+      const id_destino = req.usuario.id_usuario === entrega[0].id_usuario
+        ? entrega[0].id_usuario_coletador
+        : entrega[0].id_usuario;
 
-    if (id_destino) {
-      await pool.query(
-        'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-        [id_destino, 'Nova mensagem', `Tens uma nova mensagem na entrega #${req.params.id_entrega}`]
-      );
+      if (id_destino) {
+        await pool.query(
+          'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
+          [id_destino, 'Nova mensagem', `Tens uma nova mensagem na entrega #${req.params.id_entrega}`]
+        );
+      }
     }
 
     res.status(201).json({ mensagem: 'Mensagem enviada com sucesso!' });
