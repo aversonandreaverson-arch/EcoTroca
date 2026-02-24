@@ -1,4 +1,4 @@
-import { execute } from '../config/database';
+import { execute } from '../config/database.js';
 
 // Enviar mensagem
 export async function enviar(req, res) {
