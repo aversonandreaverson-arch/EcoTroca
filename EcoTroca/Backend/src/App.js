@@ -20,7 +20,6 @@ app.use('/api/coletador', coletadorRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/admin', adminRoutes);
 
-// (as outras rotas vamos adicionar aqui depois)
 
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
 
