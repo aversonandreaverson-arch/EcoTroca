@@ -1,5 +1,5 @@
 // Middleware que bloqueia usuários desativados
-import { execute } from '../config/database';
+import { execute } from '../config/database.js';
 
 export default async (req, res, next) => {
   const [[usuario]] = await execute(
