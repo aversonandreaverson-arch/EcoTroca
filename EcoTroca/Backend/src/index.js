@@ -1,6 +1,6 @@
-import app from './src/App.js';
-import { PORT } from './src/config/env.js';
-import pool from './src/config/database.js';
+import app from './App.js';
+import { PORT } from './config/env.js';
+import pool from './config/database.js';
 
 pool.getConnection()
   .then((conn) => {
