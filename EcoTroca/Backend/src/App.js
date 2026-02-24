@@ -2,6 +2,7 @@ import express, { json } from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
+import entregaRoutes from './routes/entrega.routes.js';
 
 const app = express();
 
