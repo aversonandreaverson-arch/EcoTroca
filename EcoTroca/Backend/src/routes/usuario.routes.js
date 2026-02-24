@@ -44,4 +44,21 @@ router.put('/perfil', auth, async (req, res) => {
   }
 });
 
+// Ver pontuação do utilizador
+router.get('/pontuacao', auth, async (req, res) => {
+  try {
+    const [pontuacao] = await pool.query(
+      'SELECT * FROM PontuacaoUsuario WHERE id_usuario = ?',
+      [req.usuario.id_usuario]
+    );
+    const [recompensa] = await pool.query(
+      'SELECT * FROM RecompensaUsuario WHERE id_usuario = ?',
+      [req.usuario.id_usuario]
+    );
+    res.json({ pontuacao: pontuacao[0], recompensa: recompensa[0] });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
