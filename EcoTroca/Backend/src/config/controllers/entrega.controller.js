@@ -1,4 +1,4 @@
-import { execute } from '../config/database';
+import { execute } from '../config/database.js';
 
 // Criar entrega
 export async function criar(req, res) {

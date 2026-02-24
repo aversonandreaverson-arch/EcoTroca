@@ -1,4 +1,4 @@
-import { execute } from '../config/database';
+import { execute } from '../config/database.js';
 
 // Listar notificações
 export async function listar(req, res) {
