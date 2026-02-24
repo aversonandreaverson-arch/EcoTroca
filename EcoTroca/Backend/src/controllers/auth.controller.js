@@ -1,8 +1,8 @@
-import { registar as _registar, login as _login } from '../services/auth.service';
+import { registar as registarService, login as loginService } from '../services/auth.service.js';
 
 const registar = async (req, res) => {
   try {
-    const resultado = await _registar(req.body);
+    const resultado = await registarService(req.body);
     res.status(201).json(resultado);
   } catch (err) {
     res.status(400).json({ erro: err.message });
@@ -11,11 +11,11 @@ const registar = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const resultado = await _login(req.body);
+    const resultado = await loginService(req.body);
     res.json(resultado);
   } catch (err) {
     res.status(401).json({ erro: err.message });
   }
 };
 
-export default { registar, login };
+export { registar, login };
