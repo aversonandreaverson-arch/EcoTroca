@@ -6,6 +6,8 @@ import entregaRoutes from './routes/entrega.routes.js';
 import coletadorRoutes from './routes/coletador.routes.js';
 import empresaRoutes from './routes/empresa.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import chatRoutes from './routes/chat.routes.js';
+import notificacaoRoutes from './routes/notificacao.route.js';
 
 const app = express();
 
@@ -19,6 +21,8 @@ app.use('/api/entregas', entregaRoutes);
 app.use('/api/coletador', coletadorRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/notificacoes', notificacaoRoutes);
 
 
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
