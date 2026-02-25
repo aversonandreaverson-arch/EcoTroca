@@ -1,156 +1,199 @@
-// Importa o React e o hook useState para controlar estados
-import React, { useState } from "react"
+import React, { useState } from "react";
+import { User, Truck, Building2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { registar } from "../api.js"; // importa função de registo
 
-// Importa ícones para os tipos de usuário
-import { User, Truck, Building2 } from "lucide-react"
-
-// Importa Link para navegar entre páginas (react-router-dom)
-import { Link } from "react-router-dom"
-
-/* 
-  Componente Tipo
-  Representa um card clicável para escolher o tipo de usuário
-  Props:
-    - ativo: se este tipo está selecionado
-    - onClick: função que será executada ao clicar
-    - icon: ícone do tipo
-    - label: texto do tipo
-*/
+// Card clicável para escolher o tipo de utilizador
 const Tipo = ({ ativo, onClick, icon: Icon, label }) => (
   <div
-    onClick={onClick} // chama função quando o card é clicado
+    onClick={onClick}
     className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center
-      ${ativo ? "bg-green-800 text-white" : "bg-gray-100 text-gray-800"} // muda cor se estiver ativo
+      ${ativo ? "bg-green-800 text-white" : "bg-gray-100 text-gray-800"}
     `}
   >
-    {/* Ícone do tipo de usuário */}
     <Icon className="mb-2 w-6 h-6 sm:w-8 sm:h-8" />
-    {/* Nome do tipo */}
     <span className="text-sm sm:text-base font-medium">{label}</span>
   </div>
-)
+);
 
-/* 
-  Componente Campo
-  Representa um campo do formulário
-  Props:
-    - label: texto que indica o que preencher
-    - obrigatório: se o campo é obrigatório (*)
-    - type: tipo do input (text, email, password, date, etc.)
-    - hint: texto de dica (placeholder extra)
-*/
-const Campo = ({ label, obrigatório, type = "text", hint }) => (
+// Campo de formulário reutilizável
+const Campo = ({ label, obrigatório, type = "text", hint, value, onChange }) => (
   <div className="flex flex-col">
-    {/* Label do campo */}
     <label className="text-green-700 mb-1 text-sm sm:text-base">
       {label} {obrigatório && <span className="text-red-500">*</span>}
     </label>
-
-    {/* Input */}
     <input
       type={type}
       placeholder={hint || ""}
+      value={value}
+      onChange={onChange}
       className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base w-full"
     />
   </div>
-)
+);
 
-// Componente principal Cadastro
 const Cadastro = () => {
-  // Estado que armazena o tipo de usuário selecionado
-  const [tipo, setTipo] = useState("USUARIO")
+  const navigate = useNavigate();
+  const [tipo, setTipo] = useState("comum"); // tipo de utilizador
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  // Função que será chamada ao clicar em "Criar conta"
-  const handleCriarConta = () => {
-    // Por enquanto apenas alerta, depois pode enviar ao back-end
-    alert("Cadastro enviado! (ainda não integrado ao back-end)")
-  }
+  // Estado do formulário — todos os campos num só objeto
+  const [form, setForm] = useState({
+    nome: "",
+    telefone: "",
+    provincia: "",
+    municipio: "",
+    bairro: "",
+    bi: "",
+    data_nascimento: "",
+    horario_abertura: "",
+    horario_fechamento: "",
+    email: "",
+    senha: "",
+    confirmar_senha: "",
+  });
+
+  // Atualiza um campo específico sem perder os outros
+  const atualizar = (campo) => (e) =>
+    setForm((prev) => ({ ...prev, [campo]: e.target.value }));
+
+  const handleCriarConta = async () => {
+    // Validações básicas
+    if (!form.nome || !form.telefone || !form.senha) {
+      setErro("Preencha todos os campos obrigatórios.");
+      return;
+    }
+    if (form.senha !== form.confirmar_senha) {
+      setErro("As senhas não coincidem.");
+      return;
+    }
+    if (form.senha.length < 6) {
+      setErro("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      setErro("");
+      setCarregando(true);
+
+      // Prepara os dados para enviar ao backend
+      const dados = {
+        nome: form.nome,
+        telefone: form.telefone,
+        provincia: form.provincia,
+        municipio: form.municipio,
+        bairro: form.bairro,
+        email: form.email,
+        senha: form.senha,
+        tipo_usuario: tipo, // "comum", "coletor" ou "empresa"
+        ...(tipo !== "empresa" && {
+          bi: form.bi,
+          data_nascimento: form.data_nascimento,
+        }),
+        ...(tipo === "empresa" && {
+          horario_abertura: form.horario_abertura,
+          horario_fechamento: form.horario_fechamento,
+        }),
+      };
+
+      // Chama o backend — POST /api/auth/registar
+      await registar(dados);
+
+      // Redireciona conforme o tipo
+      if (tipo === "coletor") {
+        navigate("/ColetadorProfile");
+      } else if (tipo === "empresa") {
+        navigate("/EmpresaProfile");
+      } else {
+        navigate("/PaginaInicial");
+      }
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   return (
-    // Container geral do formulário
     <div id="Cadastro" className="w-full flex justify-center py-12 bg-green-900">
-      {/* Caixa branca central do formulário */}
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 sm:p-8">
 
         {/* Título */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-green-900">
-            Cadastre-se
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-green-900">Cadastre-se</h1>
           <p className="mt-2 text-sm text-gray-600">
             Cadastro grátis para usuários, coletadores e empresas.
           </p>
         </div>
 
-        {/* Seção de tipos de usuário */}
+        {/* Tipo de utilizador */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Tipo ativo={tipo === "USUARIO"} onClick={() => setTipo("USUARIO")} icon={User} label="Usuário" />
-          <Tipo ativo={tipo === "COLETADOR"} onClick={() => setTipo("COLETADOR")} icon={Truck} label="Coletador(a)" />
-          <Tipo ativo={tipo === "EMPRESA"} onClick={() => setTipo("EMPRESA")} icon={Building2} label="Empresa" />
+          <Tipo ativo={tipo === "comum"} onClick={() => setTipo("comum")} icon={User} label="Usuário" />
+          <Tipo ativo={tipo === "coletor"} onClick={() => setTipo("coletor")} icon={Truck} label="Coletador(a)" />
+          <Tipo ativo={tipo === "empresa"} onClick={() => setTipo("empresa")} icon={Building2} label="Empresa" />
         </div>
 
         {/* Formulário */}
         <div className="space-y-4">
-          {/* Campos que mudam dependendo do tipo */}
-          {tipo !== "EMPRESA" && <Campo label="Nome completo" obrigatório />}
-          {tipo === "EMPRESA" && <Campo label="Nome da empresa" obrigatório />}
-          <Campo label="Telefone" obrigatório />
+          <Campo label={tipo === "empresa" ? "Nome da empresa" : "Nome completo"} obrigatório value={form.nome} onChange={atualizar("nome")} />
+          <Campo label="Telefone" obrigatório value={form.telefone} onChange={atualizar("telefone")} hint="Ex: 923 456 789" />
 
-          {/* Localização */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Campo label="Província" obrigatório />
-            <Campo label="Município" obrigatório />
+            <Campo label="Província" obrigatório value={form.provincia} onChange={atualizar("provincia")} />
+            <Campo label="Município" obrigatório value={form.municipio} onChange={atualizar("municipio")} />
           </div>
 
-          <Campo label="Bairro" obrigatório />
+          <Campo label="Bairro" obrigatório value={form.bairro} onChange={atualizar("bairro")} />
 
-          {/* Campos específicos de pessoa física */}
-          {tipo !== "EMPRESA" && (
+          {tipo !== "empresa" && (
             <>
-              <Campo label="BI" />
-              <Campo label="Data de nascimento" type="date" obrigatório hint="+18 anos" />
+              <Campo label="BI" value={form.bi} onChange={atualizar("bi")} />
+              <Campo label="Data de nascimento" type="date" obrigatório hint="+18 anos" value={form.data_nascimento} onChange={atualizar("data_nascimento")} />
             </>
           )}
 
-          {/* Campos específicos de empresa */}
-          {tipo === "EMPRESA" && (
+          {tipo === "empresa" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Campo label="Horário de abertura" type="time" obrigatório />
-              <Campo label="Horário de fechamento" type="time" obrigatório />
+              <Campo label="Horário de abertura" type="time" obrigatório value={form.horario_abertura} onChange={atualizar("horario_abertura")} />
+              <Campo label="Horário de fechamento" type="time" obrigatório value={form.horario_fechamento} onChange={atualizar("horario_fechamento")} />
             </div>
           )}
 
-          {/* Campos de login */}
-          <Campo label="Email" type="email" />
-          <Campo label="Senha" type="password" obrigatório />
-          <Campo label="Confirmar senha" type="password" obrigatório />
-          <Campo label="Foto de perfil" type="file" />
+          <Campo label="Email" type="email" value={form.email} onChange={atualizar("email")} />
+          <Campo label="Senha" type="password" obrigatório value={form.senha} onChange={atualizar("senha")} />
+          <Campo label="Confirmar senha" type="password" obrigatório value={form.confirmar_senha} onChange={atualizar("confirmar_senha")} />
         </div>
 
-        {/* Botão principal */}
+        {/* Mensagem de erro */}
+        {erro && (
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
+            {erro}
+          </p>
+        )}
+
+        {/* Botão */}
         <button
           onClick={handleCriarConta}
-          className="w-full mt-6 bg-green-800 text-white py-3 rounded-xl font-semibold text-base"
+          disabled={carregando}
+          className="w-full mt-6 bg-green-800 text-white py-3 rounded-xl font-semibold text-base disabled:opacity-60 disabled:cursor-not-allowed transition"
         >
-          Criar conta
+          {carregando ? "A criar conta..." : "Criar conta"}
         </button>
 
-        {/* Link para login */}
         <p className="text-xs sm:text-sm text-center mt-4 text-gray-600">
           Já tens uma conta?{" "}
-          <Link to="/login" className="font-semibold text-green-800 hover:underline">
+          <Link to="/Login" className="font-semibold text-green-800 hover:underline">
             Entrar
           </Link>
         </p>
 
-        {/* Observação sobre contas administrativas */}
         <p className="text-xs text-center mt-2 text-gray-400">
           Contas administrativas são criadas apenas internamente.
         </p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-// Exporta o componente Cadastro
-export default Cadastro
+export default Cadastro;
