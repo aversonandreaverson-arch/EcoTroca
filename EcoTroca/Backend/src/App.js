@@ -9,9 +9,13 @@ import adminRoutes from './routes/admin.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import notificacaoRoutes from './routes/notificacao.route.js';
 
+
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+}));
 app.use(json());
 
 // Rotas

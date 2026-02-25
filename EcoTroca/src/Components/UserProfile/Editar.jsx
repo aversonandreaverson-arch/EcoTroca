@@ -1,93 +1,139 @@
-import React, { useState } from "react"; 
-// Importamos o React e o useState para usar estados no componente
+import React, { useState, useEffect } from "react";
+import { getPerfil, actualizarPerfil } from "../../api.js";
 
 export default function Editar() {
+  const [carregando, setCarregando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState(false);
 
-  // Criamos estados para guardar os dados do formulário
-  // Cada useState guarda um valor e uma função para alterá-lo
-  const [nome, setNome] = useState("");
-  const [dataNascimento, setDataNascimento] = useState("");
-  const [provincia, setProvincia] = useState("");
-  const [municipio, setMunicipio] = useState("");
-  const [bairro, setBairro] = useState("");
+  const [form, setForm] = useState({
+    nome: "",
+    data_nascimento: "",
+    provincia: "",
+    municipio: "",
+    bairro: "",
+  });
 
-  // Função chamada quando clicamos no botão "Guardar Alterações"
-  const guardarPerfil = () => {
+  // Carrega os dados atuais do perfil ao entrar na página
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const perfil = await getPerfil(); // GET /api/usuarios/perfil
+        setForm({
+          nome: perfil.nome || "",
+          data_nascimento: perfil.data_nascimento
+            ? perfil.data_nascimento.split("T")[0] // formata para "YYYY-MM-DD"
+            : "",
+          provincia: perfil.provincia || "",
+          municipio: perfil.municipio || "",
+          bairro: perfil.bairro || "",
+        });
+      } catch (err) {
+        setErro("Erro ao carregar perfil: " + err.message);
+      } finally {
+        setCarregando(false);
+      }
+    };
+    carregar();
+  }, []);
 
-    // Aqui apenas mostramos os dados no console
-    // Mais tarde isso pode ser enviado para o backend
-    console.log({
-      nome,
-      dataNascimento,
-      provincia,
-      municipio,
-      bairro
-    });
+  const atualizar = (campo) => (e) =>
+    setForm((prev) => ({ ...prev, [campo]: e.target.value }));
 
-    // Mostra um alerta simples para confirmar a ação
-    alert("Perfil atualizado!");
+  const guardarPerfil = async () => {
+    try {
+      setErro("");
+      setSucesso(false);
+      setGuardando(true);
+
+      // Envia para o backend — PUT /api/usuarios/perfil
+      await actualizarPerfil(form);
+
+      setSucesso(true);
+      // Remove a mensagem de sucesso após 3 segundos
+      setTimeout(() => setSucesso(false), 3000);
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setGuardando(false);
+    }
   };
 
+  if (carregando) {
+    return (
+      <div className="p-6 text-center text-gray-500">A carregar perfil...</div>
+    );
+  }
+
   return (
-    // Container principal do formulário
     <div className="p-6 bg-white rounded-xl shadow-md max-w-2xl mx-auto">
 
-      {/* Título da página */}
-      <h2 className="text-2xl font-bold mb-6 text-green-700">
-        Editar Perfil
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-green-700">Editar Perfil</h2>
 
-      {/* Campo Nome */}
+      {/* Nome */}
       <input
         type="text"
         placeholder="Nome"
-        value={nome} // O valor vem do estado
-        onChange={(e) => setNome(e.target.value)} 
-        // Atualiza o estado sempre que o utilizador escreve
-        className="w-full border p-2 rounded mb-4"
+        value={form.nome}
+        onChange={atualizar("nome")}
+        className="w-full border p-2 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
       />
 
-      {/* Campo Data de Nascimento */}
+      {/* Data de Nascimento */}
       <input
         type="date"
-        value={dataNascimento}
-        onChange={(e) => setDataNascimento(e.target.value)}
-        className="w-full border p-2 rounded mb-4"
+        value={form.data_nascimento}
+        onChange={atualizar("data_nascimento")}
+        className="w-full border p-2 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
       />
 
-      {/* Campo Província */}
+      {/* Província */}
       <input
         type="text"
         placeholder="Província"
-        value={provincia}
-        onChange={(e) => setProvincia(e.target.value)}
-        className="w-full border p-2 rounded mb-4"
+        value={form.provincia}
+        onChange={atualizar("provincia")}
+        className="w-full border p-2 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
       />
 
-      {/* Campo Município */}
+      {/* Município */}
       <input
         type="text"
         placeholder="Município"
-        value={municipio}
-        onChange={(e) => setMunicipio(e.target.value)}
-        className="w-full border p-2 rounded mb-4"
+        value={form.municipio}
+        onChange={atualizar("municipio")}
+        className="w-full border p-2 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
       />
 
-      {/* Campo Bairro */}
+      {/* Bairro */}
       <input
         type="text"
         placeholder="Bairro"
-        value={bairro}
-        onChange={(e) => setBairro(e.target.value)}
-        className="w-full border p-2 rounded mb-6"
+        value={form.bairro}
+        onChange={atualizar("bairro")}
+        className="w-full border p-2 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-green-500"
       />
 
-      {/* Botão para guardar os dados */}
+      {/* Mensagens de feedback */}
+      {erro && (
+        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          {erro}
+        </p>
+      )}
+      {sucesso && (
+        <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          ✅ Perfil atualizado com sucesso!
+        </p>
+      )}
+
+      {/* Botão */}
       <button
-        onClick={guardarPerfil} // Chama a função ao clicar
-        className="bg-green-600 text-white px-4 py-2 rounded"
+        onClick={guardarPerfil}
+        disabled={guardando}
+        className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-2 rounded transition"
       >
-        Guardar Alterações
+        {guardando ? "A guardar..." : "Guardar Alterações"}
       </button>
     </div>
   );
