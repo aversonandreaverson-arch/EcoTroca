@@ -1,20 +1,42 @@
 import React, { useState } from "react";
 import logo from "../assets/Ecotroca-logo-2.0.png";
 import { Link, useNavigate } from "react-router-dom";
+import { login } from "../api.js"; // importa a função de login do nosso ficheiro central
 
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState(""); // guarda mensagem de erro
+  const [carregando, setCarregando] = useState(false); // controla o botão
 
-  const handleLogin = () => {
-    // Simulação simples: se campos não estiverem vazios, "logar"
-    if (email && senha) {
-      // Aqui você poderia salvar algo no localStorage se quiser persistência
-      alert(`Bem-vindo, ${email}!`);
-      navigate("/PaginaInicial"); // redireciona para a página de perfil
-    } else {
-      alert("Por favor, preencha todos os campos!");
+  const handleLogin = async () => {
+    // Validação básica antes de enviar
+    if (!email || !senha) {
+      setErro("Por favor, preencha todos os campos!");
+      return;
+    }
+
+    try {
+      setErro(""); // limpa erros anteriores
+      setCarregando(true); // bloqueia o botão enquanto espera
+
+      // Chama o backend — POST /api/auth/login
+      const dados = await login(email, senha);
+
+      // Redireciona conforme o tipo de utilizador
+      if (dados.tipo_usuario === "coletor") {
+        navigate("/ColetadorProfile");
+      } else if (dados.tipo_usuario === "empresa") {
+        navigate("/EmpresaProfile");
+      } else {
+        navigate("/PaginaInicial");
+      }
+    } catch (err) {
+      // Mostra o erro devolvido pelo servidor (ex: "Senha incorreta")
+      setErro(err.message);
+    } finally {
+      setCarregando(false); // liberta o botão sempre, mesmo com erro
     }
   };
 
@@ -22,6 +44,7 @@ const Login = () => {
     <div className="w-full min-h-screen flex items-center justify-center bg-green-900 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8">
 
+        {/* Logo */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2">
             <img className="w-35" src={logo} alt="logo-EcoTroca" />
@@ -42,7 +65,7 @@ const Login = () => {
             </label>
             <input
               type="text"
-              placeholder="Digite o seu email ou o número de telefone"
+              placeholder="Digite o seu email ou número de telefone"
               className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -62,29 +85,32 @@ const Login = () => {
             />
           </div>
 
+          {/* Mensagem de erro do servidor */}
+          {erro && (
+            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+              {erro}
+            </p>
+          )}
+
           <div className="text-right">
-            <Link
-              to="/RecuperacaodeSenha"
-              className="text-sm text-green-800 hover:underline"
-            >
+            <Link to="/RecuperacaoDeSenha" className="text-sm text-green-800 hover:underline">
               Esqueceu a senha?
             </Link>
           </div>
         </div>
 
+        {/* Botão — fica "Entrando..." enquanto espera o servidor */}
         <button
           onClick={handleLogin}
-          className="w-full mt-6 bg-green-800 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
+          disabled={carregando}
+          className="w-full mt-6 bg-green-800 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition"
         >
-          Entrar
+          {carregando ? "Entrando..." : "Entrar"}
         </button>
 
         <p className="text-sm text-center mt-4 text-gray-600">
           Ainda não tem conta?{" "}
-          <Link
-            to="/Cadastro"
-            className="font-semibold text-green-800 hover:underline"
-          >
+          <Link to="/Cadastro" className="font-semibold text-green-800 hover:underline">
             Criar Conta
           </Link>
         </p>
