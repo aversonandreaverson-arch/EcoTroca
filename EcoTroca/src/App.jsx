@@ -1,8 +1,12 @@
-import {Routes, Route} from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
+
+// Páginas públicas (não precisam de login)
 import Home from './pages/home'
 import Login from './pages/Login'
 import RecuperacaoDeSenha from './pages/RecuperacaoDeSenha'
 import RedefinirSenha from './pages/RedefinirSenha'
+
+// Páginas privadas (precisam de login)
 import UserProfile from './pages/UserProfile'
 import ColetadorProfile from './pages/ColetadorProfile'
 import Dashboard from './Components/UserProfile/Dashboard'
@@ -16,26 +20,33 @@ import Editar from './Components/UserProfile/Editar'
 import NovoResiduo from './Components/UserProfile/NovoResiduo'
 import Footer from './Components/Footer'
 
+// Componente que bloqueia páginas a utilizadores não autenticados
+import RotaProtegida from './Components/RotaProtegida'
 
-function App () {
+function App() {
   return (
     <Routes>
-      <Route path='/' element={<Home />}></Route>
-      <Route path='/Login' element={<Login />}></Route>
-      <Route path='/RecuperacaoDeSenha' element={<RecuperacaoDeSenha />}></Route>
-      <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />}></Route>
-      <Route path='/UserProfile' element={<UserProfile />}></Route>
-      <Route path='/ColetadorProfile' element={<ColetadorProfile />}></Route>
-      <Route path='/Dashboard' element={<Dashboard />}></Route>
-      <Route path='/Eventos' element={<Eventos/>}></Route>
-      <Route path='/Noticias' element={<Noticias/>}></Route>
-      <Route path='/Educacao' element={<Educacao />}></Route>
-      <Route path='/Perfil' element={<Perfil />}></Route>
-      <Route path='/PaginaInicial' element={<PaginaInicial />}></Route>
-      <Route path='/Definicoes' element={<Definicoes /> }></Route>
-      <Route path='/Editar' element={<Editar />}></Route>
-      <Route path='/NovoResiduo' element={<NovoResiduo/>}></Route>
-      <Route path='/Footer'element={<Footer/>}></Route>
+
+      {/* ===== ROTAS PÚBLICAS — qualquer pessoa pode aceder ===== */}
+      <Route path='/' element={<Home />} />
+      <Route path='/Login' element={<Login />} />
+      <Route path='/RecuperacaoDeSenha' element={<RecuperacaoDeSenha />} />
+      <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />} />
+      <Route path='/Footer' element={<Footer />} />
+
+      {/* ===== ROTAS PRIVADAS — só para utilizadores com login ===== */}
+      <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
+      <Route path='/Dashboard' element={<RotaProtegida><Dashboard /></RotaProtegida>} />
+      <Route path='/UserProfile' element={<RotaProtegida><UserProfile /></RotaProtegida>} />
+      <Route path='/ColetadorProfile' element={<RotaProtegida><ColetadorProfile /></RotaProtegida>} />
+      <Route path='/Eventos' element={<RotaProtegida><Eventos /></RotaProtegida>} />
+      <Route path='/Noticias' element={<RotaProtegida><Noticias /></RotaProtegida>} />
+      <Route path='/Educacao' element={<RotaProtegida><Educacao /></RotaProtegida>} />
+      <Route path='/Perfil' element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/Definicoes' element={<RotaProtegida><Definicoes /></RotaProtegida>} />
+      <Route path='/Editar' element={<RotaProtegida><Editar /></RotaProtegida>} />
+      <Route path='/NovoResiduo' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+
     </Routes>
   )
 }
