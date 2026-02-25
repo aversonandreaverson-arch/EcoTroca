@@ -2,10 +2,11 @@ import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
 import pool from '../config/database.js';
+import { atribuirPontos } from '../services/entrega.service.js';
 
 const router = Router();
 
-// Listar entregas pendentes (coletador vê todas)
+// Listar entregas pendentes
 router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -37,7 +38,6 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
       ['aceita', coletador[0].id_coletador, req.params.id, 'pendente']
     );
 
-    // Activa o chat
     await pool.query(
       'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?',
       [req.params.id]
@@ -64,13 +64,20 @@ router.patch('/entregas/:id/recolher', auth, role('coletor'), async (req, res) =
       ['coletada', req.params.id, coletador[0].id_coletador]
     );
 
-    // Adiciona pontos ao coletador
     await pool.query(
       'INSERT INTO RecompensaColetador (id_coletador, pontos_recebidos, descricao) VALUES (?, ?, ?)',
       [coletador[0].id_coletador, 10, `Entrega ${req.params.id} recolhida`]
     );
 
-    res.json({ mensagem: 'Entrega marcada como recolhida!' });
+    // Busca o utilizador da entrega e atribui pontos
+    const [entrega] = await pool.query(
+      'SELECT id_usuario FROM Entrega WHERE id_entrega = ?',
+      [req.params.id]
+    );
+
+    const pontos = await atribuirPontos(entrega[0].id_usuario, req.params.id);
+
+    res.json({ mensagem: 'Entrega recolhida com sucesso!', pontos_atribuidos: pontos });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
