@@ -22,7 +22,11 @@ import Footer from './Components/Footer'
 /* IMPORTS DO COLETADOR */
 import PaginaInicialColetador  from "./Components/ColetadorProfile/PaginaInicial";
 import DashboardColetador       from "./Components/ColetadorProfile/DashboardColetador";
-
+import PedidosPendentes         from "./Components/ColetadorProfile/PedidosPendentes";
+import HistoricoColetas         from "./Components/ColetadorProfile/HistoricoColetas";
+import PerfilColetador          from "./Components/ColetadorProfile/PerfilColetador";
+import EditarColetador          from "./Components/ColetadorProfile/EditarColetador";
+import DefinicoesColetador      from "./Components/ColetadorProfile/DefinicoesColetador";
 /* FIM DOS IMPORTS DO COLETADOR */
 // Componente que bloqueia páginas a utilizadores não autenticados
 import RotaProtegida from './Components/RotaProtegida'
