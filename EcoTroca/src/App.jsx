@@ -21,6 +21,7 @@ import NovoResiduo from './Components/UserProfile/NovoResiduo'
 import Footer from './Components/Footer'
 /* IMPORTS DO COLETADOR */
 import PaginaInicialColetador  from "./Components/ColetadorProfile/PaginaInicial";
+import DashboardColetador       from "./Components/ColetadorProfile/DashboardColetador";
 
 /* FIM DOS IMPORTS DO COLETADOR */
 // Componente que bloqueia páginas a utilizadores não autenticados
