@@ -1,167 +1,156 @@
-import React from "react";
-import { useNavigate } from "react-router-dom"; // ✅ IMPORTANTE
-import { Trophy, Repeat, Star, TrendingUp, PlusCircle, Package, DollarSign } from "lucide-react";
-import Header from "./Header"; 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Truck, CheckCircle, Clock, Star, TrendingUp } from "lucide-react";
+import Header from "./Header";
+import { getPerfil, getEntregasPendentes } from "../../api.js";
 
-export default function Dashboard() { 
-  const navigate = useNavigate(); // ✅ Hook de navegação
+export default function DashboardColetador() {
+  const navigate = useNavigate();
+  const [perfil, setPerfil] = useState(null);
+  const [pendentes, setPendentes] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
 
-  const usuario = { 
-    nome: "Áverson",
-    nivel: "EcoAmigo - Nível 3",
-    pontos: 240, 
-    totalTrocas: 12,
-    ranking: 12,
-    saldo: 12500, 
-    progressoNivel: 60,
-    residuos: [
-      { nome: "Plástico PET", empresa: "EcoRecicla", status: "Aguardando troca" },
-      { nome: "Papelão", empresa: "GreenCompany", status: "Em processo" },
-      { nome: "Vidro", empresa: "Recicladora Azul", status: "Concluído" },
-    ]   
-  }; 
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const [dadosPerfil, entregasPendentes] = await Promise.all([
+          getPerfil(),
+          getEntregasPendentes(),
+        ]);
+        setPerfil(dadosPerfil);
+        setPendentes(entregasPendentes);
+      } catch (err) {
+        setErro(err.message);
+      } finally {
+        setCarregando(false);
+      }
+    };
+    carregar();
+  }, []);
 
-  return  ( 
-    <div id="Dashboard" className="min-h-screen bg-green-700 pt-24 p-6"> 
-      
-      {/* Header principal */}
-      <div className="bg-linear-to-r from-green-700 to-green-500 text-white rounded-2xl p-6 shadow-lg mb-8">
-        <Header/>
-        <h2 className="text-3xl font-bold mb-2">
-          Bem-vindo, {usuario.nome}
-        </h2>
-        <p className="opacity-90">{usuario.nivel}</p>
+  if (carregando) return (
+    <div className="min-h-screen bg-green-700 flex items-center justify-center pt-24">
+      <Header />
+      <p className="text-white text-lg">A carregar...</p>
+    </div>
+  );
 
-        {/* Barra de progresso */}
-        <div className="mt-4">
-          <div className="w-full bg-green-300 rounded-full h-3">
-            <div
-              className="bg-white h-3 rounded-full transition-all duration-500"
-              style={{ width: `${usuario.progressoNivel}%` }}
-            ></div>
+  if (erro) return (
+    <div className="min-h-screen bg-green-700 flex items-center justify-center pt-24">
+      <Header />
+      <div className="bg-white p-6 rounded-xl text-center">
+        <p className="text-red-600 mb-4">{erro}</p>
+        <button onClick={() => navigate("/Login")} className="bg-green-600 text-white px-4 py-2 rounded-lg">Fazer Login</button>
+      </div>
+    </div>
+  );
+
+  const concluidas = pendentes.filter(e => e.status === "coletada");
+  const emCurso   = pendentes.filter(e => e.status === "aceita");
+  const aguardando= pendentes.filter(e => e.status === "pendente");
+  // Coletador ganha PONTOS por coleta — tabela RecompensaColetador
+  const pontosGanhos = concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0);
+
+  return (
+    <div className="min-h-screen bg-green-700 pt-24 p-6">
+      <Header />
+      <div className="bg-white/10 text-white rounded-2xl p-6 shadow-lg mb-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-3xl font-bold mb-1">Olá, {perfil?.nome || "Coletador"}! 👋</h2>
+            <p className="opacity-80">Conta Coletador — Ecotroca Angola</p>
+            <p className="text-sm mt-2 opacity-70">📍 {perfil?.municipio}, {perfil?.provincia}</p>
           </div>
-          <p className="text-sm mt-2">
-            {usuario.progressoNivel}% para o próximo nível
-          </p>
+          <div className="bg-white/20 rounded-xl p-3 text-center">
+            <Truck size={32} className="mx-auto mb-1" />
+            <p className="text-xs font-medium">Coletador Ativo</p>
+          </div>
         </div>
       </div>
 
-      {/* Cards principais */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
-
-        {/* Pontos */}
-        <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-600 font-medium">Pontos</h3>
-            <Star className="text-green-600" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-600 text-sm font-medium">Pendentes</h3>
+            <Clock className="text-yellow-500" size={20} />
           </div>
-          <p className="text-3xl font-bold text-green-700">
-            {usuario.pontos}
-          </p>
+          <p className="text-3xl font-bold text-yellow-600">{aguardando.length}</p>
+          <p className="text-xs text-gray-400 mt-1">à espera</p>
         </div>
-
-        {/* Trocas */}
-        <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-600 font-medium">Trocas</h3>
-            <Repeat className="text-green-600" />
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-600 text-sm font-medium">Em curso</h3>
+            <Truck className="text-blue-500" size={20} />
           </div>
-          <p className="text-3xl font-bold text-green-700">
-            {usuario.totalTrocas}
-          </p>
+          <p className="text-3xl font-bold text-blue-600">{emCurso.length}</p>
+          <p className="text-xs text-gray-400 mt-1">aceites por mim</p>
         </div>
-
-        {/* Ranking */}
-        <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-600 font-medium">Ranking</h3>
-            <Trophy className="text-green-600" />
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-600 text-sm font-medium">Concluídas</h3>
+            <CheckCircle className="text-green-500" size={20} />
           </div>
-          <p className="text-3xl font-bold text-green-700">
-            #{usuario.ranking}
-          </p>
+          <p className="text-3xl font-bold text-green-600">{concluidas.length}</p>
+          <p className="text-xs text-gray-400 mt-1">coletas feitas</p>
         </div>
-
-        {/* Saldo */}
-        <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-600 font-medium">Saldo</h3>
-            <DollarSign className="text-green-600" />
+        <div className="bg-white rounded-2xl shadow-md p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-600 text-sm font-medium">Meus Pontos</h3>
+            <Star className="text-yellow-500" size={20} />
           </div>
-          <p className="text-3xl font-bold text-green-700">
-            {usuario.saldo.toLocaleString()} Kz
-          </p>
+          <p className="text-3xl font-bold text-yellow-600">{pontosGanhos}</p>
+          <p className="text-xs text-gray-400 mt-1">pontos ganhos</p>
         </div>
-
       </div>
 
-      {/* Resíduos */}
-      <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+      <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-green-700">
-            <Package className="text-green-600" />
-            Meus Resíduos 
+          <h3 className="text-lg font-semibold text-green-700 flex items-center gap-2">
+            <Clock size={20} className="text-yellow-500" />Pedidos Pendentes
           </h3>
-
-          {/*  BOTÃO de redirecionamento pag novoresiduo */}
-          <button
-            onClick={() => navigate("/NovoResiduo")}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm transition"
-          >
-            <PlusCircle size={16} />
-            Publicar Novo Resíduo
-          </button>
+          <button onClick={() => navigate("/PedidosPendentes")} className="text-sm text-green-600 hover:underline">Ver todos →</button>
         </div>
-
-        <ul className="space-y-3 text-gray-700">
-          {usuario.residuos.map((res, i) => (
-            <li
-              key={i}
-              className="flex justify-between items-center bg-gray-50 p-3 rounded-lg shadow-sm hover:shadow-md transition"
-            >
-              <div>
-                <p className="font-medium">{res.nome}</p>
-                <p className="text-xs text-gray-500">Para: {res.empresa}</p>
-              </div>
-              <span
-                className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  res.status === "Concluído"
-                    ? "bg-green-100 text-green-700"
-                    : res.status === "Em processo"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {res.status}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {aguardando.length === 0 ? (
+          <p className="text-gray-500 text-center py-4">Sem pedidos pendentes no momento.</p>
+        ) : (
+          <ul className="space-y-3">
+            {aguardando.slice(0, 3).map((entrega) => (
+              <li key={entrega.id_entrega} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-800">{entrega.tipo_residuo || "Resíduo"} — {entrega.peso_total || "?"} kg</p>
+                  <p className="text-xs text-gray-500">{entrega.endereco_completo || entrega.nome_usuario}</p>
+                </div>
+                <button onClick={() => navigate("/PedidosPendentes")} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg transition">Ver</button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Atividade recente */}
       <div className="bg-white rounded-2xl shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <TrendingUp className="text-green-600" />
-          Atividade Recente
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-green-700">
+          <TrendingUp size={20} className="text-green-600" />Atividade Recente
         </h3>
-
-        <ul className="space-y-3 text-gray-600 text-sm">
-          <li className="flex justify-between">
-            <span>Troca realizada com João</span>
-            <span className="text-green-600 font-medium">+20 pts</span>
-          </li>
-          <li className="flex justify-between">
-            <span>Item reciclado</span>
-            <span className="text-green-600 font-medium">+10 pts</span>
-          </li>
-          <li className="flex justify-between">
-            <span>Nova troca iniciada</span>
-            <span className="text-blue-600 font-medium">Em andamento</span>
-          </li>
-        </ul>
+        {pendentes.length === 0 ? (
+          <p className="text-gray-500 text-sm">Sem atividade recente.</p>
+        ) : (
+          <ul className="space-y-3 text-sm text-gray-600">
+            {pendentes.slice(0, 4).map((entrega) => (
+              <li key={entrega.id_entrega} className="flex justify-between items-center">
+                <span>Entrega #{entrega.id_entrega} — {entrega.tipo_residuo || "Resíduo"}</span>
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                  entrega.status === "coletada" ? "bg-green-100 text-green-700" :
+                  entrega.status === "aceita"   ? "bg-blue-100 text-blue-700" :
+                                                  "bg-yellow-100 text-yellow-700"
+                }`}>
+                  {entrega.status === "coletada" ? "Concluída" : entrega.status === "aceita" ? "Em curso" : "Pendente"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
     </div>
   );
 }
