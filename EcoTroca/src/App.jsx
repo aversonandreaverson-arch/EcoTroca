@@ -19,7 +19,7 @@ import Definicoes from './Components/UserProfile/Definicoes'
 import Editar from './Components/UserProfile/Editar'
 import NovoResiduo from './Components/UserProfile/NovoResiduo'
 import Footer from './Components/Footer'
-
+/* IMPORTS DO COLETADOR */
 // Componente que bloqueia páginas a utilizadores não autenticados
 import RotaProtegida from './Components/RotaProtegida'
 
