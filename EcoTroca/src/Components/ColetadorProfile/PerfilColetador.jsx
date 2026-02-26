@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { User, MapPin, Phone, Mail, Truck, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import Header from "./Header";
+import Header from "./Header.jsx";
 import { getPerfil } from "../../api.js";
 
 export default function PerfilColetador() {

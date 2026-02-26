@@ -55,6 +55,14 @@ function App() {
       <Route path='/Editar' element={<RotaProtegida><Editar /></RotaProtegida>} />
       <Route path='/NovoResiduo' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
+
+      <Route path="/ColetadorInicio" element={<PaginaInicialColetador />} />
+      <Route path="/ColetadorDashboard"    element={<DashboardColetador />} />
+      <Route path="/PedidosPendentes"      element={<PedidosPendentes />} />
+      <Route path="/HistoricoColetas"      element={<HistoricoColetas />} />
+      <Route path="/PerfilColetador"       element={<PerfilColetador />} />
+      <Route path="/EditarColetador"       element={<EditarColetador />} />
+      <Route path="/DefinicoesColetador"   element={<DefinicoesColetador />} />
     </Routes>
   )
 }

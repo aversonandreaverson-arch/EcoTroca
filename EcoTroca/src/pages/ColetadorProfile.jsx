@@ -7,7 +7,7 @@ import Noticias from "../Components/ColetadorProfile/Noticias.jsx";
 import Eventos from "../Components/ColetadorProfile/Eventos.jsx";
 import Educacao from "../Components/ColetadorProfile/Educacao.jsx";
 import Mapa from "../Components/ColetadorProfile/Mapa.jsx";
-import Perfil from "../Components/ColetadorProfile/Perfil.jsx";
+import Perfil from "../Components/ColetadorProfile/PerfilColetador.jsx";
 
 
 
