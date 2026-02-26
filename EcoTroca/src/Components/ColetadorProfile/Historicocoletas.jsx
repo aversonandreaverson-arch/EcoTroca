@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle, Clock, XCircle, Truck } from "lucide-react";
-import Header from "./Header";
+import Header from "./Header.jsx";
 import { getEntregasPendentes } from "../../api.js";
 
 const STATUS_CONFIG = {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { MapPin, Weight, User, CheckCircle, Truck } from "lucide-react";
-import Header from "./Header";
+import Header from "./Header.jsx";
 import { getEntregasPendentes, aceitarEntrega, recolherEntrega } from "../../api.js";
 
 export default function PedidosPendentes() {
