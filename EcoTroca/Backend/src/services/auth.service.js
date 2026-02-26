@@ -10,7 +10,7 @@ const registar = async ({ nome, email, telefone, senha, tipo_usuario, provincia,
   const [result] = await pool.query(
     'INSERT INTO Usuario (nome, email, telefone, senha, tipo_usuario, provincia, municipio, bairro) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [nome, email, telefone, hash, tipo_usuario || 'comum', provincia, municipio, bairro]
-  );
+  ); 
 
   const id_usuario = result.insertId;
 
