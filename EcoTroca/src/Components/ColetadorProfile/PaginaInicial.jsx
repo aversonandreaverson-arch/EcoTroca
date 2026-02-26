@@ -8,7 +8,7 @@ import Header from './Header';
 const pedidosEmpresas = [
   { empresa: "Elisal", material: "plástico", quantidadeTotal: 1000, quantidadeAtual: 320, precoPorKg: 300 },
   { empresa: "EcoLuanda", material: "vidro", quantidadeTotal: 500, quantidadeAtual: 210, precoPorKg: 200 }
-];
+]; 
 
 const coletadores = [
   { nome: "João", totalColetado: 150, Municipio: "Dande" },

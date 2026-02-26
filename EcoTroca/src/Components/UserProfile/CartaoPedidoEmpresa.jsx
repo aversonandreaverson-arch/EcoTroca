@@ -6,7 +6,7 @@ export default function CartaoColetador({ catador }) {
   // Se o catador não existir, não mostra nada (evita o erro)
   if (!catador) return null;
 
-  return (
+  return ( 
     <div className="bg-white p-4 rounded-xl shadow-sm">
 
       <h3 className="font-semibold">
