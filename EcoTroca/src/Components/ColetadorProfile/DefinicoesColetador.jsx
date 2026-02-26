@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Bell, Lock, Eye, EyeOff } from "lucide-react";
-import Header from "./Header";
+import Header from "./Header.jsx";
 import { getPerfil, actualizarPerfil } from "../../api.js";
 
 export default function DefinicoesColetador() {

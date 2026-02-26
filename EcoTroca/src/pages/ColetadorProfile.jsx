@@ -2,7 +2,7 @@ import Header from "../Components/ColetadorProfile/Header.jsx";
 import Actividades from "../Components/ColetadorProfile/Actividades.jsx";
 import CartaoPedidoEmpresa from "../Components/ColetadorProfile/CartaoPedidoEmpresa.jsx";
 import PaginaInicial from "../Components/ColetadorProfile/PaginaInicial.jsx";
-import Dashboard from "../Components/ColetadorProfile/Dashboard.jsx";
+import Dashboard from "../Components/ColetadorProfile/DashboardColetador.jsx";
 import Noticias from "../Components/ColetadorProfile/Noticias.jsx";
 import Eventos from "../Components/ColetadorProfile/Eventos.jsx";
 import Educacao from "../Components/ColetadorProfile/Educacao.jsx";

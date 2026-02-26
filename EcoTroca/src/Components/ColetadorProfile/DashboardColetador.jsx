@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck, CheckCircle, Clock, Star, TrendingUp } from "lucide-react";
-import Header from "./Header";
+import Header from "./Header.jsx";
 import { getPerfil, getEntregasPendentes } from "../../api.js";
 
 export default function DashboardColetador() {
