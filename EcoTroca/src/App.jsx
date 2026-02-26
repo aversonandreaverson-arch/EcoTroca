@@ -19,15 +19,16 @@ import Definicoes from './Components/UserProfile/Definicoes'
 import Editar from './Components/UserProfile/Editar'
 import NovoResiduo from './Components/UserProfile/NovoResiduo'
 import Footer from './Components/Footer'
+
 /* IMPORTS DO COLETADOR */
-import PaginaInicialColetador  from "./Components/ColetadorProfile/PaginaInicial";
-import DashboardColetador       from "./Components/ColetadorProfile/DashboardColetador";
-import PedidosPendentes         from "./Components/ColetadorProfile/PedidosPendentes";
-import HistoricoColetas         from "./Components/ColetadorProfile/HistoricoColetas";
-import PerfilColetador          from "./Components/ColetadorProfile/PerfilColetador";
-import EditarColetador          from "./Components/ColetadorProfile/EditarColetador";
-import DefinicoesColetador      from "./Components/ColetadorProfile/DefinicoesColetador";
-/* FIM DOS IMPORTS DO COLETADOR */
+import PaginaInicialColetador from "./Components/ColetadorProfile/PaginaInicial";
+import DashboardColetador     from "./Components/ColetadorProfile/DashboardColetador";
+import PedidosPendentes       from "./Components/ColetadorProfile/PedidosPendentes";
+import HistoricoColetas       from "./Components/ColetadorProfile/HistoricoColetas";
+import PerfilColetador        from "./Components/ColetadorProfile/PerfilColetador";
+import EditarColetador        from "./Components/ColetadorProfile/EditarColetador";
+import DefinicoesColetador    from "./Components/ColetadorProfile/DefinicoesColetador";
+
 // Componente que bloqueia páginas a utilizadores não autenticados
 import RotaProtegida from './Components/RotaProtegida'
 
@@ -42,27 +43,28 @@ function App() {
       <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />} />
       <Route path='/Footer' element={<Footer />} />
 
-      {/* ===== ROTAS PRIVADAS — só para utilizadores com login ===== */}
-      <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
-      <Route path='/Dashboard' element={<RotaProtegida><Dashboard /></RotaProtegida>} />
-      <Route path='/UserProfile' element={<RotaProtegida><UserProfile /></RotaProtegida>} />
+      {/* ===== ROTAS PRIVADAS — utilizador comum ===== */}
+      <Route path='/PaginaInicial'    element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
+      <Route path='/Dashboard'        element={<RotaProtegida><Dashboard /></RotaProtegida>} />
+      <Route path='/UserProfile'      element={<RotaProtegida><UserProfile /></RotaProtegida>} />
       <Route path='/ColetadorProfile' element={<RotaProtegida><ColetadorProfile /></RotaProtegida>} />
-      <Route path='/Eventos' element={<RotaProtegida><Eventos /></RotaProtegida>} />
-      <Route path='/Noticias' element={<RotaProtegida><Noticias /></RotaProtegida>} />
-      <Route path='/Educacao' element={<RotaProtegida><Educacao /></RotaProtegida>} />
-      <Route path='/Perfil' element={<RotaProtegida><Perfil /></RotaProtegida>} />
-      <Route path='/Definicoes' element={<RotaProtegida><Definicoes /></RotaProtegida>} />
-      <Route path='/Editar' element={<RotaProtegida><Editar /></RotaProtegida>} />
-      <Route path='/NovoResiduo' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      <Route path='/Eventos'          element={<RotaProtegida><Eventos /></RotaProtegida>} />
+      <Route path='/Noticias'         element={<RotaProtegida><Noticias /></RotaProtegida>} />
+      <Route path='/Educacao'         element={<RotaProtegida><Educacao /></RotaProtegida>} />
+      <Route path='/Perfil'           element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/Definicoes'       element={<RotaProtegida><Definicoes /></RotaProtegida>} />
+      <Route path='/Editar'           element={<RotaProtegida><Editar /></RotaProtegida>} />
+      <Route path='/NovoResiduo'      element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
+      {/* ===== ROTAS PRIVADAS — coletador ===== */}
+      <Route path='/ColetadorInicio'     element={<RotaProtegida><PaginaInicialColetador /></RotaProtegida>} />
+      <Route path='/ColetadorDashboard'  element={<RotaProtegida><DashboardColetador /></RotaProtegida>} />
+      <Route path='/PedidosPendentes'    element={<RotaProtegida><PedidosPendentes /></RotaProtegida>} />
+      <Route path='/HistoricoColetas'    element={<RotaProtegida><HistoricoColetas /></RotaProtegida>} />
+      <Route path='/PerfilColetador'     element={<RotaProtegida><PerfilColetador /></RotaProtegida>} />
+      <Route path='/EditarColetador'     element={<RotaProtegida><EditarColetador /></RotaProtegida>} />
+      <Route path='/DefinicoesColetador' element={<RotaProtegida><DefinicoesColetador /></RotaProtegida>} />
 
-      <Route path="/ColetadorInicio" element={<PaginaInicialColetador />} />
-      <Route path="/ColetadorDashboard"    element={<DashboardColetador />} />
-      <Route path="/PedidosPendentes"      element={<PedidosPendentes />} />
-      <Route path="/HistoricoColetas"      element={<HistoricoColetas />} />
-      <Route path="/PerfilColetador"       element={<PerfilColetador />} />
-      <Route path="/EditarColetador"       element={<EditarColetador />} />
-      <Route path="/DefinicoesColetador"   element={<DefinicoesColetador />} />
     </Routes>
   )
 }
