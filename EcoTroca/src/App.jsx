@@ -1,49 +1,61 @@
 import { Routes, Route } from 'react-router-dom'
 
-// Páginas públicas (não precisam de login)
-import Home from './pages/home'
-import Login from './pages/Login'
-import RecuperacaoDeSenha from './pages/RecuperacaoDeSenha'
-import RedefinirSenha from './pages/RedefinirSenha'
+// ── Páginas públicas (não precisam de login) ──
+import Home                 from './pages/home'
+import Login                from './pages/Login'
+import RecuperacaoDeSenha   from './pages/RecuperacaoDeSenha'
+import RedefinirSenha       from './pages/RedefinirSenha'
 
-// Páginas privadas (precisam de login)
-import UserProfile from './pages/UserProfile'
-import ColetadorProfile from './pages/ColetadorProfile'
-import Dashboard from './Components/UserProfile/Dashboard'
-import Eventos from './Components/UserProfile/Eventos'
-import Noticias from './Components/UserProfile/Noticias'
-import Educacao from './Components/UserProfile/Educacao'
-import Perfil from './Components/UserProfile/Perfil'
-import PaginaInicial from './Components/UserProfile/PaginaInicial'
-import Definicoes from './Components/UserProfile/Definicoes'
-import Editar from './Components/UserProfile/Editar'
-import NovoResiduo from './Components/UserProfile/NovoResiduo'
-import Footer from './Components/Footer'
+// ── Páginas privadas — utilizador comum ──
+import UserProfile          from './pages/UserProfile'
+import ColetadorProfile     from './pages/ColetadorProfile'
+import Dashboard            from './Components/UserProfile/Dashboard'
+import Eventos              from './Components/UserProfile/Eventos'
+import Noticias             from './Components/UserProfile/Noticias'
+import Educacao             from './Components/UserProfile/Educacao'
+import Perfil               from './Components/UserProfile/Perfil'
+import PaginaInicial        from './Components/UserProfile/PaginaInicial'
+import Definicoes           from './Components/UserProfile/Definicoes'
+import Editar               from './Components/UserProfile/Editar'
+import NovoResiduo          from './Components/UserProfile/NovoResiduo'
+import Footer               from './Components/Footer'
 
-/* IMPORTS DO COLETADOR */
-import PaginaInicialColetador from "./Components/ColetadorProfile/PaginaInicial";
-import DashboardColetador     from "./Components/ColetadorProfile/DashboardColetador";
-import PedidosPendentes       from "./Components/ColetadorProfile/PedidosPendentes";
-import HistoricoColetas       from "./Components/ColetadorProfile/HistoricoColetas";
-import PerfilColetador        from "./Components/ColetadorProfile/PerfilColetador";
-import EditarColetador        from "./Components/ColetadorProfile/EditarColetador";
-import DefinicoesColetador    from "./Components/ColetadorProfile/DefinicoesColetador";
+// ── Páginas privadas — coletador ──
+import PaginaInicialColetador from './Components/ColetadorProfile/PaginaInicial'
+import DashboardColetador     from './Components/ColetadorProfile/DashboardColetador'
+import PedidosPendentes       from './Components/ColetadorProfile/PedidosPendentes'
+import HistoricoColetas       from './Components/ColetadorProfile/HistoricoColetas'
+import PerfilColetador        from './Components/ColetadorProfile/PerfilColetador'
+import EditarColetador        from './Components/ColetadorProfile/EditarColetador'
+import DefinicoesColetador    from './Components/ColetadorProfile/DefinicoesColetador'
 
-// Componente que bloqueia páginas a utilizadores não autenticados
+// ── Páginas privadas — empresa ──
+import DashboardEmpresa     from './Components/EmpresaProfile/DashboardEmpresa'
+import PerfilEmpresa        from './Components/EmpresaProfile/PerfilEmpresa'
+import EditarEmpresa        from './Components/EmpresaProfile/EditarEmpresa'
+import EntregasEmpresa      from './Components/EmpresaProfile/EntregasEmpresa'
+import EventosEmpresa       from './Components/EmpresaProfile/EventosEmpresa'
+import ColetadoresEmpresa   from './Components/EmpresaProfile/ColetadoresEmpresa'
+
+// ── Componente que bloqueia páginas a utilizadores não autenticados ──
 import RotaProtegida from './Components/RotaProtegida'
 
 function App() {
   return (
     <Routes>
 
-      {/* ===== ROTAS PÚBLICAS — qualquer pessoa pode aceder ===== */}
-      <Route path='/' element={<Home />} />
-      <Route path='/Login' element={<Login />} />
-      <Route path='/RecuperacaoDeSenha' element={<RecuperacaoDeSenha />} />
+      {/* ═══════════════════════════════════════════════
+          ROTAS PÚBLICAS — qualquer pessoa pode aceder
+      ═══════════════════════════════════════════════ */}
+      <Route path='/'                        element={<Home />} />
+      <Route path='/Login'                   element={<Login />} />
+      <Route path='/RecuperacaoDeSenha'      element={<RecuperacaoDeSenha />} />
       <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />} />
-      <Route path='/Footer' element={<Footer />} />
+      <Route path='/Footer'                  element={<Footer />} />
 
-      {/* ===== ROTAS PRIVADAS — utilizador comum ===== */}
+      {/* ═══════════════════════════════════════════════
+          ROTAS PRIVADAS — utilizador comum
+      ═══════════════════════════════════════════════ */}
       <Route path='/PaginaInicial'    element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
       <Route path='/Dashboard'        element={<RotaProtegida><Dashboard /></RotaProtegida>} />
       <Route path='/UserProfile'      element={<RotaProtegida><UserProfile /></RotaProtegida>} />
@@ -56,7 +68,9 @@ function App() {
       <Route path='/Editar'           element={<RotaProtegida><Editar /></RotaProtegida>} />
       <Route path='/NovoResiduo'      element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
-      {/* ===== ROTAS PRIVADAS — coletador ===== */}
+      {/* ═══════════════════════════════════════════════
+          ROTAS PRIVADAS — coletador
+      ═══════════════════════════════════════════════ */}
       <Route path='/ColetadorInicio'     element={<RotaProtegida><PaginaInicialColetador /></RotaProtegida>} />
       <Route path='/ColetadorDashboard'  element={<RotaProtegida><DashboardColetador /></RotaProtegida>} />
       <Route path='/PedidosPendentes'    element={<RotaProtegida><PedidosPendentes /></RotaProtegida>} />
@@ -64,6 +78,16 @@ function App() {
       <Route path='/PerfilColetador'     element={<RotaProtegida><PerfilColetador /></RotaProtegida>} />
       <Route path='/EditarColetador'     element={<RotaProtegida><EditarColetador /></RotaProtegida>} />
       <Route path='/DefinicoesColetador' element={<RotaProtegida><DefinicoesColetador /></RotaProtegida>} />
+
+      {/* ═══════════════════════════════════════════════
+          ROTAS PRIVADAS — empresa
+      ═══════════════════════════════════════════════ */}
+      <Route path='/DashboardEmpresa'    element={<RotaProtegida><DashboardEmpresa /></RotaProtegida>} />
+      <Route path='/PerfilEmpresa'       element={<RotaProtegida><PerfilEmpresa /></RotaProtegida>} />
+      <Route path='/EditarEmpresa'       element={<RotaProtegida><EditarEmpresa /></RotaProtegida>} />
+      <Route path='/EntregasEmpresa'     element={<RotaProtegida><EntregasEmpresa /></RotaProtegida>} />
+      <Route path='/EventosEmpresa'      element={<RotaProtegida><EventosEmpresa /></RotaProtegida>} />
+      <Route path='/ColetadoresEmpresa'  element={<RotaProtegida><ColetadoresEmpresa /></RotaProtegida>} />
 
     </Routes>
   )
