@@ -83,6 +83,8 @@ const Login = () => {
               className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+
             />
           </div>
 
