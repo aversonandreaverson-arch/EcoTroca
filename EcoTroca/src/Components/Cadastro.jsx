@@ -80,7 +80,7 @@ const validarSenha = (senha) => {
 //   icon        → ícone do lucide-react a mostrar
 //   label       → texto do card (ex: "Usuário")
 // ═══════════════════════════════════════════════════════════════
-const Tipo = ({ ativo, onClick, label }) => (
+const Tipo = ({ ativo, onClick, Icon, label }) => (
   <div
     onClick={onClick}
     className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center transition
@@ -210,7 +210,7 @@ const Cadastro = () => {
 
     // Remove entradas null/undefined (campos sem erro)
     const errosFiltrados = Object.fromEntries(
-      Object.entries(novosErros).filter(([, v]) => v !== null && v !== undefined)
+      Object.entries(novosErros).filter(([chave, v]) => v !== null && v !== undefined)
     );
 
     setErros(errosFiltrados);
