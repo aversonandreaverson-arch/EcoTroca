@@ -1,33 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Truck, Clock, MapPin, Package } from "lucide-react";
+import { Search, X, Truck, Clock, MapPin, Package, Wallet } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Header from './Header';
-import { getEntregasPendentes, getNotificacoes } from "../../api.js";
+import { getEntregasPendentes, getNotificacoes, getCarteira } from "../../api.js";
 
 // ─── Cartão de pedido pendente ───────────────────────────────────────────────
-function CartaoPedidoPendente({ entrega, onVer }) {
+function CartaoPedido({ entrega, onVer }) {
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 hover:shadow-lg transition">
       <div className="flex justify-between items-start mb-3">
         <div>
           <p className="font-bold text-green-700 text-lg capitalize">
-            {entrega.tipo_residuo || "Resíduo"}
+            {entrega.tipos_residuos || "Resíduo"}
           </p>
           <p className="text-xs text-gray-400">Pedido #{entrega.id_entrega}</p>
         </div>
-        <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-1 rounded-full">
-          Pendente
+        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+          entrega.tipo_recompensa === "dinheiro"
+            ? "bg-green-100 text-green-700"
+            : "bg-blue-100 text-blue-700"
+        }`}>
+          {entrega.tipo_recompensa === "dinheiro" ? "💵 Dinheiro" : "💳 Saldo"}
         </span>
       </div>
 
-      <div className="space-y-1 text-sm text-gray-600 mb-4">
+      <div className="space-y-1 text-sm text-gray-600 mb-3">
         <div className="flex items-center gap-2">
           <MapPin size={14} className="text-green-500" />
-          <span>{entrega.endereco_completo || entrega.municipio || "Localização não definida"}</span>
+          <span>{entrega.endereco_domicilio || "Localização não definida"}</span>
         </div>
         <div className="flex items-center gap-2">
           <Package size={14} className="text-green-500" />
-          <span>{entrega.peso_total || "?"} kg</span>
+          <span>{entrega.peso_total ? `${parseFloat(entrega.peso_total).toFixed(1)} kg` : "Peso não definido"}</span>
         </div>
+        {entrega.valor_total && (
+          <div className="flex items-center gap-2">
+            <Wallet size={14} className="text-green-500" />
+            <span className="font-medium text-green-700">
+              Valor total: {parseFloat(entrega.valor_total).toFixed(2)} Kz
+              <span className="text-gray-500 font-normal"> (tua parte: {(parseFloat(entrega.valor_total) * 0.27).toFixed(2)} Kz)</span>
+            </span>
+          </div>
+        )}
       </div>
 
       <button
@@ -41,24 +55,20 @@ function CartaoPedidoPendente({ entrega, onVer }) {
   );
 }
 
-// ─── Painel de notificações/atividades do coletador ──────────────────────────
-function ActividadesColetador({ notificacoes }) {
+// ─── Atividades recentes ─────────────────────────────────────────────────────
+function Atividades({ notificacoes }) {
   if (!notificacoes || notificacoes.length === 0) {
-    return (
-      <p className="text-gray-300 text-sm text-center mt-6">
-        Sem atividades recentes.
-      </p>
-    );
+    return <p className="text-gray-300 text-sm text-center mt-6">Sem atividades recentes.</p>;
   }
-
   return (
     <ul className="space-y-3 mt-2">
       {notificacoes.slice(0, 6).map((n, i) => (
         <li key={n.id_notificacao || i} className="bg-green-700/50 rounded-xl p-3">
-          <p className="text-white text-sm">{n.mensagem}</p>
-          {n.data_hora && (
-            <p className="text-green-300 text-xs mt-1">
-              {new Date(n.data_hora).toLocaleDateString("pt-AO", {
+          <p className="text-white text-sm font-medium">{n.titulo}</p>
+          <p className="text-green-300 text-xs mt-1">{n.mensagem}</p>
+          {n.criado_em && (
+            <p className="text-green-400 text-xs mt-1">
+              {new Date(n.criado_em).toLocaleDateString("pt-AO", {
                 day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
               })}
             </p>
@@ -71,20 +81,24 @@ function ActividadesColetador({ notificacoes }) {
 
 // ─── Página Principal ────────────────────────────────────────────────────────
 export default function PaginaInicialColetador() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [pendentes, setPendentes] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
+  const [carteira, setCarteira] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
     const carregar = async () => {
       try {
-        const [entregasPendentes, notifs] = await Promise.all([
-          getEntregasPendentes(),   // GET /api/coletador/entregas/pendentes
-          getNotificacoes(),        // GET /api/notificacoes
+        const [entregas, notifs, dadosCarteira] = await Promise.all([
+          getEntregasPendentes(),
+          getNotificacoes(),
+          getCarteira(),
         ]);
-        setPendentes(entregasPendentes);
+        setPendentes(entregas);
         setNotificacoes(notifs);
+        setCarteira(dadosCarteira);
       } catch (err) {
         console.error(err);
       } finally {
@@ -94,55 +108,67 @@ export default function PaginaInicialColetador() {
     carregar();
   }, []);
 
-  // Filtra pedidos pelo texto de pesquisa
   const pedidosFiltrados = pendentes.filter(e => {
     const termo = search.toLowerCase();
     return (
-      (e.tipo_residuo || "").toLowerCase().includes(termo) ||
-      (e.endereco_completo || "").toLowerCase().includes(termo) ||
-      (e.municipio || "").toLowerCase().includes(termo)
+      (e.tipos_residuos || "").toLowerCase().includes(termo) ||
+      (e.endereco_domicilio || "").toLowerCase().includes(termo) ||
+      (e.nome_usuario || "").toLowerCase().includes(termo)
     );
-  }).filter(e => e.status === "pendente");
+  });
 
   return (
-    <div id="PaginaInicialColetador" className="pt-24 p-6 bg-green-700 min-h-screen">
+    <div className="pt-24 p-6 bg-green-700 min-h-screen">
       <Header />
 
-      {/* Título */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Página Inicial</h1>
-        <p className="text-gray-300">Pedidos disponíveis para recolha em Luanda</p>
+      {/* Cabeçalho */}
+      <div className="mb-6 flex justify-between items-start flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Página Inicial</h1>
+          <p className="text-gray-300">Pedidos disponíveis para recolha</p>
+        </div>
+
+        {/* Mini carteira */}
+        {carteira && (
+          <div className="bg-white/10 rounded-2xl px-5 py-3 text-white text-sm flex gap-4">
+            <div className="text-center">
+              <p className="font-bold text-lg">{carteira.dinheiro?.toFixed(2)} Kz</p>
+              <p className="text-xs text-green-300">💵 Dinheiro</p>
+            </div>
+            <div className="w-px bg-white/20" />
+            <div className="text-center">
+              <p className="font-bold text-lg">{carteira.saldo?.toFixed(2)} Kz</p>
+              <p className="text-xs text-green-300">💳 Saldo</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Barra de pesquisa */}
-      <div className="relative mb-10">
+      <div className="relative mb-8">
         <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Pesquisar por tipo de resíduo ou localização..."
+          placeholder="Pesquisar por resíduo, localização ou utilizador..."
           className="w-full pl-12 pr-10 py-3 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         {search && (
-          <X
-            className="absolute right-4 top-3.5 w-5 h-5 text-gray-400 cursor-pointer"
-            onClick={() => setSearch('')}
-          />
+          <X className="absolute right-4 top-3.5 w-5 h-5 text-gray-400 cursor-pointer" onClick={() => setSearch('')} />
         )}
       </div>
 
-      {/* Conteúdo principal */}
+      {/* Conteúdo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-        {/* Coluna esquerda — pedidos disponíveis para aceitar */}
+        {/* Pedidos */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
               <Clock size={20} className="text-yellow-400" />
               Pedidos Disponíveis
             </h2>
-            {/* Contador */}
             {!carregando && (
               <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full">
                 {pedidosFiltrados.length} pedido{pedidosFiltrados.length !== 1 ? "s" : ""}
@@ -156,34 +182,30 @@ export default function PaginaInicialColetador() {
             <div className="bg-white/10 rounded-2xl p-8 text-center text-white">
               <Truck size={40} className="mx-auto mb-3 opacity-50" />
               <p className="text-lg font-medium">
-                {search ? "Nenhum pedido encontrado para essa pesquisa." : "Sem pedidos pendentes no momento."}
+                {search ? "Nenhum pedido encontrado." : "Sem pedidos pendentes no momento."}
               </p>
-              <p className="text-sm text-gray-300 mt-1">
-                Volta mais tarde — novos pedidos aparecem aqui em tempo real.
-              </p>
+              <p className="text-sm text-gray-300 mt-1">Novos pedidos aparecem aqui assim que forem criados.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {pedidosFiltrados.map((entrega) => (
-                <CartaoPedidoPendente
+                <CartaoPedido
                   key={entrega.id_entrega}
                   entrega={entrega}
-                  onVer={() => window.location.href = "/PedidosPendentes"}
+                  onVer={() => navigate("/PedidosPendentes")}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Coluna direita — notificações/atividade recente */}
+        {/* Notificações */}
         <div className="bg-green-800 p-6 rounded-2xl shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-200 mb-2">
-            Atividades Recentes
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-200 mb-2">Atividades Recentes</h2>
           {carregando ? (
             <p className="text-gray-300 text-sm mt-4">A carregar...</p>
           ) : (
-            <ActividadesColetador notificacoes={notificacoes} />
+            <Atividades notificacoes={notificacoes} />
           )}
         </div>
 
