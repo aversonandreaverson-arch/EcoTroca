@@ -60,5 +60,43 @@ router.get('/pontuacao', auth, async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
+// ─────────────────────────────────────────────
+// ADICIONA ESTAS ROTAS no teu src/routes/usuario.routes.js
+// antes do: export default router
+// ─────────────────────────────────────────────
 
+// Ver carteira do utilizador autenticado
+router.get('/carteira', auth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT dinheiro, saldo FROM Carteira WHERE id_usuario = ?',
+      [req.usuario.id_usuario]
+    );
+
+    // Se não tem carteira ainda, cria automaticamente
+    if (rows.length === 0) {
+      await pool.query(
+        'INSERT INTO Carteira (id_usuario) VALUES (?)',
+        [req.usuario.id_usuario]
+      );
+      return res.json({ dinheiro: 0, saldo: 0 });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// Ver resíduos disponíveis (para o formulário de nova entrega)
+router.get('/residuos', auth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM Residuo WHERE ativo = TRUE ORDER BY tipo ASC'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 export default router;
