@@ -263,7 +263,7 @@ const Cadastro = () => {
 
       // Redireciona para a página correta conforme o tipo
       if (tipo === "coletor")       navigate("/ColetadorProfile");
-      else if (tipo === "empresa")  navigate("/EmpresaProfile");
+      else if (tipo === "empresa")  navigate("/DashboardEmpresa");
       else                          navigate("/PaginaInicial");
 
     } catch (err) {

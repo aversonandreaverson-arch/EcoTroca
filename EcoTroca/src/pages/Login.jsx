@@ -28,7 +28,7 @@ const Login = () => {
       if (dados.tipo_usuario === "coletor") {
         navigate("/ColetadorProfile");
       } else if (dados.tipo_usuario === "empresa") {
-        navigate("/EmpresaProfile");
+        navigate("/DashboardEmpresa");
       } else {
         navigate("/PaginaInicial");
       }
