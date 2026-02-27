@@ -2,19 +2,37 @@ import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
 import pool from '../config/database.js';
-import { atribuirPontos } from '../services/entrega.service.js';
+import { atribuirRecompensa } from '../services/entrega.service.js';
 
 const router = Router();
 
-// Listar entregas pendentes
+// ─────────────────────────────────────────────
+// GET /api/coletador/entregas/pendentes
+// Regra 10 — Só coletadores cadastrados veem pedidos
+// Regra 12 — Só mostra entregas de domicílio (tipo_entrega = 'domicilio')
+//            porque só essas precisam de coletador
+// ─────────────────────────────────────────────
 router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT e.*, p.endereco_completo, p.tipo as tipo_ponto, u.nome as nome_usuario
+      `SELECT 
+        e.id_entrega,
+        e.tipo_recompensa,
+        e.endereco_domicilio,
+        e.data_hora,
+        e.status,
+        u.nome AS nome_usuario,
+        u.telefone AS telefone_usuario,
+        GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
+        SUM(er.peso_kg) AS peso_total,
+        SUM(er.peso_kg * r.valor_por_kg) AS valor_total
        FROM Entrega e
-       JOIN PontoRecolha p ON e.id_ponto = p.id_ponto
        JOIN Usuario u ON e.id_usuario = u.id_usuario
+       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN Residuo r ON er.id_residuo = r.id_residuo
        WHERE e.status = 'pendente'
+         AND e.tipo_entrega = 'domicilio'
+       GROUP BY e.id_entrega
        ORDER BY e.data_hora ASC`
     );
     res.json(rows);
@@ -23,24 +41,84 @@ router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
   }
 });
 
-// Aceitar entrega
+// ─────────────────────────────────────────────
+// GET /api/coletador/entregas/minhas
+// Lista entregas aceites pelo coletador logado
+// ─────────────────────────────────────────────
+router.get('/entregas/minhas', auth, role('coletor'), async (req, res) => {
+  try {
+    const [coletador] = await pool.query(
+      'SELECT id_coletador FROM Coletador WHERE id_usuario = ? AND ativo = TRUE',
+      [req.usuario.id_usuario]
+    );
+    if (coletador.length === 0) return res.status(404).json({ erro: 'Coletador não encontrado' });
+
+    const [rows] = await pool.query(
+      `SELECT 
+        e.id_entrega,
+        e.status,
+        e.tipo_recompensa,
+        e.endereco_domicilio,
+        e.data_hora,
+        u.nome AS nome_usuario,
+        u.telefone AS telefone_usuario,
+        GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
+        SUM(er.peso_kg) AS peso_total,
+        SUM(er.peso_kg * r.valor_por_kg) AS valor_total
+       FROM Entrega e
+       JOIN Usuario u ON e.id_usuario = u.id_usuario
+       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN Residuo r ON er.id_residuo = r.id_residuo
+       WHERE e.id_coletador = ?
+       GROUP BY e.id_entrega
+       ORDER BY e.data_hora DESC`,
+      [coletador[0].id_coletador]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+// PATCH /api/coletador/entregas/:id/aceitar
+// Regra 10 — Cada pedido só pode ser aceite por UM coletador
+// Regra 11 — Regista data/hora de aceitação
+// ─────────────────────────────────────────────
 router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) => {
   try {
     const [coletador] = await pool.query(
       'SELECT id_coletador FROM Coletador WHERE id_usuario = ? AND ativo = TRUE',
       [req.usuario.id_usuario]
     );
-
     if (coletador.length === 0) return res.status(404).json({ erro: 'Coletador não encontrado' });
 
+    // Verifica se a entrega existe, é de domicílio e ainda está pendente
+    const [entrega] = await pool.query(
+      `SELECT id_entrega, id_usuario, tipo_entrega, status 
+       FROM Entrega WHERE id_entrega = ?`,
+      [req.params.id]
+    );
+    if (entrega.length === 0) return res.status(404).json({ erro: 'Entrega não encontrada' });
+    if (entrega[0].tipo_entrega !== 'domicilio') return res.status(400).json({ erro: 'Esta entrega não precisa de coletador' });
+    if (entrega[0].status !== 'pendente') return res.status(400).json({ erro: 'Esta entrega já foi aceite por outro coletador' });
+
+    // Aceita a entrega — só este coletador pode recolher agora
     await pool.query(
-      'UPDATE Entrega SET status = ?, id_coletador = ? WHERE id_entrega = ? AND status = ?',
-      ['aceita', coletador[0].id_coletador, req.params.id, 'pendente']
+      'UPDATE Entrega SET status = ?, id_coletador = ? WHERE id_entrega = ?',
+      ['aceita', coletador[0].id_coletador, req.params.id]
     );
 
+    // Activa o chat entre utilizador e coletador
     await pool.query(
       'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?',
       [req.params.id]
+    );
+
+    // Notifica o utilizador
+    await pool.query(
+      'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
+      [entrega[0].id_usuario, '🚛 Coletador a caminho!', `Um coletador aceitou a tua entrega #${req.params.id} e está a caminho!`]
     );
 
     res.json({ mensagem: 'Entrega aceite com sucesso!' });
@@ -49,35 +127,56 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
   }
 });
 
-// Marcar entrega como recolhida
+// ─────────────────────────────────────────────
+// PATCH /api/coletador/entregas/:id/recolher
+// Regra 11 — Confirmação da coleta, liberta recompensa
+// Regra 8/9 — Aplica lógica de dinheiro (70/30%) ou saldo (100%)
+//             Pontos gerados automaticamente sempre
+// ─────────────────────────────────────────────
 router.patch('/entregas/:id/recolher', auth, role('coletor'), async (req, res) => {
   try {
     const [coletador] = await pool.query(
       'SELECT id_coletador FROM Coletador WHERE id_usuario = ? AND ativo = TRUE',
       [req.usuario.id_usuario]
     );
-
     if (coletador.length === 0) return res.status(404).json({ erro: 'Coletador não encontrado' });
 
-    await pool.query(
-      'UPDATE Entrega SET status = ? WHERE id_entrega = ? AND id_coletador = ?',
-      ['coletada', req.params.id, coletador[0].id_coletador]
-    );
-
-    await pool.query(
-      'INSERT INTO RecompensaColetador (id_coletador, pontos_recebidos, descricao) VALUES (?, ?, ?)',
-      [coletador[0].id_coletador, 10, `Entrega ${req.params.id} recolhida`]
-    );
-
-    // Busca o utilizador da entrega e atribui pontos
+    // Verifica se esta entrega pertence a este coletador e está aceite
     const [entrega] = await pool.query(
-      'SELECT id_usuario FROM Entrega WHERE id_entrega = ?',
+      'SELECT id_entrega, id_usuario, tipo_recompensa, status, id_coletador FROM Entrega WHERE id_entrega = ?',
       [req.params.id]
     );
+    if (entrega.length === 0) return res.status(404).json({ erro: 'Entrega não encontrada' });
+    if (entrega[0].id_coletador !== coletador[0].id_coletador) return res.status(403).json({ erro: 'Não tens permissão para recolher esta entrega' });
+    if (entrega[0].status !== 'aceita') return res.status(400).json({ erro: 'A entrega tem de estar aceite antes de ser recolhida' });
 
-    const pontos = await atribuirPontos(entrega[0].id_usuario, req.params.id);
+    // Marca como recolhida
+    await pool.query(
+      'UPDATE Entrega SET status = ? WHERE id_entrega = ?',
+      ['coletada', req.params.id]
+    );
 
-    res.json({ mensagem: 'Entrega recolhida com sucesso!', pontos_atribuidos: pontos });
+    // Atribui recompensa conforme escolha do utilizador (dinheiro ou saldo)
+    // Pontos são sempre gerados automaticamente dentro desta função
+    const resultado = await atribuirRecompensa(
+      entrega[0].id_usuario,
+      parseInt(req.params.id),
+      entrega[0].tipo_recompensa,  // 'dinheiro' ou 'saldo'
+      coletador[0].id_coletador    // para calcular comissão de 30%
+    );
+
+    // Notifica o utilizador
+    await pool.query(
+      'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
+      [entrega[0].id_usuario, '✅ Entrega confirmada!', `A tua entrega #${req.params.id} foi recolhida com sucesso!`]
+    );
+
+    res.json({
+      mensagem: 'Entrega recolhida com sucesso!',
+      pontos_atribuidos: resultado.pontos,
+      valor_total: resultado.valor_total,
+      nivel: resultado.nivel
+    });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
