@@ -143,9 +143,9 @@ export default function EventosEmpresa() {
     }
   };
 
-  // ── Apagar (cancelar) evento ──
+  // ── Eliminar evento definitivamente ──
   const handleApagar = async (id) => {
-    if (!window.confirm('Tens a certeza que queres cancelar este evento?')) return;
+    if (!window.confirm('Tens a certeza que queres eliminar este evento? Esta acção não pode ser desfeita.')) return;
 
     try {
       setApagando(id);
@@ -155,9 +155,9 @@ export default function EventosEmpresa() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const dados = await res.json();
-      if (!res.ok) throw new Error(dados.erro || 'Erro ao cancelar evento.');
+      if (!res.ok) throw new Error(dados.erro || 'Erro ao eliminar evento.');
 
-      setSucesso('Evento cancelado.');
+      setSucesso('Evento eliminado com sucesso.');
       await carregar();
       setTimeout(() => setSucesso(''), 3000);
     } catch (err) {
@@ -265,7 +265,7 @@ export default function EventosEmpresa() {
                       className="flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-600 py-2 rounded-xl text-sm font-medium transition"
                     >
                       <Trash2 size={14} />
-                      {apagando === ev.id_evento ? 'A cancelar...' : 'Cancelar'}
+                      {apagando === ev.id_evento ? 'A eliminar...' : 'Eliminar'}
                     </button>
                   </div>
                 )}
