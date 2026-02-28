@@ -1,14 +1,21 @@
+// ============================================================
+//  PerfilColetador.jsx
+//  Página de perfil do coletador
+//  Mostra: dados, carteira, estatísticas de coletas
+// ============================================================
+
 import React, { useState, useEffect } from "react";
-import { Truck, Phone, Mail, MapPin, Star, Wallet } from "lucide-react";
+import { Truck, Phone, Mail, MapPin, Star, Wallet, Banknote, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "./Header.jsx";
 import { getPerfil, getMinhasColetasColetador, getCarteira } from "../../api.js";
 
 export default function PerfilColetador() {
   const navigate = useNavigate();
-  const [perfil, setPerfil] = useState(null);
-  const [carteira, setCarteira] = useState(null);
-  const [stats, setStats] = useState({ concluidas: 0, pontos: 0 });
+
+  const [perfil, setPerfil]         = useState(null);
+  const [carteira, setCarteira]     = useState(null);
+  const [stats, setStats]           = useState({ concluidas: 0, pontos: 0 });
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -21,6 +28,7 @@ export default function PerfilColetador() {
         ]);
         setPerfil(dadosPerfil);
         setCarteira(dadosCarteira);
+
         const concluidas = coletas.filter(e => e.status === "coletada");
         const pontos = concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0);
         setStats({ concluidas: concluidas.length, pontos });
@@ -43,6 +51,7 @@ export default function PerfilColetador() {
   return (
     <div className="min-h-screen bg-green-700 pt-24 p-6">
       <Header />
+
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Card principal */}
@@ -54,12 +63,13 @@ export default function PerfilColetador() {
               <Truck size={40} className="text-green-600" />
             )}
           </div>
+
           <h2 className="text-2xl font-bold text-gray-800">{perfil?.nome}</h2>
-          <span className="inline-block bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
-            🚛 Coletador Independente
+          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
+            <Truck size={14} /> Coletador Independente
           </span>
 
-          {/* Estatísticas reais */}
+          {/* Estatísticas */}
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-2xl font-bold text-green-700">{stats.concluidas}</p>
@@ -80,17 +90,26 @@ export default function PerfilColetador() {
             <Wallet size={20} /> Carteira
           </h3>
           <div className="grid grid-cols-2 gap-4">
+
             <div className="bg-green-50 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <Banknote size={22} className="text-green-600" />
+              </div>
               <p className="text-2xl font-bold text-green-700">
-                {carteira?.dinheiro?.toFixed(2) || "0.00"} Kz
+                {/* parseFloat converte string do MySQL para número */}
+                {parseFloat(carteira?.dinheiro || 0).toFixed(2)} Kz
               </p>
-              <p className="text-xs text-gray-500 mt-1">💵 Dinheiro (sacável)</p>
+              <p className="text-xs text-gray-500 mt-1">Dinheiro (sacável)</p>
             </div>
+
             <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <CreditCard size={22} className="text-blue-600" />
+              </div>
               <p className="text-2xl font-bold text-blue-700">
-                {carteira?.saldo?.toFixed(2) || "0.00"} Kz
+                {parseFloat(carteira?.saldo || 0).toFixed(2)} Kz
               </p>
-              <p className="text-xs text-gray-500 mt-1">💳 Saldo (só na app)</p>
+              <p className="text-xs text-gray-500 mt-1">Saldo (só na app)</p>
             </div>
           </div>
         </div>

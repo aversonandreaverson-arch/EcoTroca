@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 // ── Páginas públicas (não precisam de login) ──
 import Home                 from './pages/home'
 import Login                from './pages/Login'
-import Cadastro             from './pages/Cadastro'
+import Cadastro from './Components/Cadastro'
 import RecuperacaoDeSenha   from './pages/RecuperacaoDeSenha'
 import RedefinirSenha       from './pages/RedefinirSenha'
 
