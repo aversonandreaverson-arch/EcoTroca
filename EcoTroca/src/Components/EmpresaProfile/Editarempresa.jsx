@@ -73,7 +73,7 @@ export default function EditarEmpresa() {
 
     try {
       setGuardando(true);
-      await atualizarEmpresa(idEmpresa, form);
+      await atualizarEmpresa(form);
       setSucesso(true);
       setTimeout(() => setSucesso(false), 3000);
     } catch (err) {
