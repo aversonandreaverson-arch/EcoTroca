@@ -55,8 +55,11 @@ const registar = async ({
   await pool.query('INSERT INTO PontuacaoUsuario (id_usuario) VALUES (?)', [id_usuario]);
   await pool.query('INSERT INTO RecompensaUsuario (id_usuario) VALUES (?)', [id_usuario]);
 
-  // Carteira (dinheiro sacável + saldo na plataforma)
-  await pool.query('INSERT INTO Carteira (id_usuario) VALUES (?)', [id_usuario]);
+  // Carteira — só para utilizadores e coletadores
+  // Empresas não têm carteira pois são elas quem paga (Regra 16)
+  if (tipo_usuario !== 'empresa') {
+    await pool.query('INSERT INTO Carteira (id_usuario) VALUES (?)', [id_usuario]);
+  }
 
   // ── Registo extra conforme o tipo de conta ──
 
