@@ -45,6 +45,7 @@ app.use('/api/eventos',      eventoRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/chat',         chatRoutes);
 app.use('/api/notificacoes', notificacaoRoutes);
+app.use('/api/educacao', educacaoRoutes);
 
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
