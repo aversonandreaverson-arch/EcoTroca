@@ -1,26 +1,31 @@
+// ============================================================
+//  HistoricoColetas.jsx — Coletador
+//  Histórico de todas as coletas com filtros e resumo
+// ============================================================
+
 import React, { useState, useEffect } from "react";
-import { CheckCircle, Clock, XCircle, Truck, Wallet, Star } from "lucide-react";
+import { CheckCircle, Clock, XCircle, Truck, Banknote, Star } from "lucide-react";
 import Header from "./Header.jsx";
 import { getMinhasColetasColetador, getCarteira } from "../../api.js";
 
 const STATUS_CONFIG = {
   coletada:  { label: "Concluída",  cor: "bg-green-100 text-green-700",  Icone: CheckCircle },
-  aceita:    { label: "Em curso",   cor: "bg-blue-100 text-blue-700",    Icone: Truck },
-  cancelada: { label: "Cancelada",  cor: "bg-red-100 text-red-700",      Icone: XCircle },
-  pendente:  { label: "Pendente",   cor: "bg-yellow-100 text-yellow-700",Icone: Clock },
+  aceita:    { label: "Em curso",   cor: "bg-blue-100 text-blue-700",    Icone: Truck       },
+  cancelada: { label: "Cancelada",  cor: "bg-red-100 text-red-700",      Icone: XCircle     },
+  pendente:  { label: "Pendente",   cor: "bg-yellow-100 text-yellow-700",Icone: Clock       },
 };
 
 export default function HistoricoColetas() {
-  const [entregas, setEntregas] = useState([]);
-  const [carteira, setCarteira] = useState(null);
+  const [entregas, setEntregas]     = useState([]);
+  const [carteira, setCarteira]     = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [filtro, setFiltro] = useState("todos");
+  const [filtro, setFiltro]         = useState("todos");
 
   useEffect(() => {
     const carregar = async () => {
       try {
         const [coletas, dadosCarteira] = await Promise.all([
-          getMinhasColetasColetador(), // GET /api/coletador/entregas/minhas
+          getMinhasColetasColetador(),
           getCarteira(),
         ]);
         setEntregas(coletas);
@@ -34,12 +39,9 @@ export default function HistoricoColetas() {
     carregar();
   }, []);
 
-  const filtradas = filtro === "todos"
-    ? entregas
-    : entregas.filter(e => e.status === filtro);
-
-  const concluidas = entregas.filter(e => e.status === "coletada");
-  const totalKg = concluidas.reduce((acc, e) => acc + (parseFloat(e.peso_total) || 0), 0);
+  const filtradas   = filtro === "todos" ? entregas : entregas.filter(e => e.status === filtro);
+  const concluidas  = entregas.filter(e => e.status === "coletada");
+  const totalKg     = concluidas.reduce((acc, e) => acc + (parseFloat(e.peso_total)  || 0), 0);
   const totalPontos = concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0);
 
   return (
@@ -63,9 +65,11 @@ export default function HistoricoColetas() {
         </div>
         <div className="bg-white rounded-2xl p-4 text-center shadow">
           <p className="text-2xl font-bold text-green-700 flex items-center justify-center gap-1">
-            <Wallet size={16} /> {carteira?.dinheiro?.toFixed(2) || "0.00"} Kz
+            <Banknote size={16} />
+            {/* parseFloat converte string do MySQL para número */}
+            {parseFloat(carteira?.dinheiro || 0).toFixed(2)} Kz
           </p>
-          <p className="text-xs text-gray-500 mt-1">💵 Dinheiro sacável</p>
+          <p className="text-xs text-gray-500 mt-1">Dinheiro sacável</p>
         </div>
         <div className="bg-white rounded-2xl p-4 text-center shadow">
           <p className="text-2xl font-bold text-yellow-600 flex items-center justify-center gap-1">
@@ -78,11 +82,11 @@ export default function HistoricoColetas() {
       {/* Filtros */}
       <div className="flex gap-2 flex-wrap mb-6">
         {[
-          { val: "todos",    label: "Todos" },
-          { val: "coletada", label: "Concluídas" },
-          { val: "aceita",   label: "Em curso" },
-          { val: "pendente", label: "Pendentes" },
-          { val: "cancelada",label: "Canceladas" },
+          { val: "todos",     label: "Todos"      },
+          { val: "coletada",  label: "Concluídas" },
+          { val: "aceita",    label: "Em curso"   },
+          { val: "pendente",  label: "Pendentes"  },
+          { val: "cancelada", label: "Canceladas" },
         ].map(({ val, label }) => (
           <button
             key={val}
@@ -131,11 +135,12 @@ export default function HistoricoColetas() {
                       })}
                     </p>
                   )}
-                  {/* Valor da coleta */}
                   {entrega.valor_total && (
                     <p className="text-xs font-medium text-green-600 mt-1">
                       Valor: {parseFloat(entrega.valor_total).toFixed(2)} Kz
-                      {entrega.tipo_recompensa === "dinheiro" && " (30% teu = " + (parseFloat(entrega.valor_total) * 0.3 * 0.9).toFixed(2) + " Kz)"}
+                      {entrega.tipo_recompensa === "dinheiro" && (
+                        " (tua parte: " + (parseFloat(entrega.valor_total) * 0.3 * 0.9).toFixed(2) + " Kz)"
+                      )}
                     </p>
                   )}
                 </div>
