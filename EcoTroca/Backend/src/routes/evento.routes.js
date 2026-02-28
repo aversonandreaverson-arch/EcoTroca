@@ -120,13 +120,13 @@ router.delete('/:id', auth, role('empresa', 'admin'), async (req, res) => {
       }
     }
 
-    // Cancela o evento em vez de apagar — preserva o histórico
+    // Elimina o evento definitivamente da base de dados
     await pool.query(
-      `UPDATE Evento SET status = 'cancelado' WHERE id_evento = ?`,
+      `DELETE FROM Evento WHERE id_evento = ?`,
       [req.params.id]
     );
 
-    res.json({ mensagem: 'Evento cancelado com sucesso.' });
+    res.json({ mensagem: 'Evento eliminado com sucesso.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
