@@ -1,36 +1,37 @@
 // ============================================================
 //  PerfilEmpresa.jsx
 //  Página de perfil da empresa recicladora
-//  Mostra: dados da empresa, horário, resíduos aceites, carteira
+//  Mostra: dados da empresa, horário, resíduos aceites
+//  e estatísticas de pagamentos e recolhas
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, Phone, Mail, MapPin, Clock,
-  Recycle, Wallet, Globe, Banknote, CreditCard
+  Recycle, Globe, TrendingUp, Package, CheckCircle
 } from 'lucide-react';
 import Header from './Header.jsx';
-import { getPerfilEmpresa, getCarteira } from '../../api.js';
+import { getPerfilEmpresa, getEntregasEmpresa } from '../../api.js';
 
 export default function PerfilEmpresa() {
   const navigate = useNavigate();
 
   const [perfil, setPerfil]         = useState(null);
-  const [carteira, setCarteira]     = useState(null);
+  const [entregas, setEntregas]     = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro]             = useState('');
 
-  // Carrega o perfil e a carteira ao abrir a página
+  // Carrega o perfil e as entregas ao abrir a página
   useEffect(() => {
     const carregar = async () => {
       try {
-        const [dadosPerfil, dadosCarteira] = await Promise.all([
+        const [dadosPerfil, dadosEntregas] = await Promise.all([
           getPerfilEmpresa(),
-          getCarteira(),
+          getEntregasEmpresa(),
         ]);
         setPerfil(dadosPerfil);
-        setCarteira(dadosCarteira);
+        setEntregas(dadosEntregas);
       } catch (err) {
         setErro(err.message);
       } finally {
@@ -39,6 +40,11 @@ export default function PerfilEmpresa() {
     };
     carregar();
   }, []);
+
+  // Calcula estatísticas a partir das entregas aceites
+  const entregasAceites = entregas.filter(e => e.status === 'coletada');
+  const totalPago       = entregasAceites.reduce((acc, e) => acc + parseFloat(e.valor_total || 0), 0);
+  const totalKg         = entregasAceites.reduce((acc, e) => acc + parseFloat(e.peso_total  || 0), 0);
 
   if (carregando) return (
     <div className="min-h-screen bg-green-700 pt-24 flex items-center justify-center">
@@ -70,8 +76,6 @@ export default function PerfilEmpresa() {
 
         {/* Card principal — avatar e nome */}
         <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-
-          {/* Avatar da empresa */}
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             {perfil?.foto_perfil ? (
               <img
@@ -84,13 +88,11 @@ export default function PerfilEmpresa() {
             )}
           </div>
 
-          {/* Nome e badge */}
           <h2 className="text-2xl font-bold text-gray-800">{perfil?.nome}</h2>
           <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
             <Building2 size={14} /> Empresa Recicladora
           </span>
 
-          {/* Descrição da empresa */}
           {perfil?.descricao && (
             <p className="text-gray-500 text-sm mt-4 leading-relaxed">
               {perfil.descricao}
@@ -98,39 +100,35 @@ export default function PerfilEmpresa() {
           )}
         </div>
 
-        {/* Carteira */}
-        <div className="bg-white rounded-2xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
-            <Wallet size={20} /> Carteira
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
+        {/* Estatísticas — a empresa paga, não recebe */}
+        <div className="grid grid-cols-3 gap-4">
 
-            {/* Dinheiro sacável */}
-            <div className="bg-green-50 rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <Banknote size={22} className="text-green-600" />
-              </div>
-              <p className="text-2xl font-bold text-green-700">
-                {/* parseFloat converte string do MySQL para número */}
-                {parseFloat(carteira?.dinheiro || 0).toFixed(2)} Kz
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Dinheiro (sacável)</p>
+          <div className="bg-white rounded-2xl shadow-md p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <CheckCircle size={22} className="text-green-600" />
             </div>
+            <p className="text-2xl font-bold text-green-700">{entregasAceites.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Entregas aceites</p>
+          </div>
 
-            {/* Saldo na app */}
-            <div className="bg-blue-50 rounded-xl p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <CreditCard size={22} className="text-blue-600" />
-              </div>
-              <p className="text-2xl font-bold text-blue-700">
-                {parseFloat(carteira?.saldo || 0).toFixed(2)} Kz
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Saldo (só na app)</p>
+          <div className="bg-white rounded-2xl shadow-md p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <Package size={22} className="text-blue-600" />
             </div>
+            <p className="text-2xl font-bold text-blue-700">{totalKg.toFixed(1)} kg</p>
+            <p className="text-xs text-gray-500 mt-1">Resíduos recolhidos</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-md p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <TrendingUp size={22} className="text-orange-500" />
+            </div>
+            <p className="text-xl font-bold text-orange-600">{totalPago.toFixed(0)} Kz</p>
+            <p className="text-xs text-gray-500 mt-1">Total pago</p>
           </div>
         </div>
 
-        {/* Informações de contacto */}
+        {/* Contactos */}
         <div className="bg-white rounded-2xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-green-700 mb-4">Contactos</h3>
           <div className="space-y-3 text-gray-600">
@@ -193,7 +191,7 @@ export default function PerfilEmpresa() {
           </div>
         )}
 
-        {/* Resíduos aceites pela empresa */}
+        {/* Resíduos aceites */}
         {perfil?.residuos_aceites && (
           <div className="bg-white rounded-2xl shadow-md p-6">
             <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
