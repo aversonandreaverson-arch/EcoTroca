@@ -16,7 +16,7 @@ import eventoRoutes       from './routes/evento.routes.js';
 import adminRoutes        from './routes/admin.routes.js';
 import chatRoutes         from './routes/chat.routes.js';
 import notificacaoRoutes  from './routes/notificacao.route.js';
-
+import educacaoRoutes from './routes/educacao.routes.js';
 const app = express();
 
 // ── CORS — permite pedidos do frontend ──
