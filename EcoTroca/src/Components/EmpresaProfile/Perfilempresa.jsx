@@ -6,18 +6,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Phone, Mail, MapPin, Clock, Recycle, Wallet, Globe } from 'lucide-react';
+import {
+  Building2, Phone, Mail, MapPin, Clock,
+  Recycle, Wallet, Globe, Banknote, CreditCard
+} from 'lucide-react';
 import Header from './Header.jsx';
 import { getPerfilEmpresa, getCarteira } from '../../api.js';
 
 export default function PerfilEmpresa() {
   const navigate = useNavigate();
 
-  // Estado dos dados
-  const [perfil, setPerfil]     = useState(null);
-  const [carteira, setCarteira] = useState(null);
+  const [perfil, setPerfil]         = useState(null);
+  const [carteira, setCarteira]     = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro]         = useState('');
+  const [erro, setErro]             = useState('');
 
   // Carrega o perfil e a carteira ao abrir a página
   useEffect(() => {
@@ -50,7 +52,10 @@ export default function PerfilEmpresa() {
       <Header />
       <div className="bg-white p-6 rounded-xl text-center">
         <p className="text-red-600 mb-4">{erro}</p>
-        <button onClick={() => navigate('/Login')} className="bg-green-600 text-white px-4 py-2 rounded-lg">
+        <button
+          onClick={() => navigate('/Login')}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg"
+        >
           Fazer Login
         </button>
       </div>
@@ -81,8 +86,8 @@ export default function PerfilEmpresa() {
 
           {/* Nome e badge */}
           <h2 className="text-2xl font-bold text-gray-800">{perfil?.nome}</h2>
-          <span className="inline-block bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
-            🏭 Empresa Recicladora
+          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
+            <Building2 size={14} /> Empresa Recicladora
           </span>
 
           {/* Descrição da empresa */}
@@ -99,17 +104,28 @@ export default function PerfilEmpresa() {
             <Wallet size={20} /> Carteira
           </h3>
           <div className="grid grid-cols-2 gap-4">
+
+            {/* Dinheiro sacável */}
             <div className="bg-green-50 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <Banknote size={22} className="text-green-600" />
+              </div>
               <p className="text-2xl font-bold text-green-700">
-                {carteira?.dinheiro?.toFixed(2) || '0.00'} Kz
+                {/* parseFloat converte string do MySQL para número */}
+                {parseFloat(carteira?.dinheiro || 0).toFixed(2)} Kz
               </p>
-              <p className="text-xs text-gray-500 mt-1">💵 Dinheiro (sacável)</p>
+              <p className="text-xs text-gray-500 mt-1">Dinheiro (sacável)</p>
             </div>
+
+            {/* Saldo na app */}
             <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <CreditCard size={22} className="text-blue-600" />
+              </div>
               <p className="text-2xl font-bold text-blue-700">
-                {carteira?.saldo?.toFixed(2) || '0.00'} Kz
+                {parseFloat(carteira?.saldo || 0).toFixed(2)} Kz
               </p>
-              <p className="text-xs text-gray-500 mt-1">💳 Saldo (só na app)</p>
+              <p className="text-xs text-gray-500 mt-1">Saldo (só na app)</p>
             </div>
           </div>
         </div>
@@ -119,19 +135,16 @@ export default function PerfilEmpresa() {
           <h3 className="text-lg font-semibold text-green-700 mb-4">Contactos</h3>
           <div className="space-y-3 text-gray-600">
 
-            {/* Telefone */}
             <div className="flex items-center gap-3">
               <Phone size={18} className="text-green-500" />
               <span>{perfil?.telefone || 'Não definido'}</span>
             </div>
 
-            {/* Email */}
             <div className="flex items-center gap-3">
               <Mail size={18} className="text-green-500" />
               <span>{perfil?.email || 'Não definido'}</span>
             </div>
 
-            {/* Localização */}
             <div className="flex items-center gap-3">
               <MapPin size={18} className="text-green-500" />
               <span>
@@ -140,7 +153,6 @@ export default function PerfilEmpresa() {
               </span>
             </div>
 
-            {/* Website — só mostra se existir */}
             {perfil?.site && (
               <div className="flex items-center gap-3">
                 <Globe size={18} className="text-green-500" />
@@ -187,14 +199,13 @@ export default function PerfilEmpresa() {
             <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
               <Recycle size={20} /> Resíduos Aceites
             </h3>
-            {/* Mostra cada resíduo como badge */}
             <div className="flex flex-wrap gap-2">
               {perfil.residuos_aceites.split(',').map((r, i) => (
                 <span
                   key={i}
-                  className="bg-green-100 text-green-700 text-sm font-medium px-3 py-1 rounded-full"
+                  className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-3 py-1 rounded-full"
                 >
-                  ♻️ {r.trim()}
+                  <Recycle size={12} /> {r.trim()}
                 </span>
               ))}
             </div>
