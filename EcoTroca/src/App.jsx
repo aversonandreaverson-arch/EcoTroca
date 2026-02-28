@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 // ── Páginas públicas (não precisam de login) ──
 import Home                 from './pages/home'
 import Login                from './pages/Login'
+import Cadastro             from './pages/Cadastro'
 import RecuperacaoDeSenha   from './pages/RecuperacaoDeSenha'
 import RedefinirSenha       from './pages/RedefinirSenha'
 
@@ -47,11 +48,12 @@ function App() {
       {/* ═══════════════════════════════════════════════
           ROTAS PÚBLICAS — qualquer pessoa pode aceder
       ═══════════════════════════════════════════════ */}
-      <Route path='/'                        element={<Home />} />
-      <Route path='/Login'                   element={<Login />} />
-      <Route path='/RecuperacaoDeSenha'      element={<RecuperacaoDeSenha />} />
+      <Route path='/'                         element={<Home />} />
+      <Route path='/Login'                    element={<Login />} />
+      <Route path='/Cadastro'                 element={<Cadastro />} />
+      <Route path='/RecuperacaoDeSenha'       element={<RecuperacaoDeSenha />} />
       <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />} />
-      <Route path='/Footer'                  element={<Footer />} />
+      <Route path='/Footer'                   element={<Footer />} />
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — utilizador comum
