@@ -242,7 +242,7 @@ router.get('/minhas/eventos', auth, role('empresa', 'admin'), async (req, res) =
     if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
 
     const [rows] = await pool.query(
-      `SELECT * FROM Evento WHERE id_empresa = ? ORDER BY data_inicio DESC`,
+      `SELECT * FROM Evento WHERE id_empresa = ? AND eliminado = FALSE ORDER BY data_inicio DESC`,
       [empresa[0].id_empresa]
     );
     res.json(rows);
