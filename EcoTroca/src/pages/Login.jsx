@@ -104,6 +104,7 @@ const Login = () => {
 
         {/* Botão — fica "Entrando..." enquanto espera o servidor */}
         <button
+        type="button"
           onClick={handleLogin}
           disabled={carregando}
           className="w-full mt-6 bg-green-800 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition"

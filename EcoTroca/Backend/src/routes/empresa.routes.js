@@ -1,16 +1,9 @@
 // ============================================================
 //  empresa.routes.js
-//  Rotas da empresa recicladora:
-//    GET    /api/empresas              → listar empresas ativas
-//    GET    /api/empresas/:id          → ver detalhes de uma empresa
-//    PUT    /api/empresas/:id          → editar dados da empresa
-//    GET    /api/empresas/:id/entregas → entregas destinadas à empresa
-//    POST   /api/empresas/:id/entregas/:idEntrega/aceitar  → aceitar entrega
-//    POST   /api/empresas/:id/entregas/:idEntrega/rejeitar → rejeitar resíduos
-//    GET    /api/empresas/:id/coletadores → coletadores dependentes
-//    POST   /api/empresas/:id/coletadores → adicionar coletador dependente
-//    POST   /api/empresas/:id/eventos  → criar evento
-//    GET    /api/eventos               → listar todos os eventos (público)
+//  Todas as rotas da empresa recicladora
+//  IMPORTANTE: as rotas específicas (/perfil, /minhas/...)
+//  devem vir ANTES das rotas com parâmetro (/:id)
+//  para o Express não confundir "perfil" com um id
 // ============================================================
 
 import { Router } from 'express';
@@ -22,35 +15,16 @@ import { processarPagamento, rejeitarEntrega, criarEvento } from '../services/em
 const router = Router();
 
 // ──────────────────────────────────────────────────────────────
-// LISTAR TODAS AS EMPRESAS ATIVAS
-// Acesso: qualquer utilizador autenticado
+// GET /api/empresas/perfil
+// Perfil da empresa autenticada — usa o token JWT
 // ──────────────────────────────────────────────────────────────
-router.get('/', auth, async (req, res) => {
+router.get('/perfil', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id_empresa, nome, telefone, email, endereco, provincia, municipio,
-              horario_abertura, horario_fechamento, foto_perfil, descricao, residuos_aceites
-       FROM EmpresaRecicladora
-       WHERE ativo = TRUE
-       ORDER BY nome ASC`
+      `SELECT * FROM EmpresaRecicladora WHERE id_usuario = ? AND ativo = TRUE`,
+      [req.usuario.id_usuario]
     );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
-});
-
-// ──────────────────────────────────────────────────────────────
-// VER DETALHES DE UMA EMPRESA
-// Acesso: qualquer utilizador autenticado
-// ──────────────────────────────────────────────────────────────
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT * FROM EmpresaRecicladora WHERE id_empresa = ? AND ativo = TRUE`,
-      [req.params.id]
-    );
-    if (rows.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    if (rows.length === 0) return res.status(404).json({ erro: 'Perfil de empresa não encontrado.' });
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -58,10 +32,10 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// EDITAR DADOS DA EMPRESA
-// Acesso: só a própria empresa (tipo_usuario = 'empresa')
+// PUT /api/empresas/perfil
+// Editar dados da empresa autenticada
 // ──────────────────────────────────────────────────────────────
-router.put('/:id', auth, role('empresa', 'admin'), async (req, res) => {
+router.put('/perfil', auth, role('empresa', 'admin'), async (req, res) => {
   try {
     const {
       nome, telefone, email, endereco, provincia, municipio, bairro,
@@ -74,24 +48,30 @@ router.put('/:id', auth, role('empresa', 'admin'), async (req, res) => {
          provincia = ?, municipio = ?, bairro = ?,
          descricao = ?, horario_abertura = ?, horario_fechamento = ?,
          site = ?, residuos_aceites = ?
-       WHERE id_empresa = ?`,
+       WHERE id_usuario = ?`,
       [nome, telefone, email, endereco, provincia, municipio, bairro,
        descricao, horario_abertura, horario_fechamento, site, residuos_aceites,
-       req.params.id]
+       req.usuario.id_usuario]
     );
 
-    res.json({ mensagem: 'Dados da empresa atualizados com sucesso!' });
+    res.json({ mensagem: 'Perfil atualizado com sucesso!' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
 });
 
 // ──────────────────────────────────────────────────────────────
-// LISTAR ENTREGAS DESTINADAS À EMPRESA
-// Acesso: só a própria empresa
+// GET /api/empresas/minhas/entregas
+// Entregas destinadas à empresa autenticada
 // ──────────────────────────────────────────────────────────────
-router.get('/:id/entregas', auth, role('empresa', 'admin'), async (req, res) => {
+router.get('/minhas/entregas', auth, role('empresa', 'admin'), async (req, res) => {
   try {
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
     const [rows] = await pool.query(
       `SELECT
          e.id_entrega, e.status, e.tipo_entrega, e.tipo_recompensa,
@@ -107,7 +87,7 @@ router.get('/:id/entregas', auth, role('empresa', 'admin'), async (req, res) => 
        WHERE e.id_empresa = ?
        GROUP BY e.id_entrega
        ORDER BY e.data_hora DESC`,
-      [req.params.id]
+      [empresa[0].id_empresa]
     );
     res.json(rows);
   } catch (err) {
@@ -116,41 +96,42 @@ router.get('/:id/entregas', auth, role('empresa', 'admin'), async (req, res) => 
 });
 
 // ──────────────────────────────────────────────────────────────
-// ACEITAR ENTREGA — Regra 16
-// Empresa aceita os resíduos e o sistema processa o pagamento
-// Acesso: só a própria empresa
+// POST /api/empresas/minhas/entregas/:idEntrega/aceitar
+// Aceitar entrega — processa pagamento (Regra 16)
 // ──────────────────────────────────────────────────────────────
-router.post('/:id/entregas/:idEntrega/aceitar', auth, role('empresa', 'admin'), async (req, res) => {
+router.post('/minhas/entregas/:idEntrega/aceitar', auth, role('empresa', 'admin'), async (req, res) => {
   try {
-    const { id, idEntrega } = req.params;
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
 
-    // Processa o pagamento ao utilizador e coletador (Regra 16)
-    const resultado = await processarPagamento(idEntrega, id);
-
-    res.json({
-      mensagem: 'Entrega aceite e pagamento processado com sucesso!',
-      ...resultado
-    });
+    const resultado = await processarPagamento(req.params.idEntrega, empresa[0].id_empresa);
+    res.json({ mensagem: 'Entrega aceite e pagamento processado!', ...resultado });
   } catch (err) {
     res.status(400).json({ erro: err.message });
   }
 });
 
 // ──────────────────────────────────────────────────────────────
-// REJEITAR ENTREGA — Regra 17
-// Empresa rejeita resíduos danificados, sujos ou de origem suspeita
-// Pode pedir fotos, limpeza ou organização ao utilizador
-// Acesso: só a própria empresa
+// POST /api/empresas/minhas/entregas/:idEntrega/rejeitar
+// Rejeitar entrega com motivo obrigatório (Regra 17)
 // ──────────────────────────────────────────────────────────────
-router.post('/:id/entregas/:idEntrega/rejeitar', auth, role('empresa', 'admin'), async (req, res) => {
+router.post('/minhas/entregas/:idEntrega/rejeitar', auth, role('empresa', 'admin'), async (req, res) => {
   try {
-    const { id, idEntrega } = req.params;
     const { motivo, pede_foto, pede_limpeza } = req.body;
-
-    // motivo é obrigatório — empresa deve justificar a rejeição
     if (!motivo) return res.status(400).json({ erro: 'O motivo da rejeição é obrigatório.' });
 
-    const resultado = await rejeitarEntrega(idEntrega, id, motivo, pede_foto, pede_limpeza);
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
+    const resultado = await rejeitarEntrega(
+      req.params.idEntrega, empresa[0].id_empresa, motivo, pede_foto, pede_limpeza
+    );
     res.json(resultado);
   } catch (err) {
     res.status(400).json({ erro: err.message });
@@ -158,18 +139,24 @@ router.post('/:id/entregas/:idEntrega/rejeitar', auth, role('empresa', 'admin'),
 });
 
 // ──────────────────────────────────────────────────────────────
-// LISTAR COLETADORES DEPENDENTES DA EMPRESA
-// Acesso: só a própria empresa
+// GET /api/empresas/minhas/coletadores
+// Coletadores dependentes da empresa autenticada
 // ──────────────────────────────────────────────────────────────
-router.get('/:id/coletadores', auth, role('empresa', 'admin'), async (req, res) => {
+router.get('/minhas/coletadores', auth, role('empresa', 'admin'), async (req, res) => {
   try {
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
     const [rows] = await pool.query(
       `SELECT c.id_coletador, c.nome, c.telefone, c.ativo, u.email
        FROM Coletador c
        JOIN Usuario u ON c.id_usuario = u.id_usuario
        WHERE c.id_empresa = ? AND c.tipo = 'empresa'
        ORDER BY c.nome ASC`,
-      [req.params.id]
+      [empresa[0].id_empresa]
     );
     res.json(rows);
   } catch (err) {
@@ -178,20 +165,39 @@ router.get('/:id/coletadores', auth, role('empresa', 'admin'), async (req, res) 
 });
 
 // ──────────────────────────────────────────────────────────────
-// ADICIONAR COLETADOR DEPENDENTE À EMPRESA
-// Liga um coletador independente existente à empresa
-// Acesso: só a própria empresa
+// POST /api/empresas/minhas/coletadores
+// Adicionar coletador por ID ou por telefone
 // ──────────────────────────────────────────────────────────────
-router.post('/:id/coletadores', auth, role('empresa', 'admin'), async (req, res) => {
+router.post('/minhas/coletadores', auth, role('empresa', 'admin'), async (req, res) => {
   try {
-    const { id_coletador } = req.body;
+    const { id_coletador, telefone } = req.body;
 
-    if (!id_coletador) return res.status(400).json({ erro: 'id_coletador é obrigatório.' });
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
 
-    // Atualiza o coletador para ficar ligado à empresa
+    let coletadorId = id_coletador;
+
+    // Se passou telefone em vez de ID, procura o coletador pelo telefone
+    if (!coletadorId && telefone) {
+      const [coletador] = await pool.query(
+        `SELECT c.id_coletador FROM Coletador c
+         JOIN Usuario u ON c.id_usuario = u.id_usuario
+         WHERE u.telefone = ?`,
+        [telefone]
+      );
+      if (coletador.length === 0)
+        return res.status(404).json({ erro: 'Nenhum coletador encontrado com este telefone.' });
+      coletadorId = coletador[0].id_coletador;
+    }
+
+    if (!coletadorId) return res.status(400).json({ erro: 'Fornece o id_coletador ou o telefone.' });
+
     await pool.query(
       `UPDATE Coletador SET id_empresa = ?, tipo = 'empresa' WHERE id_coletador = ?`,
-      [req.params.id, id_coletador]
+      [empresa[0].id_empresa, coletadorId]
     );
 
     res.json({ mensagem: 'Coletador adicionado à empresa com sucesso!' });
@@ -201,18 +207,22 @@ router.post('/:id/coletadores', auth, role('empresa', 'admin'), async (req, res)
 });
 
 // ──────────────────────────────────────────────────────────────
-// REMOVER COLETADOR DEPENDENTE DA EMPRESA
-// Acesso: só a própria empresa
+// DELETE /api/empresas/minhas/coletadores/:idColetador
+// Remover coletador da empresa
 // ──────────────────────────────────────────────────────────────
-router.delete('/:id/coletadores/:idColetador', auth, role('empresa', 'admin'), async (req, res) => {
+router.delete('/minhas/coletadores/:idColetador', auth, role('empresa', 'admin'), async (req, res) => {
   try {
-    // Remove a ligação — coletador volta a ser independente
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
     await pool.query(
       `UPDATE Coletador SET id_empresa = NULL, tipo = 'independente'
        WHERE id_coletador = ? AND id_empresa = ?`,
-      [req.params.idColetador, req.params.id]
+      [req.params.idColetador, empresa[0].id_empresa]
     );
-
     res.json({ mensagem: 'Coletador removido da empresa.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -220,12 +230,40 @@ router.delete('/:id/coletadores/:idColetador', auth, role('empresa', 'admin'), a
 });
 
 // ──────────────────────────────────────────────────────────────
-// CRIAR EVENTO
-// Só empresas e admins podem criar eventos
+// GET /api/empresas/minhas/eventos
+// Eventos criados pela empresa autenticada
 // ──────────────────────────────────────────────────────────────
-router.post('/:id/eventos', auth, role('empresa', 'admin'), async (req, res) => {
+router.get('/minhas/eventos', auth, role('empresa', 'admin'), async (req, res) => {
   try {
-    const resultado = await criarEvento(req.body, req.params.id, null);
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
+    const [rows] = await pool.query(
+      `SELECT * FROM Evento WHERE id_empresa = ? ORDER BY data_inicio DESC`,
+      [empresa[0].id_empresa]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────
+// POST /api/empresas/minhas/eventos
+// Criar evento — só empresa e admin
+// ──────────────────────────────────────────────────────────────
+router.post('/minhas/eventos', auth, role('empresa', 'admin'), async (req, res) => {
+  try {
+    const [empresa] = await pool.query(
+      `SELECT id_empresa FROM EmpresaRecicladora WHERE id_usuario = ?`,
+      [req.usuario.id_usuario]
+    );
+    if (empresa.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+
+    const resultado = await criarEvento(req.body, empresa[0].id_empresa, null);
     res.status(201).json(resultado);
   } catch (err) {
     res.status(400).json({ erro: err.message });
@@ -233,7 +271,43 @@ router.post('/:id/eventos', auth, role('empresa', 'admin'), async (req, res) => 
 });
 
 // ──────────────────────────────────────────────────────────────
-// DESATIVAR EMPRESA — só admin
+// GET /api/empresas
+// Listar todas as empresas ativas — público
+// ──────────────────────────────────────────────────────────────
+router.get('/', auth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_empresa, nome, telefone, email, endereco, provincia, municipio,
+              horario_abertura, horario_fechamento, foto_perfil, descricao, residuos_aceites
+       FROM EmpresaRecicladora WHERE ativo = TRUE ORDER BY nome ASC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────
+// GET /api/empresas/:id
+// Ver empresa por ID — público
+// ATENÇÃO: esta rota deve ficar DEPOIS de todas as rotas específicas
+// para o Express não confundir "perfil" ou "minhas" com um :id
+// ──────────────────────────────────────────────────────────────
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM EmpresaRecicladora WHERE id_empresa = ? AND ativo = TRUE`,
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────
+// PATCH /api/empresas/:id/desativar — só admin
 // ──────────────────────────────────────────────────────────────
 router.patch('/:id/desativar', auth, role('admin'), async (req, res) => {
   try {
