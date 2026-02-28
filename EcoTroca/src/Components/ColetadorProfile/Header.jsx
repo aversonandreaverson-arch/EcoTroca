@@ -8,8 +8,8 @@ const links = [
   { label: "Início", to: "/ColetadorDashboard" },
   { label: "Pedidos Pendentes", to: "/PedidosPendentes" },
   { label: "Histórico", to: "/HistoricoColetas" },
-  { label: "Notícias", to: "/ColetadorNoticias" },
-  { label: "Eventos", to: "/ColetadorEventos" },
+  { label: "Notícias", to: "/Noticias" },
+  { label: "Eventos", to: "/Eventos" },
   { label: "Perfil", to: "/PerfilColetador" },
 ];
 
