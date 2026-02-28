@@ -28,7 +28,7 @@ router.get('/', auth, async (req, res) => {
          emp.foto_perfil AS foto_empresa
        FROM Evento ev
        LEFT JOIN EmpresaRecicladora emp ON ev.id_empresa = emp.id_empresa
-       WHERE ev.status = 'ativo'
+       WHERE ev.status = 'ativo' AND ev.eliminado = FALSE
        ORDER BY ev.data_inicio ASC`
     );
     res.json(rows);
@@ -49,7 +49,7 @@ router.get('/:id', auth, async (req, res) => {
          emp.foto_perfil AS foto_empresa
        FROM Evento ev
        LEFT JOIN EmpresaRecicladora emp ON ev.id_empresa = emp.id_empresa
-       WHERE ev.id_evento = ?`,
+       WHERE ev.id_evento = ? AND ev.eliminado = FALSE`,
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ erro: 'Evento não encontrado.' });
@@ -120,9 +120,9 @@ router.delete('/:id', auth, role('empresa', 'admin'), async (req, res) => {
       }
     }
 
-    // Elimina o evento definitivamente da base de dados
+    // Soft delete — marca como eliminado mas preserva o histórico
     await pool.query(
-      `DELETE FROM Evento WHERE id_evento = ?`,
+      `UPDATE Evento SET eliminado = TRUE WHERE id_evento = ?`,
       [req.params.id]
     );
 
