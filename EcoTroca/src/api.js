@@ -250,3 +250,14 @@ export const getEstatisticas = () => pedido('/admin/stats');
 export const getUtilizadores = () => pedido('/admin/usuarios');
 
 export const getTodasEntregas = () => pedido('/admin/entregas');
+
+// Editar evento existente
+export const editarEvento = (id, dados) =>
+  pedido(`/eventos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  });
+
+// Cancelar/apagar evento
+export const apagarEvento = (id) =>
+  pedido(`/eventos/${id}`, { method: 'DELETE' });
