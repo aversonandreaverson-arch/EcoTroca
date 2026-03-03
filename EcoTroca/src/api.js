@@ -1,8 +1,8 @@
-// ============================================================
+// 
 // api.js — Ficheiro central de comunicação com o backend
 // Todos os pedidos ao servidor passam por aqui
 // Backend corre em: http://localhost:3000
-// ============================================================
+
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -250,6 +250,10 @@ export const getEstatisticas = () => pedido('/admin/stats');
 export const getUtilizadores = () => pedido('/admin/usuarios');
 
 export const getTodasEntregas = () => pedido('/admin/entregas');
+
+// Vai buscar todas as estatísticas para o painel principal do admin
+// Retorna: utilizadores, empresas, coletadores, entregas, financeiro, entregas_recentes
+export const getDashboardAdmin = () => pedido('/admin/dashboard');
 
 // Editar evento existente
 export const editarEvento = (id, dados) =>
