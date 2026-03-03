@@ -1,7 +1,3 @@
-// ============================================================
-//  app.js — Configuração principal do servidor Express
-//  Define middlewares, CORS e todas as rotas da API
-// ============================================================
 
 import express, { json } from 'express';
 import cors from 'cors';
@@ -16,8 +12,8 @@ import eventoRoutes       from './routes/evento.routes.js';
 import adminRoutes        from './routes/admin.routes.js';
 import chatRoutes         from './routes/chat.routes.js';
 import notificacaoRoutes  from './routes/notificacao.route.js';
-import educacaoRoutes from './routes/educacao.routes.js';
-import adminRoutes from './routes/admin.routes.js'
+import educacaoRoutes     from './routes/educacao.routes.js';
+
 const app = express();
 
 // ── CORS — permite pedidos do frontend ──
@@ -46,8 +42,7 @@ app.use('/api/eventos',      eventoRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/chat',         chatRoutes);
 app.use('/api/notificacoes', notificacaoRoutes);
-app.use('/api/educacao', educacaoRoutes);
-app.use('/api/admin', adminRoutes)
+app.use('/api/educacao',     educacaoRoutes);
 
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
