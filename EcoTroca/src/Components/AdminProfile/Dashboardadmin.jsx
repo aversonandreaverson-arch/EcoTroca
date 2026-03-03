@@ -1,13 +1,3 @@
-// ============================================================
-//  DashboardAdmin.jsx — Painel principal do Administrador
-//  Guardar em: src/Components/AdminProfile/DashboardAdmin.jsx
-//
-//  O que este ficheiro faz:
-//  Quando o admin faz login, esta é a primeira página que vê.
-//  Mostra estatísticas gerais da plataforma: quantos utilizadores
-//  existem, quantas entregas foram feitas, quanto dinheiro passou
-//  pela plataforma e as últimas 10 entregas registadas.
-// ============================================================
 
 // useState  → guarda dados que podem mudar (ex: as estatísticas)
 // useEffect → executa código quando a página abre (ex: ir buscar dados à API)
