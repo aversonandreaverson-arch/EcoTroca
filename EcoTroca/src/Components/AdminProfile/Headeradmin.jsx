@@ -1,7 +1,3 @@
-// ============================================================
-//  Header.jsx — Navbar do Administrador
-//  Salvar em: src/Components/AdminProfile/Header.jsx
-// ============================================================
 
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";

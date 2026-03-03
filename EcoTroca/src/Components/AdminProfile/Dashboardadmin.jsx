@@ -1,7 +1,3 @@
-// ============================================================
-//  DashboardAdmin.jsx — Painel principal do Administrador
-//  Salvar em: src/Components/AdminProfile/DashboardAdmin.jsx
-// ============================================================
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
