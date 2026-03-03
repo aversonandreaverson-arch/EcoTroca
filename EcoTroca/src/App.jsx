@@ -42,6 +42,10 @@ import EventosEmpresa     from './Components/EmpresaProfile/EventosEmpresa'
 import ColetadoresEmpresa from './Components/EmpresaProfile/ColetadoresEmpresa'
 import EducacaoEmpresa    from './Components/EmpresaProfile/Educacao'
 
+// ── Admin ──
+import DashboardAdmin from './Components/AdminProfile/DashboardAdmin'
+
+
 // ── Rota protegida ──
 import RotaProtegida from './Components/RotaProtegida'
 
@@ -98,6 +102,11 @@ function App() {
       <Route path='/EventosEmpresa'     element={<RotaProtegida><EventosEmpresa /></RotaProtegida>} />
       <Route path='/ColetadoresEmpresa' element={<RotaProtegida><ColetadoresEmpresa /></RotaProtegida>} />
       <Route path='/EmpresaEducacao'    element={<RotaProtegida><EducacaoEmpresa /></RotaProtegida>} />
+
+      {/* ═══════════════════════════════════════════════
+          ROTAS PRIVADAS — admin
+      ═══════════════════════════════════════════════ */}
+      <Route path='/AdminDashboard'    element={<RotaProtegida><DashboardAdmin /></RotaProtegida>} />
 
     </Routes>
   )
