@@ -370,3 +370,20 @@ export const apagarEducacao = (id) =>
 // periodo → 'hoje', 'semana', 'mes' ou 'total'
 export const getRelatoriosAdmin = (periodo = 'mes') =>
   pedido(`/admin/relatorios?periodo=${periodo}`);
+// ============================================================
+// FEED — publicações da página inicial partilhada
+// ============================================================
+
+// Vou buscar todas as publicações do feed ordenadas por data
+export const getFeed = () => pedido('/feed');
+
+// Crio uma nova publicação no feed
+export const criarPublicacao = (dados) =>
+  pedido('/feed', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  });
+
+// Apago uma publicação do feed pelo ID
+export const apagarPublicacao = (id) =>
+  pedido(`/feed/${id}`, { method: 'DELETE' });
