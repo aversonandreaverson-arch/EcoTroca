@@ -1,8 +1,3 @@
-// ============================================================
-//  PaginaInicial.jsx — Coletador
-//  Página inicial do coletador com pedidos pendentes,
-//  mini carteira e notificações recentes
-// ============================================================
 
 import React, { useState, useEffect } from 'react';
 import { Search, X, Truck, Clock, MapPin, Package, Banknote, CreditCard } from "lucide-react";

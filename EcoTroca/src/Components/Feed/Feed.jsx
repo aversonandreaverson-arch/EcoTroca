@@ -1,183 +1,235 @@
 
-//  O que esta página faz:
-//  Mostro um feed com todas as publicações da plataforma —
-//  ofertas de resíduos de utilizadores, pedidos de empresas,
-//  eventos de reciclagem e conteúdos educativos.
-//  Todos os tipos de utilizador vêem a mesma página inicial.
-// ============================================================
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Recycle, Building2, Calendar, BookOpen,
-  Plus, MapPin, Weight, Banknote, Filter, Search
+  Recycle, Building2, MapPin, Weight,
+  Banknote, Plus, Search, Trash2
 } from 'lucide-react';
-import { getFeed, criarPublicacao, getResiduos, getUtilizadorLocal } from '../../api.js';
+import { getFeed, criarPublicacao, apagarPublicacao, getResiduos, getUtilizadorLocal } from '../../api.js';
 
-// ── Tipos de filtro disponíveis no feed ──
+// ── Aqui defino os tipos de publicação que cada perfil pode criar ──
+// Uso um objecto onde a chave é o tipo de utilizador
+// e o valor é um array com os tipos de publicação permitidos
+const TIPOS_POR_PERFIL = {
+  admin:   [
+    { valor: 'evento',         label: '📅 Evento'            },
+    { valor: 'educacao',       label: '📚 Educação'          },
+    { valor: 'noticia',        label: '📰 Notícia'           },
+    { valor: 'aviso',          label: '📣 Aviso'             },
+  ],
+  empresa: [
+    { valor: 'pedido_residuo', label: '🏭 Pedido de Resíduo' },
+    { valor: 'evento',         label: '📅 Evento'            },
+    { valor: 'educacao',       label: '📚 Educação'          },
+    { valor: 'noticia',        label: '📰 Notícia'           },
+  ],
+  comum:   [
+    { valor: 'oferta_residuo', label: '♻️ Oferta de Resíduo' },
+  ],
+  coletor: [], // o coletador só visualiza — não publico nada para ele
+};
+
+// ── Aqui defino os filtros que aparecem no topo do feed ──
+// O utilizador pode clicar num filtro para ver só esse tipo de publicação
 const FILTROS = [
-  { valor: 'todos',          label: 'Tudo',       icon: '🌍' },
-  { valor: 'oferta_residuo', label: 'Ofertas',    icon: '♻️' },
-  { valor: 'pedido_residuo', label: 'Pedidos',    icon: '🏭' },
-  { valor: 'evento',         label: 'Eventos',    icon: '📅' },
-  { valor: 'educacao',       label: 'Educação',   icon: '📚' },
+  { valor: 'todos',          label: 'Tudo',     icon: '🌍' },
+  { valor: 'oferta_residuo', label: 'Ofertas',  icon: '♻️' },
+  { valor: 'pedido_residuo', label: 'Pedidos',  icon: '🏭' },
+  { valor: 'evento',         label: 'Eventos',  icon: '📅' },
+  { valor: 'educacao',       label: 'Educação', icon: '📚' },
+  { valor: 'noticia',        label: 'Notícias', icon: '📰' },
+  { valor: 'aviso',          label: 'Avisos',   icon: '📣' },
 ];
+
+// ── Aqui defino os estilos visuais de cada tipo de publicação ──
+// Cada tipo tem uma cor diferente para ser fácil de identificar no feed
+const ESTILOS = {
+  oferta_residuo: { badge: 'bg-green-400/20 text-green-300',   borda: 'border-green-400/20',   label: '♻️ Oferta de Resíduo' },
+  pedido_residuo: { badge: 'bg-purple-400/20 text-purple-300', borda: 'border-purple-400/20',  label: '🏭 Pedido de Empresa'  },
+  evento:         { badge: 'bg-blue-400/20 text-blue-300',     borda: 'border-blue-400/20',    label: '📅 Evento'             },
+  educacao:       { badge: 'bg-yellow-400/20 text-yellow-300', borda: 'border-yellow-400/20',  label: '📚 Educação'           },
+  noticia:        { badge: 'bg-cyan-400/20 text-cyan-300',     borda: 'border-cyan-400/20',    label: '📰 Notícia'            },
+  aviso:          { badge: 'bg-red-400/20 text-red-300',       borda: 'border-red-400/20',     label: '📣 Aviso'              },
+};
+
+// ── Aqui defino o formulário vazio que uso quando o modal abre ──
+// Uso este objecto para limpar o formulário depois de publicar
+const FORM_VAZIO = {
+  tipo_publicacao: 'oferta_residuo',
+  titulo: '', descricao: '', id_residuo: '',
+  quantidade_kg: '', valor_proposto: '', provincia: '', imagem: '',
+};
 
 export default function Feed() {
 
+  // Uso o useNavigate para navegar para outras páginas sem recarregar
   const navigate = useNavigate();
 
-  // utilizador → dados do utilizador autenticado (nome e tipo)
+  // Aqui vou buscar os dados do utilizador que está autenticado
+  // Uso isto para saber o tipo e o nome do utilizador
   const utilizador = getUtilizadorLocal();
+  const tipo       = utilizador?.tipo || 'comum';
 
-  // feed → lista de publicações vindas da API
-  const [feed, setFeed] = useState([]);
+  // Aqui guardo a lista de publicações vindas do servidor
+  const [feed,        setFeed]        = useState([]);
 
-  // carregando → true enquanto os dados não chegaram
-  const [carregando, setCarregando] = useState(true);
+  // Uso este estado para mostrar "A carregar..." enquanto espero o servidor
+  const [carregando,  setCarregando]  = useState(true);
 
-  // erro → mensagem de erro se a API falhar
-  const [erro, setErro] = useState('');
+  // Aqui guardo a mensagem de erro se o servidor falhar
+  const [erro,        setErro]        = useState('');
 
-  // filtro → tipo de publicação actualmente seleccionado
-  const [filtro, setFiltro] = useState('todos');
+  // Aqui guardo o filtro activo — começo com 'todos' para mostrar tudo
+  const [filtro,      setFiltro]      = useState('todos');
 
-  // pesquisa → texto digitado na barra de pesquisa
-  const [pesquisa, setPesquisa] = useState('');
+  // Aqui guardo o texto que o utilizador escreve na barra de pesquisa
+  const [pesquisa,    setPesquisa]    = useState('');
 
-  // modalAberto → controla se o formulário de nova publicação está visível
+  // Uso este estado para controlar se o modal de publicação está aberto
   const [modalAberto, setModalAberto] = useState(false);
 
-  // residuos → lista de tipos de resíduos para o formulário
-  const [residuos, setResiduos] = useState([]);
+  // Aqui guardo a lista de tipos de resíduos para o formulário
+  const [residuos,    setResiduos]    = useState([]);
 
-  // formulario → dados do formulário de nova publicação
-  const [formulario, setFormulario] = useState({
-    tipo_publicacao: 'oferta_residuo',
-    titulo: '',
-    descricao: '',
-    id_residuo: '',
-    quantidade_kg: '',
-    valor_proposto: '',
-    provincia: '',
-    imagem: '',
-  });
+  // Aqui guardo os dados do formulário de nova publicação
+  const [formulario,  setFormulario]  = useState(FORM_VAZIO);
 
-  // publicando → evita cliques duplos no botão publicar
-  const [publicando, setPublicando] = useState(false);
+  // Uso este estado para bloquear o botão enquanto estou a publicar
+  const [publicando,  setPublicando]  = useState(false);
 
-  // erroFormulario → mensagem de erro dentro do formulário
-  const [erroFormulario, setErroFormulario] = useState('');
+  // Aqui guardo o erro do formulário se o utilizador não preencher bem
+  const [erroForm,    setErroForm]    = useState('');
 
-  // ── Carrego o feed e os resíduos ao abrir a página ──
+  // Aqui calculo os tipos de publicação disponíveis para este utilizador
+  // Se o tipo não existir no objecto, uso um array vazio (não publica)
+  const tiposDisponiveis = TIPOS_POR_PERFIL[tipo] || [];
+
+  // Aqui verifico se este utilizador pode publicar
+  // O coletador tem um array vazio, por isso podePublicar fica false
+  const podePublicar = tiposDisponiveis.length > 0;
+
+  // Aqui verifico se devo mostrar os campos de resíduo no formulário
+  // Só mostro para ofertas e pedidos de resíduo — os outros tipos não precisam
+  const mostrarCamposResiduo = ['oferta_residuo', 'pedido_residuo'].includes(formulario.tipo_publicacao);
+
+  // Quando a página abre, vou buscar o feed e a lista de resíduos ao servidor
   useEffect(() => {
     carregarFeed();
     carregarResiduos();
-  }, []);
+  }, []); // o array vazio [] significa que só executa uma vez, quando a página abre
 
+  // Aqui vou buscar todas as publicações do feed ao servidor
   const carregarFeed = async () => {
     try {
       setCarregando(true);
-      // GET /api/feed — devolve todas as publicações ordenadas por data
-      const dados = await getFeed();
-      setFeed(dados);
+      // GET /api/feed — o servidor devolve publicações + eventos misturados
+      setFeed(await getFeed());
     } catch (err) {
       setErro(err.message);
     } finally {
+      // O finally executa sempre, mesmo que haja erro
+      // Assim o "A carregar..." desaparece sempre
       setCarregando(false);
     }
   };
 
+  // Aqui vou buscar os tipos de resíduos para o select do formulário
   const carregarResiduos = async () => {
     try {
-      // GET /api/residuos — devolve os tipos disponíveis para o formulário
-      const dados = await getResiduos();
-      setResiduos(dados);
+      setResiduos(await getResiduos());
     } catch (err) {
       console.error('Erro ao carregar resíduos:', err);
     }
   };
 
-  // ── Filtragem local do feed ──
+  // Aqui filtro as publicações localmente sem ir ao servidor
+  // Primeiro filtro pelo tipo, depois pelo texto da pesquisa
   const feedFiltrado = feed
     .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro)
     .filter(p => {
       if (!pesquisa) return true;
-      const termo = pesquisa.toLowerCase();
+      const t = pesquisa.toLowerCase();
+      // Procuro o termo em vários campos da publicação
       return (
-        p.titulo?.toLowerCase().includes(termo) ||
-        p.descricao?.toLowerCase().includes(termo) ||
-        p.nome_autor?.toLowerCase().includes(termo) ||
-        p.provincia?.toLowerCase().includes(termo)
+        p.titulo?.toLowerCase().includes(t)     ||
+        p.descricao?.toLowerCase().includes(t)  ||
+        p.nome_autor?.toLowerCase().includes(t) ||
+        p.provincia?.toLowerCase().includes(t)
       );
     });
 
-  // ── Actualiza um campo do formulário ──
-  const handleCampo = (campo, valor) => {
+  // Aqui actualizo um campo do formulário quando o utilizador escreve
+  // Uso o spread (...prev) para manter os outros campos inalterados
+  const handleCampo = (campo, valor) =>
     setFormulario(prev => ({ ...prev, [campo]: valor }));
+
+  // Quando o utilizador muda o tipo de publicação, limpo o formulário
+  // mas mantenho o tipo seleccionado para não perder a escolha
+  const handleTipo = (novoTipo) => {
+    setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
   };
 
-  // ── Publica uma nova entrada no feed ──
+  // Aqui envio a nova publicação para o servidor
   const handlePublicar = async () => {
+    // Valido o título antes de enviar — é o único campo obrigatório
     if (!formulario.titulo.trim()) {
-      setErroFormulario('O título é obrigatório.');
+      setErroForm('O título é obrigatório.');
       return;
     }
     try {
       setPublicando(true);
-      setErroFormulario('');
-      // POST /api/feed — cria uma nova publicação
+      setErroForm('');
+      // POST /api/feed — o servidor valida o tipo conforme o perfil
       await criarPublicacao(formulario);
-      // Fecho o modal e recarrego o feed para mostrar a nova publicação
+      // Fecho o modal e limpo o formulário após publicar com sucesso
       setModalAberto(false);
-      setFormulario({
-        tipo_publicacao: 'oferta_residuo',
-        titulo: '', descricao: '', id_residuo: '',
-        quantidade_kg: '', valor_proposto: '', provincia: '', imagem: '',
-      });
+      setFormulario(FORM_VAZIO);
+      // Recarrego o feed para mostrar a nova publicação
       await carregarFeed();
     } catch (err) {
-      setErroFormulario(err.message);
+      setErroForm(err.message);
     } finally {
       setPublicando(false);
     }
   };
 
-  // ── Define quais tipos de publicação cada utilizador pode criar ──
-  // Utilizador comum → pode publicar ofertas de resíduos
-  // Empresa → pode publicar pedidos de resíduos
-  // Coletador → não publica (só visualiza)
-  // Admin → vê o feed mas não publica
-  // Admin e utilizadores/empresas podem publicar — só o coletador não publica
-  const podePublicar = utilizador?.tipo !== 'coletor';
-  // Admin pode publicar qualquer tipo
-  // Empresa → só pedidos | Utilizador → só ofertas | Admin → todos
-  const tiposDisponiveis = utilizador?.tipo === 'admin'
-    ? [
-        { valor: 'oferta_residuo', label: 'Oferta de Resíduo'  },
-        { valor: 'pedido_residuo', label: 'Pedido de Resíduo'  },
-        { valor: 'educacao',       label: 'Conteúdo Educativo' },
-      ]
-    : utilizador?.tipo === 'empresa'
-    ? [{ valor: 'pedido_residuo', label: 'Pedido de Resíduo' }]
-    : [{ valor: 'oferta_residuo', label: 'Oferta de Resíduo' }];
+  // Aqui apago uma publicação — só o admin pode apagar qualquer publicação
+  const handleApagar = async (id) => {
+    // Peço confirmação antes de apagar para evitar erros acidentais
+    if (!window.confirm('Remover esta publicação do feed?')) return;
+    try {
+      // DELETE /api/feed/:id — o servidor verifica se tenho permissão
+      await apagarPublicacao(id);
+      // Recarrego o feed para remover o cartão da lista
+      await carregarFeed();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 pt-6 pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 pb-12">
 
-      {/* ── Cabeçalho do feed ── */}
-      <div className="max-w-2xl mx-auto px-4 mb-6">
+      <div className="max-w-2xl mx-auto px-4 pt-6">
+
+        {/* Aqui mostro o cabeçalho do feed com o nome do utilizador */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-white text-2xl font-bold">EcoTroca</h1>
-            <p className="text-white/60 text-sm">
+            <h2 className="text-white text-xl font-bold">Feed EcoTroca</h2>
+            <p className="text-white/50 text-xs mt-0.5">
+              {/* Mostro só o primeiro nome para ficar mais informal */}
               Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vindo'} 👋
             </p>
           </div>
-          {/* Botão para criar nova publicação — só para utilizadores e empresas */}
+
+          {/* Só mostro o botão "Publicar" se o utilizador puder publicar */}
           {podePublicar && (
             <button
-              onClick={() => setModalAberto(true)}
+              onClick={() => {
+                // Quando abro o modal, defino o primeiro tipo disponível como padrão
+                setFormulario({ ...FORM_VAZIO, tipo_publicacao: tiposDisponiveis[0].valor });
+                setModalAberto(true);
+              }}
               className="flex items-center gap-2 bg-green-400 hover:bg-green-300 text-green-950 font-semibold px-4 py-2 rounded-xl text-sm transition"
             >
               <Plus size={16} /> Publicar
@@ -185,25 +237,25 @@ export default function Feed() {
           )}
         </div>
 
-        {/* Barra de pesquisa */}
+        {/* Barra de pesquisa — filtro o feed localmente enquanto o utilizador escreve */}
         <div className="relative mb-4">
-          <Search size={16} className="absolute left-3 top-3.5 text-white/40" />
+          <Search size={15} className="absolute left-3 top-3.5 text-white/40" />
           <input
             type="text"
             placeholder="Pesquisar no feed..."
             value={pesquisa}
             onChange={(e) => setPesquisa(e.target.value)}
-            className="w-full bg-white/10 text-white placeholder-white/40 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-white/40"
+            className="w-full bg-white/10 text-white placeholder-white/40 border border-white/20 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:border-white/40"
           />
         </div>
 
-        {/* Filtros por tipo de publicação */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {/* Filtros por tipo — uso overflow-x-auto para scroll horizontal no mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
           {FILTROS.map(f => (
             <button
               key={f.valor}
               onClick={() => setFiltro(f.valor)}
-              className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition shrink-0 ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition shrink-0 ${
                 filtro === f.valor
                   ? 'bg-green-400 text-green-950'
                   : 'bg-white/10 text-white/70 hover:bg-white/20'
@@ -213,41 +265,52 @@ export default function Feed() {
             </button>
           ))}
         </div>
-      </div>
 
-      {/* ── Lista de publicações ── */}
-      <div className="max-w-2xl mx-auto px-4 space-y-4">
+        {/* Aqui mostro a lista de publicações filtradas */}
+        <div className="space-y-4">
 
-        {carregando && (
-          <p className="text-white/50 text-center py-12">A carregar feed...</p>
-        )}
+          {/* Mostro a mensagem de carregamento enquanto espero o servidor */}
+          {carregando && (
+            <p className="text-white/50 text-center py-12">A carregar feed...</p>
+          )}
 
-        {erro && (
-          <p className="text-red-400 text-center py-6">{erro}</p>
-        )}
+          {/* Mostro o erro se o servidor falhar */}
+          {erro && (
+            <p className="text-red-400 text-center py-6">{erro}</p>
+          )}
 
-        {!carregando && !erro && feedFiltrado.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-white/40 text-lg">Nenhuma publicação encontrada.</p>
-            {podePublicar && (
-              <button
-                onClick={() => setModalAberto(true)}
-                className="mt-4 text-green-400 hover:text-green-300 text-sm underline"
-              >
-                Sê o primeiro a publicar
-              </button>
-            )}
-          </div>
-        )}
+          {/* Mostro uma mensagem quando não há publicações */}
+          {!carregando && !erro && feedFiltrado.length === 0 && (
+            <div className="text-center py-16">
+              <p className="text-white/40">Nenhuma publicação encontrada.</p>
+              {podePublicar && (
+                <button
+                  onClick={() => setModalAberto(true)}
+                  className="mt-3 text-green-400 hover:text-green-300 text-sm underline"
+                >
+                  Sê o primeiro a publicar
+                </button>
+              )}
+            </div>
+          )}
 
-        {/* Um cartão por publicação */}
-        {feedFiltrado.map((p) => (
-          <CartaoPublicacao key={p.id_publicacao} publicacao={p} navigate={navigate} utilizador={utilizador} onApagar={carregarFeed} />
-        ))}
+          {/* Aqui percorro a lista e crio um cartão para cada publicação */}
+          {feedFiltrado.map(p => (
+            <CartaoPublicacao
+              key={p.id_publicacao}
+              publicacao={p}
+              navigate={navigate}
+              utilizador={utilizador}
+              onApagar={handleApagar}
+            />
+          ))}
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════
-          MODAL — Formulário de nova publicação
+          Modal de nova publicação
+          Aparece quando clico em "Publicar"
+          Uso position fixed para cobrir toda a página
       ══════════════════════════════════════════════ */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
@@ -256,6 +319,7 @@ export default function Feed() {
             {/* Cabeçalho do modal */}
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-white font-bold text-lg">Nova Publicação</h3>
+              {/* Fecho o modal ao clicar no X */}
               <button
                 onClick={() => setModalAberto(false)}
                 className="text-white/50 hover:text-white text-xl transition"
@@ -264,25 +328,29 @@ export default function Feed() {
 
             <div className="space-y-4">
 
-              {/* Tipo de publicação — só aparece se tiver mais de uma opção */}
+              {/* Só mostro os botões de tipo se o utilizador tiver mais de uma opção */}
               {tiposDisponiveis.length > 1 && (
                 <div>
-                  <label className="text-white/70 text-sm block mb-1">Tipo</label>
-                  <select
-                    value={formulario.tipo_publicacao}
-                    onChange={(e) => handleCampo('tipo_publicacao', e.target.value)}
-                    className="w-full bg-white/10 text-white border border-white/20 rounded-xl px-4 py-3 text-sm"
-                  >
+                  <label className="text-white/70 text-sm block mb-2">O que quero publicar</label>
+                  <div className="grid grid-cols-2 gap-2">
                     {tiposDisponiveis.map(t => (
-                      <option key={t.valor} value={t.valor} className="bg-gray-800">
+                      <button
+                        key={t.valor}
+                        onClick={() => handleTipo(t.valor)}
+                        className={`py-2 px-3 rounded-xl text-sm font-medium transition ${
+                          formulario.tipo_publicacao === t.valor
+                            ? 'bg-green-400 text-green-950'
+                            : 'bg-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                      >
                         {t.label}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
 
-              {/* Título */}
+              {/* Campo de título — obrigatório */}
               <div>
                 <label className="text-white/70 text-sm block mb-1">
                   Título <span className="text-red-400">*</span>
@@ -291,104 +359,124 @@ export default function Feed() {
                   type="text"
                   value={formulario.titulo}
                   onChange={(e) => handleCampo('titulo', e.target.value)}
+                  // O placeholder muda conforme o tipo de publicação
                   placeholder={
-                    utilizador?.tipo === 'empresa'
-                      ? 'Ex: Preciso de 5kg de plástico PET'
-                      : 'Ex: Tenho 3kg de papel para vender'
+                    formulario.tipo_publicacao === 'oferta_residuo' ? 'Ex: Tenho 3kg de papel disponível'       :
+                    formulario.tipo_publicacao === 'pedido_residuo' ? 'Ex: Precisamos de 10kg de plástico'      :
+                    formulario.tipo_publicacao === 'evento'         ? 'Ex: Campanha de reciclagem em Viana'     :
+                    formulario.tipo_publicacao === 'noticia'        ? 'Ex: Nova parceria com empresa X'         :
+                    formulario.tipo_publicacao === 'aviso'          ? 'Ex: Manutenção programada amanhã'        :
+                    'Título da publicação'
                   }
                   className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/40"
                 />
               </div>
 
-              {/* Descrição */}
+              {/* Campo de descrição — opcional */}
               <div>
                 <label className="text-white/70 text-sm block mb-1">Descrição (opcional)</label>
                 <textarea
                   value={formulario.descricao}
                   onChange={(e) => handleCampo('descricao', e.target.value)}
-                  placeholder="Mais detalhes sobre o resíduo..."
+                  placeholder="Mais detalhes sobre a publicação..."
                   rows={3}
                   className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/40 resize-none"
                 />
               </div>
 
-              {/* Tipo de resíduo e quantidade — lado a lado */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-white/70 text-sm block mb-1">Tipo de Resíduo</label>
-                  <select
-                    value={formulario.id_residuo}
-                    onChange={(e) => handleCampo('id_residuo', e.target.value)}
-                    className="w-full bg-gray-800 text-white border border-white/20 rounded-xl px-3 py-3 text-sm"
-                  >
-                    <option value="" className="bg-gray-800">Seleccionar</option>
-                    {residuos.map(r => (
-                      <option key={r.id_residuo} value={r.id_residuo} className="bg-gray-800">
-                        {r.tipo}
-                      </option>
-                    ))}
-                  </select>
+              {/* Campos específicos de resíduo — só aparecem para ofertas e pedidos */}
+              {mostrarCamposResiduo && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-white/70 text-sm block mb-1">Tipo de Resíduo</label>
+                    <select
+                      value={formulario.id_residuo}
+                      onChange={(e) => handleCampo('id_residuo', e.target.value)}
+                      className="w-full bg-gray-800 text-white border border-white/20 rounded-xl px-3 py-3 text-sm"
+                    >
+                      <option value="" className="bg-gray-800">Seleccionar</option>
+                      {/* Aqui percorro os resíduos vindos do servidor */}
+                      {residuos.map(r => (
+                        <option key={r.id_residuo} value={r.id_residuo} className="bg-gray-800">
+                          {r.tipo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-white/70 text-sm block mb-1">Quantidade (kg)</label>
+                    <input
+                      type="number" min="0" step="0.1"
+                      value={formulario.quantidade_kg}
+                      onChange={(e) => handleCampo('quantidade_kg', e.target.value)}
+                      placeholder="Ex: 2.5"
+                      className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/70 text-sm block mb-1">Valor Proposto (Kz)</label>
+                    <input
+                      type="number" min="0"
+                      value={formulario.valor_proposto}
+                      onChange={(e) => handleCampo('valor_proposto', e.target.value)}
+                      placeholder="Ex: 500"
+                      className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/70 text-sm block mb-1">Província</label>
+                    <input
+                      type="text"
+                      value={formulario.provincia}
+                      onChange={(e) => handleCampo('provincia', e.target.value)}
+                      placeholder="Ex: Luanda"
+                      className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-white/70 text-sm block mb-1">Quantidade (kg)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formulario.quantidade_kg}
-                    onChange={(e) => handleCampo('quantidade_kg', e.target.value)}
-                    placeholder="Ex: 2.5"
-                    className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-white/40"
-                  />
-                </div>
-              </div>
+              )}
 
-              {/* Valor proposto e província — lado a lado */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Província para publicações que não são de resíduo */}
+              {!mostrarCamposResiduo && (
                 <div>
-                  <label className="text-white/70 text-sm block mb-1">Valor Proposto (Kz)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formulario.valor_proposto}
-                    onChange={(e) => handleCampo('valor_proposto', e.target.value)}
-                    placeholder="Ex: 500"
-                    className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-white/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-white/70 text-sm block mb-1">Província</label>
+                  <label className="text-white/70 text-sm block mb-1">Província (opcional)</label>
                   <input
                     type="text"
                     value={formulario.provincia}
                     onChange={(e) => handleCampo('provincia', e.target.value)}
                     placeholder="Ex: Luanda"
-                    className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-white/40"
+                    className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none"
                   />
                 </div>
-              </div>
+              )}
 
-              {/* URL de imagem opcional */}
+              {/* Campo de imagem — aceita URL */}
               <div>
-                <label className="text-white/70 text-sm block mb-1">Imagem (URL opcional)</label>
+                <label className="text-white/70 text-sm block mb-1">Imagem — URL (opcional)</label>
                 <input
                   type="text"
                   value={formulario.imagem}
                   onChange={(e) => handleCampo('imagem', e.target.value)}
                   placeholder="https://..."
-                  className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/40"
+                  className="w-full bg-white/10 text-white placeholder-white/30 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none"
                 />
+                {/* Mostro a pré-visualização da imagem se o URL estiver preenchido */}
+                {formulario.imagem && (
+                  <img
+                    src={formulario.imagem} alt="Pré-visualização"
+                    className="mt-2 w-full h-32 object-cover rounded-xl"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
               </div>
 
-              {/* Mensagem de erro */}
-              {erroFormulario && (
-                <p className="text-red-400 text-sm bg-red-500/10 rounded-xl p-3">
-                  {erroFormulario}
-                </p>
+              {/* Mostro o erro do formulário se existir */}
+              {erroForm && (
+                <p className="text-red-400 text-sm bg-red-500/10 rounded-xl p-3">{erroForm}</p>
               )}
             </div>
 
-            {/* Botão publicar */}
+            {/* Botão de publicar — fica desactivado enquanto estou a publicar */}
             <button
               onClick={handlePublicar}
               disabled={publicando}
@@ -403,45 +491,27 @@ export default function Feed() {
   );
 }
 
-// ── CartaoPublicacao ─────────────────────────────────────────
-// Cartão individual para cada publicação no feed
-// O visual muda conforme o tipo da publicação
+// ============================================================
+//  CartaoPublicacao — Cartão individual de cada publicação
+//  Aqui recebo a publicação como prop e mostro os seus dados
+//  O visual muda conforme o tipo da publicação
+// ============================================================
 function CartaoPublicacao({ publicacao: p, navigate, utilizador, onApagar }) {
 
-  // Mapa de estilos e ícones por tipo de publicação
-  const estilos = {
-    oferta_residuo: {
-      badge: 'bg-green-400/20 text-green-300',
-      borda: 'border-green-400/20',
-      label: '♻️ Oferta de Resíduo',
-    },
-    pedido_residuo: {
-      badge: 'bg-purple-400/20 text-purple-300',
-      borda: 'border-purple-400/20',
-      label: '🏭 Pedido de Empresa',
-    },
-    evento: {
-      badge: 'bg-blue-400/20 text-blue-300',
-      borda: 'border-blue-400/20',
-      label: '📅 Evento',
-    },
-    educacao: {
-      badge: 'bg-yellow-400/20 text-yellow-300',
-      borda: 'border-yellow-400/20',
-      label: '📚 Educação',
-    },
-  };
+  // Aqui vou buscar o estilo correcto para este tipo de publicação
+  // Se o tipo não existir no mapa, uso o estilo de aviso como padrão
+  const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
 
-  const estilo = estilos[p.tipo_publicacao] || estilos.oferta_residuo;
+  // Só o admin pode apagar qualquer publicação
+  const podeApagar = utilizador?.tipo === 'admin';
 
   return (
     <div className={`bg-white/5 border ${estilo.borda} rounded-2xl overflow-hidden`}>
 
-      {/* Imagem da publicação — se existir */}
+      {/* Mostro a imagem se existir — escondo se o URL for inválido */}
       {p.imagem && (
         <img
-          src={p.imagem}
-          alt={p.titulo}
+          src={p.imagem} alt={p.titulo}
           className="w-full h-48 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
@@ -449,9 +519,9 @@ function CartaoPublicacao({ publicacao: p, navigate, utilizador, onApagar }) {
 
       <div className="p-4">
 
-        {/* Cabeçalho — badge do tipo e data */}
-        <div className="flex items-center justify-between mb-3">
-          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${estilo.badge}`}>
+        {/* Badge do tipo e data de publicação */}
+        <div className="flex items-center justify-between mb-2">
+          <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${estilo.badge}`}>
             {estilo.label}
           </span>
           <span className="text-white/40 text-xs">
@@ -459,73 +529,70 @@ function CartaoPublicacao({ publicacao: p, navigate, utilizador, onApagar }) {
           </span>
         </div>
 
-        {/* Título */}
-        <h3 className="text-white font-semibold text-base mb-1">{p.titulo}</h3>
+        {/* Título da publicação */}
+        <h3 className="text-white font-semibold text-sm mb-1">{p.titulo}</h3>
 
-        {/* Descrição — se existir */}
+        {/* Descrição — mostro só 2 linhas para não ocupar muito espaço */}
         {p.descricao && (
-          <p className="text-white/60 text-sm mb-3 line-clamp-2">{p.descricao}</p>
+          <p className="text-white/60 text-xs mb-2 line-clamp-2">{p.descricao}</p>
         )}
 
-        {/* Detalhes — resíduo, peso e valor — só para ofertas e pedidos */}
+        {/* Detalhes de resíduo — só aparecem para ofertas e pedidos */}
         {(p.tipo_publicacao === 'oferta_residuo' || p.tipo_publicacao === 'pedido_residuo') && (
-          <div className="flex flex-wrap gap-3 mb-3">
+          <div className="flex flex-wrap gap-3 mb-2">
             {p.tipo_residuo && (
-              <span className="flex items-center gap-1 text-white/70 text-xs">
-                <Recycle size={12} /> {p.tipo_residuo}
+              <span className="flex items-center gap-1 text-white/60 text-xs">
+                <Recycle size={11} /> {p.tipo_residuo}
               </span>
             )}
             {p.quantidade_kg && (
-              <span className="flex items-center gap-1 text-white/70 text-xs">
-                <Weight size={12} /> {p.quantidade_kg} kg
+              <span className="flex items-center gap-1 text-white/60 text-xs">
+                <Weight size={11} /> {p.quantidade_kg} kg
               </span>
             )}
             {p.valor_proposto && (
               <span className="flex items-center gap-1 text-green-300 text-xs font-medium">
-                <Banknote size={12} /> {parseFloat(p.valor_proposto).toFixed(0)} Kz
+                <Banknote size={11} /> {parseFloat(p.valor_proposto).toFixed(0)} Kz
               </span>
             )}
             {p.provincia && (
               <span className="flex items-center gap-1 text-white/50 text-xs">
-                <MapPin size={12} /> {p.provincia}
+                <MapPin size={11} /> {p.provincia}
               </span>
             )}
           </div>
         )}
 
-        {/* Rodapé — nome do autor e botão ver perfil */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/10">
+        {/* Rodapé — nome do autor, tipo e botões de acção */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+
+          {/* Informação do autor */}
           <div className="flex items-center gap-2">
-            {/* Avatar com inicial do nome */}
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">
+            {/* Avatar com a inicial do nome */}
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">
               {p.nome_autor?.charAt(0).toUpperCase()}
             </div>
-            <span className="text-white/60 text-xs">{p.nome_autor}</span>
-            {/* Badge do tipo de autor */}
+            <span className="text-white/50 text-xs">{p.nome_autor}</span>
+            {/* Mostro o tipo do autor para dar contexto */}
             {p.tipo_autor === 'empresa' && (
-              <span className="flex items-center gap-1 text-purple-300 text-xs">
+              <span className="text-purple-300 text-xs flex items-center gap-1">
                 <Building2 size={10} /> Empresa
               </span>
             )}
+            {p.tipo_autor === 'admin' && (
+              <span className="text-yellow-300 text-xs">🛡️ Admin</span>
+            )}
           </div>
 
+          {/* Botões de acção */}
           <div className="flex items-center gap-3">
-            {/* Botão apagar — visível para o admin e para o próprio autor */}
-            {(utilizador?.tipo === 'admin') && (
+            {/* Botão remover — só aparece para o admin */}
+            {podeApagar && (
               <button
-                onClick={async () => {
-                  if (!window.confirm('Remover esta publicação do feed?')) return;
-                  try {
-                    const { apagarPublicacao } = await import('../../api.js');
-                    await apagarPublicacao(p.id_publicacao);
-                    onApagar(); // recarrega o feed após apagar
-                  } catch (err) {
-                    alert(err.message);
-                  }
-                }}
-                className="text-red-400 hover:text-red-300 text-xs transition"
+                onClick={() => onApagar(p.id_publicacao)}
+                className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition"
               >
-                🗑 Remover
+                <Trash2 size={12} /> Remover
               </button>
             )}
             {/* Botão para ver o perfil público do autor */}
