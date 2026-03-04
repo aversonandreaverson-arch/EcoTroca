@@ -1,20 +1,3 @@
-// ============================================================
-//  NovoResiduo.jsx — Formulário para publicar um novo resíduo
-//  Guardar em: src/Components/UserProfile/NovoResiduo.jsx
-//
-//  Aqui sigo o fluxo definido:
-//  1. Utilizador selecciona o tipo de resíduo
-//  2. Selecciona a qualidade — o sistema mostra o intervalo de preço
-//  3. Indica o peso aproximado
-//  4. O sistema mostra a estimativa de valor
-//  5. Escolhe a forma de recompensa (dinheiro ou saldo)
-//  6. Indica o endereço e publica
-//
-//  Regra 6  → O peso informado é aproximado — o real é pesado pelo coletador
-//  Regra 7  → A publicação expira em 7 dias sem interesse
-//  Regra 13 → Declaração incorreta de peso resulta em penalização
-// ============================================================
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { criarEntrega, getResiduos } from "../../api.js";
