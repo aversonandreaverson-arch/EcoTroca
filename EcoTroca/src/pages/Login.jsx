@@ -25,13 +25,14 @@ const Login = () => {
       const dados = await login(email, senha);
 
       // Redireciona conforme o tipo de utilizador
-      if (dados.tipo_usuario === "coletor") {
-        navigate("/ColetadorProfile");
-      } else if (dados.tipo_usuario === "empresa") {
-        navigate("/DashboardEmpresa");
+      // Admin → vai para o painel de administração
+      // Todos os outros (utilizador, coletor, empresa) → vão para o Feed
+      if (dados.tipo_usuario === "admin") {
+        navigate("/AdminDashboard");
       } else {
-        navigate("/PaginaInicial");
+        navigate("/Feed");
       }
+
     } catch (err) {
       // Mostra o erro devolvido pelo servidor (ex: "Senha incorreta")
       setErro(err.message);
@@ -84,7 +85,6 @@ const Login = () => {
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-
             />
           </div>
 
@@ -104,7 +104,7 @@ const Login = () => {
 
         {/* Botão — fica "Entrando..." enquanto espera o servidor */}
         <button
-        type="button"
+          type="button"
           onClick={handleLogin}
           disabled={carregando}
           className="w-full mt-6 bg-green-800 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition"
