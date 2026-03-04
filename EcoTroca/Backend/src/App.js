@@ -19,6 +19,8 @@ import notificacaoRoutes   from './routes/notificacao.route.js';
 import educacaoRoutes      from './routes/educacao.routes.js';
 import feedRoutes          from './routes/feed.routes.js';
 import perfilPublicoRoutes from './routes/perfilpublico.routes.js';
+// Aqui importo a rota dos resíduos — usada no formulário de nova publicação
+import residuoRoutes       from './routes/residuo.routes.js';
 
 const app = express();
 
@@ -50,7 +52,9 @@ app.use('/api/chat',           chatRoutes);
 app.use('/api/notificacoes',   notificacaoRoutes);
 app.use('/api/educacao',       educacaoRoutes);
 app.use('/api/feed',           feedRoutes);
-app.use('/api/perfilpublico', perfilPublicoRoutes);
+app.use('/api/perfilpublico',  perfilPublicoRoutes);
+// Aqui registo a rota dos resíduos para o frontend poder listar os tipos
+app.use('/api/residuos',       residuoRoutes);
 
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
