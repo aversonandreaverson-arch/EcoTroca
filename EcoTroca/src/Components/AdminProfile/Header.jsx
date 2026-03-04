@@ -1,5 +1,9 @@
+// ============================================================
+//  Header.jsx — Barra de navegação do painel de administração
+//  Guardar em: src/Components/AdminProfile/Header.jsx
+// ============================================================
 
-// useState → guarda o estado do menu mobile (aberto ou fechado)
+// useState → guardo o estado do menu mobile (aberto ou fechado)
 import { useState } from "react";
 
 // NavLink   → link de navegação que sabe quando está activo
@@ -13,6 +17,7 @@ import { logout } from "../../api.js";
 // Cada objecto tem o texto a mostrar (label) e a rota de destino (to)
 const links = [
   { label: "Início",       to: "/AdminDashboard"    },
+  { label: "Feed",         to: "/AdminFeed"         },
   { label: "Utilizadores", to: "/AdminUtilizadores" },
   { label: "Empresas",     to: "/AdminEmpresas"     },
   { label: "Coletadores",  to: "/AdminColetadores"  },
@@ -54,19 +59,19 @@ const Header = () => {
         {/* hidden → esconde em mobile; md:flex → mostra em desktop */}
         <ul className="hidden md:flex items-center gap-6 text-gray-700 font-medium text-sm">
 
-          {/* Percorre a lista de links e cria um item de menu para cada um */}
+          {/* Percorro a lista de links e crio um item de menu para cada um */}
           {links.map((link) => (
             <li key={link.to}>
               {/*
                 NavLink é como um Link normal mas com uma prop especial:
                 isActive → é true quando a rota actual corresponde ao "to"
-                Usamos isso para mudar o estilo do link activo
+                Uso isso para mudar o estilo do link activo
               */}
               <NavLink
                 to={link.to}
                 className={({ isActive }) =>
                   isActive
-                    // Link activo → negrito com sublinhado verde
+                    // Link activo → negrito com sublinhado cinzento
                     ? "text-gray-900 font-semibold border-b-2 border-gray-700 pb-1"
                     // Link inactivo → cinzento, fica mais escuro ao passar o rato
                     : "hover:text-gray-900 transition"
@@ -80,7 +85,7 @@ const Header = () => {
           {/* Botão de logout — separado dos links de navegação */}
           <li>
             <button
-              onClick={handleLogout} // chama a função de logout ao clicar
+              onClick={handleLogout} // chamo a função de logout ao clicar
               className="bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-4 py-2 rounded-lg transition"
             >
               Sair
@@ -90,7 +95,7 @@ const Header = () => {
 
         {/* ── Botão hambúrguer — visível só em mobile (md:hidden) ── */}
         {/*
-          Quando clicado, inverte o estado de isOpen:
+          Quando clicado, inverto o estado de isOpen:
           se estava false passa a true e o menu abre
           se estava true passa a false e o menu fecha
         */}
@@ -125,7 +130,7 @@ const Header = () => {
                       ? "font-semibold text-gray-900"
                       : "hover:text-gray-900 transition"
                   }
-                  // Fecha o menu ao clicar num link (melhora a experiência mobile)
+                  // Fecho o menu ao clicar num link (melhora a experiência mobile)
                   onClick={() => setIsOpen(false)}
                 >
                   {link.label}
