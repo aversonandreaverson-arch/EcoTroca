@@ -363,3 +363,10 @@ export const editarEducacao = (id, dados) =>
 // Apago (soft delete) um conteúdo educativo pelo ID
 export const apagarEducacao = (id) =>
   pedido(`/admin/educacao/${id}`, { method: 'DELETE' });
+
+// ── Relatórios — funções do admin ────────────────────────────
+
+// Vou buscar os dados financeiros filtrados pelo período escolhido
+// periodo → 'hoje', 'semana', 'mes' ou 'total'
+export const getRelatoriosAdmin = (periodo = 'mes') =>
+  pedido(`/admin/relatorios?periodo=${periodo}`);
