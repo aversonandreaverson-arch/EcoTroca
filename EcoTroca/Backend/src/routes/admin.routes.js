@@ -348,4 +348,96 @@ router.delete('/educacao/:id', auth, role('admin'), async (req, res) => {
   }
 });
 
+// ── GET /api/admin/relatorios ─────────────────────────────────
+// Devolvo os dados financeiros filtrados pelo período escolhido
+// Parâmetro de query: ?periodo=hoje|semana|mes|total
+// Regra 15 — cada transacção contém todos os campos obrigatórios
+router.get('/relatorios', auth, role('admin'), async (req, res) => {
+  try {
+    // Vou buscar o período da query string — por defeito uso 'mes'
+    const { periodo = 'mes' } = req.query;
+
+    // Calculo a data de início conforme o período pedido
+    let dataInicio = null;
+    const agora = new Date();
+
+    if (periodo === 'hoje') {
+      // Hoje: começa à meia-noite de hoje
+      dataInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    } else if (periodo === 'semana') {
+      // Esta semana: começa há 7 dias
+      dataInicio = new Date(agora);
+      dataInicio.setDate(dataInicio.getDate() - 7);
+    } else if (periodo === 'mes') {
+      // Este mês: começa no dia 1 do mês actual
+      dataInicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    }
+    // 'total' → dataInicio fica null — não filtro por data
+
+    // Construo a condição WHERE conforme o período
+    // Se dataInicio for null, não adiciono filtro de data
+    const condicaoData = dataInicio
+      ? `AND e.criado_em >= '${dataInicio.toISOString().slice(0, 19).replace('T', ' ')}'`
+      : '';
+
+    // ── Resumo financeiro do período ──
+    const [[resumo]] = await pool.query(`
+      SELECT
+        COUNT(*)                             AS total_entregas,
+        COALESCE(SUM(valor_total), 0)        AS total_transaccionado,
+        COALESCE(SUM(valor_total * 0.10), 0) AS total_comissoes,
+        COALESCE(SUM(peso_total), 0)         AS total_kg
+      FROM Entrega e
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+    `);
+
+    // ── Volume por empresa no período ──
+    const [por_empresa] = await pool.query(`
+      SELECT
+        em.nome                              AS empresa,
+        COUNT(*)                             AS total_entregas,
+        COALESCE(SUM(e.peso_total), 0)       AS total_kg,
+        COALESCE(SUM(e.valor_total), 0)      AS total_valor,
+        COALESCE(SUM(e.valor_total * 0.10), 0) AS comissao
+      FROM Entrega e
+      LEFT JOIN EmpresaRecicladora em ON e.id_empresa = em.id_empresa
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+      GROUP BY e.id_empresa, em.nome
+      ORDER BY comissao DESC
+      LIMIT 10
+    `);
+
+    // ── Detalhe de cada transacção — campos exigidos pela Regra 15 ──
+    const [transacoes] = await pool.query(`
+      SELECT
+        e.id_entrega,
+        e.criado_em,
+        e.peso_total                  AS peso,
+        e.valor_total,
+        e.valor_total * 0.10          AS comissao,
+        u.nome                        AS utilizador,
+        c.nome                        AS coletador,
+        em.nome                       AS empresa,
+        r.nome                        AS residuo
+      FROM Entrega e
+      LEFT JOIN Usuario            u  ON e.id_usuario   = u.id_usuario
+      LEFT JOIN Coletador          c  ON e.id_coletador = c.id_coletador
+      LEFT JOIN EmpresaRecicladora em ON e.id_empresa   = em.id_empresa
+      LEFT JOIN Residuo            r  ON e.id_residuo   = r.id_residuo
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+      ORDER BY e.criado_em DESC
+    `);
+
+    // Devolvo tudo num único objecto organizado
+    res.json({ resumo, por_empresa, transacoes });
+
+  } catch (err) {
+    console.error('Erro relatorios admin:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
