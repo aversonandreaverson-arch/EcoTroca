@@ -1,7 +1,3 @@
-// ============================================================
-//  perfil-publico.routes.js — Rota do perfil público
-//  Guardar em: src/routes/perfil-publico.routes.js
-// ============================================================
 
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
