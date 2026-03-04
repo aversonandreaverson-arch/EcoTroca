@@ -1,4 +1,7 @@
-
+// ============================================================
+//  App.jsx — Ficheiro principal de rotas da aplicação
+//  Guardar em: src/App.jsx
+//
 //  Aqui defino todas as páginas da aplicação e as suas rotas.
 //  Uso o RotaProtegida para garantir que só utilizadores
 //  autenticados acedem às páginas privadas.
@@ -138,6 +141,7 @@ function App() {
           a uma rota de admin é redireccionado para /Login
       ═══════════════════════════════════════════════ */}
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
+      <Route path='/AdminFeed'         element={<RotaProtegida tipos={["admin"]}><Feed /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
       <Route path='/AdminEducacao'     element={<RotaProtegida tipos={["admin"]}><AdminEducacao /></RotaProtegida>} />
       <Route path='/AdminRelatorios'  element={<RotaProtegida tipos={["admin"]}><AdminRelatorios /></RotaProtegida>} />

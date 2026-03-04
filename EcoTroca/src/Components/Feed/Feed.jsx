@@ -144,16 +144,26 @@ export default function Feed() {
   };
 
   // ── Define quais tipos de publicação cada utilizador pode criar ──
-  // Utilizador comum → só pode publicar ofertas de resíduos
-  // Empresa → só pode publicar pedidos de resíduos
+  // Utilizador comum → pode publicar ofertas de resíduos
+  // Empresa → pode publicar pedidos de resíduos
   // Coletador → não publica (só visualiza)
-  const podePublicar = utilizador?.tipo !== 'coletor' && utilizador?.tipo !== 'admin';
-  const tiposDisponiveis = utilizador?.tipo === 'empresa'
+  // Admin → vê o feed mas não publica
+  // Admin e utilizadores/empresas podem publicar — só o coletador não publica
+  const podePublicar = utilizador?.tipo !== 'coletor';
+  // Admin pode publicar qualquer tipo
+  // Empresa → só pedidos | Utilizador → só ofertas | Admin → todos
+  const tiposDisponiveis = utilizador?.tipo === 'admin'
+    ? [
+        { valor: 'oferta_residuo', label: 'Oferta de Resíduo'  },
+        { valor: 'pedido_residuo', label: 'Pedido de Resíduo'  },
+        { valor: 'educacao',       label: 'Conteúdo Educativo' },
+      ]
+    : utilizador?.tipo === 'empresa'
     ? [{ valor: 'pedido_residuo', label: 'Pedido de Resíduo' }]
     : [{ valor: 'oferta_residuo', label: 'Oferta de Resíduo' }];
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-green-950 to-green-900 pt-6 pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 pt-6 pb-12">
 
       {/* ── Cabeçalho do feed ── */}
       <div className="max-w-2xl mx-auto px-4 mb-6">
@@ -232,7 +242,7 @@ export default function Feed() {
 
         {/* Um cartão por publicação */}
         {feedFiltrado.map((p) => (
-          <CartaoPublicacao key={p.id_publicacao} publicacao={p} navigate={navigate} />
+          <CartaoPublicacao key={p.id_publicacao} publicacao={p} navigate={navigate} utilizador={utilizador} onApagar={carregarFeed} />
         ))}
       </div>
 
@@ -396,7 +406,7 @@ export default function Feed() {
 // ── CartaoPublicacao ─────────────────────────────────────────
 // Cartão individual para cada publicação no feed
 // O visual muda conforme o tipo da publicação
-function CartaoPublicacao({ publicacao: p, navigate }) {
+function CartaoPublicacao({ publicacao: p, navigate, utilizador, onApagar }) {
 
   // Mapa de estilos e ícones por tipo de publicação
   const estilos = {
@@ -499,13 +509,33 @@ function CartaoPublicacao({ publicacao: p, navigate }) {
             )}
           </div>
 
-          {/* Botão para ver o perfil público do autor */}
-          <button
-            onClick={() => navigate(`/Perfil/${p.tipo_autor}/${p.id_autor}`)}
-            className="text-green-400 hover:text-green-300 text-xs transition"
-          >
-            Ver perfil →
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Botão apagar — visível para o admin e para o próprio autor */}
+            {(utilizador?.tipo === 'admin') && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Remover esta publicação do feed?')) return;
+                  try {
+                    const { apagarPublicacao } = await import('../../api.js');
+                    await apagarPublicacao(p.id_publicacao);
+                    onApagar(); // recarrega o feed após apagar
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }}
+                className="text-red-400 hover:text-red-300 text-xs transition"
+              >
+                🗑 Remover
+              </button>
+            )}
+            {/* Botão para ver o perfil público do autor */}
+            <button
+              onClick={() => navigate(`/Perfil/${p.tipo_autor}/${p.id_autor}`)}
+              className="text-green-400 hover:text-green-300 text-xs transition"
+            >
+              Ver perfil →
+            </button>
+          </div>
         </div>
       </div>
     </div>
