@@ -1,9 +1,5 @@
-// ============================================================
-//  AdminRelatorios.jsx — Relatórios de comissões da plataforma
-//  Guardar em: src/Components/AdminProfile/AdminRelatorios.jsx
-//
-//  O que esta página faz:
-//  Mostro ao admin todos os dados financeiros da plataforma.
+
+//  Mostra ao admin todos os dados financeiros da plataforma.
 //  Cada transacção concluída gera uma comissão de 10% para a
 //  plataforma. Aqui o admin pode ver quanto a plataforma ganhou,
 //  filtrar por período e ver o detalhe de cada transacção
@@ -261,7 +257,7 @@ export default function AdminRelatorios() {
             Nenhuma transacção encontrada para este período.
           </p>
         ) : (
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-225">
 
             {/* Cabeçalho da tabela — campos exigidos pela Regra 15 */}
             <thead>
