@@ -54,7 +54,8 @@ import ColetadoresEmpresa from './Components/EmpresaProfile/ColetadoresEmpresa'
 import EducacaoEmpresa    from './Components/EmpresaProfile/Educacao'
 
 // ── Feed — página inicial partilhada por todos ──
-import Feed from './Components/Feed/Feed'
+import Feed         from './Components/Feed/Feed'
+import PerfilPublico from './Components/Feed/PerfilPublico'
 
 // ── Admin — importo todas as páginas do painel de administração ──
 import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
@@ -93,6 +94,7 @@ function App() {
           não uso tipos aqui para não bloquear o acesso
       ═══════════════════════════════════════════════ */}
       <Route path='/Feed'          element={<RotaProtegida><Feed /></RotaProtegida>} />
+      <Route path='/Perfil/:tipo/:id' element={<RotaProtegida><PerfilPublico /></RotaProtegida>} />
       <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
       <Route path='/Dashboard'     element={<RotaProtegida><Dashboard /></RotaProtegida>} />
       <Route path='/UserProfile'   element={<RotaProtegida><UserProfile /></RotaProtegida>} />

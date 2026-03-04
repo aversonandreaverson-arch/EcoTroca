@@ -387,3 +387,10 @@ export const criarPublicacao = (dados) =>
 // Apago uma publicação do feed pelo ID
 export const apagarPublicacao = (id) =>
   pedido(`/feed/${id}`, { method: 'DELETE' });
+// ── Perfil público ────────────────────────────────────────────
+
+// Vou buscar os dados públicos de um utilizador, empresa ou coletador
+// tipo → 'utilizador', 'empresa' ou 'coletor'
+// id   → ID do utilizador/empresa/coletador
+export const getPerfilPublico = (tipo, id) =>
+  pedido(`/perfil-publico/${tipo}/${id}`);
