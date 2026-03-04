@@ -50,10 +50,14 @@ import EventosEmpresa     from './Components/EmpresaProfile/EventosEmpresa'
 import ColetadoresEmpresa from './Components/EmpresaProfile/ColetadoresEmpresa'
 import EducacaoEmpresa    from './Components/EmpresaProfile/Educacao'
 
+// ── Feed — página inicial partilhada por todos ──
+import Feed from './Components/Feed/Feed'
+
 // ── Admin — importo todas as páginas do painel de administração ──
 import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
 import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
 import AdminEducacao     from './Components/AdminProfile/AdminEducacao'
+import AdminRelatorios  from './Components/AdminProfile/AdminRelatorios'
 
 // ── RotaProtegida — componente que protege as páginas privadas ──
 // Se não estiver autenticado → redireciona para /Login
@@ -85,6 +89,7 @@ function App() {
           O utilizador comum não tem tipo definido, por isso
           não uso tipos aqui para não bloquear o acesso
       ═══════════════════════════════════════════════ */}
+      <Route path='/Feed'          element={<RotaProtegida><Feed /></RotaProtegida>} />
       <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
       <Route path='/Dashboard'     element={<RotaProtegida><Dashboard /></RotaProtegida>} />
       <Route path='/UserProfile'   element={<RotaProtegida><UserProfile /></RotaProtegida>} />
@@ -135,6 +140,7 @@ function App() {
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
       <Route path='/AdminEducacao'     element={<RotaProtegida tipos={["admin"]}><AdminEducacao /></RotaProtegida>} />
+      <Route path='/AdminRelatorios'  element={<RotaProtegida tipos={["admin"]}><AdminRelatorios /></RotaProtegida>} />
 
     </Routes>
   )
