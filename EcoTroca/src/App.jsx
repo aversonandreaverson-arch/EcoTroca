@@ -1,4 +1,11 @@
 
+//  Aqui defino todas as páginas da aplicação e as suas rotas.
+//  Uso o RotaProtegida para garantir que só utilizadores
+//  autenticados acedem às páginas privadas.
+//  Uso a prop "tipos" para garantir que cada tipo de utilizador
+//  só acede às suas próprias páginas.
+// ============================================================
+
 import { Routes, Route } from 'react-router-dom'
 
 // ── Páginas públicas — qualquer pessoa pode ver sem login ──
@@ -46,6 +53,7 @@ import EducacaoEmpresa    from './Components/EmpresaProfile/Educacao'
 // ── Admin — importo todas as páginas do painel de administração ──
 import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
 import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
+import AdminEducacao     from './Components/AdminProfile/AdminEducacao'
 
 // ── RotaProtegida — componente que protege as páginas privadas ──
 // Se não estiver autenticado → redireciona para /Login
@@ -126,6 +134,7 @@ function App() {
       ═══════════════════════════════════════════════ */}
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
+      <Route path='/AdminEducacao'     element={<RotaProtegida tipos={["admin"]}><AdminEducacao /></RotaProtegida>} />
 
     </Routes>
   )
