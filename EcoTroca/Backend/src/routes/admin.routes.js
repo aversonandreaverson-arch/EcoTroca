@@ -283,4 +283,69 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
   }
 });
 
+// ── GET /api/educacao — usada pelo admin para listar todos ───
+// (Esta rota já deve existir no educacao.routes.js)
+// Adicionar no admin.routes.js apenas as rotas de gestão:
+
+// ── POST /api/admin/educacao ──────────────────────────────────
+// Crio um novo conteúdo educativo
+router.post('/educacao', auth, role('admin'), async (req, res) => {
+  try {
+    const { titulo, descricao, conteudo, categoria, publico_alvo, imagem } = req.body;
+
+    // Valido os campos obrigatórios antes de inserir na base de dados
+    if (!titulo || !conteudo) {
+      return res.status(400).json({ erro: 'Título e conteúdo são obrigatórios.' });
+    }
+
+    // Insiro o novo conteúdo na tabela Educacao
+    await pool.query(
+      `INSERT INTO Educacao (titulo, descricao, conteudo, categoria, publico_alvo, imagem)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [titulo, descricao || null, conteudo, categoria || 'boas_praticas', publico_alvo || 'todos', imagem || null]
+    );
+    res.status(201).json({ mensagem: 'Conteúdo criado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── PUT /api/admin/educacao/:id ───────────────────────────────
+// Actualizo um conteúdo educativo existente pelo ID
+router.put('/educacao/:id', auth, role('admin'), async (req, res) => {
+  try {
+    const { titulo, descricao, conteudo, categoria, publico_alvo, imagem } = req.body;
+
+    if (!titulo || !conteudo) {
+      return res.status(400).json({ erro: 'Título e conteúdo são obrigatórios.' });
+    }
+
+    // Actualizo todos os campos do conteúdo — atualizado_em é actualizado automaticamente pelo MySQL
+    await pool.query(
+      `UPDATE Educacao
+       SET titulo = ?, descricao = ?, conteudo = ?, categoria = ?, publico_alvo = ?, imagem = ?
+       WHERE id_educacao = ? AND eliminado = 0`,
+      [titulo, descricao || null, conteudo, categoria, publico_alvo, imagem || null, req.params.id]
+    );
+    res.json({ mensagem: 'Conteúdo actualizado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── DELETE /api/admin/educacao/:id ────────────────────────────
+// Faço soft delete — marco como eliminado sem apagar da base de dados
+// Assim o conteúdo desaparece para os utilizadores mas fica no histórico
+router.delete('/educacao/:id', auth, role('admin'), async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE Educacao SET eliminado = 1 WHERE id_educacao = ?',
+      [req.params.id]
+    );
+    res.json({ mensagem: 'Conteúdo removido com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
