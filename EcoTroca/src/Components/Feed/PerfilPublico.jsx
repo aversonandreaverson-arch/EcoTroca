@@ -72,14 +72,14 @@ export default function PerfilPublico() {
 
   // ── Ecrã de carregamento ──
   if (carregando) return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 flex items-center justify-center">
+    <div className="min-h-screen bg-linear-to-b from-green-950 to-green-900 flex items-center justify-center">
       <p className="text-white text-lg">A carregar perfil...</p>
     </div>
   );
 
   // ── Ecrã de erro ──
   if (erro || !perfil) return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-linear-to-b from-green-950 to-green-900 flex flex-col items-center justify-center gap-4">
       <p className="text-red-400">{erro || 'Perfil não encontrado.'}</p>
       <button onClick={() => navigate(-1)} className="text-white/60 hover:text-white text-sm flex items-center gap-2">
         <ArrowLeft size={16} /> Voltar
@@ -90,7 +90,7 @@ export default function PerfilPublico() {
   const idade = calcularIdade(perfil.data_nascimento);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 to-green-900 pb-12">
+    <div className="min-h-screen bg-linear-to-b from-green-950 to-green-900 pb-12">
 
       {/* ── Botão voltar ── */}
       <div className="max-w-2xl mx-auto px-4 pt-6 mb-4">
