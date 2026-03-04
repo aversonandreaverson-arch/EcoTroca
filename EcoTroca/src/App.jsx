@@ -1,6 +1,7 @@
+
 import { Routes, Route } from 'react-router-dom'
 
-// ── Páginas públicas ──
+// ── Páginas públicas — qualquer pessoa pode ver sem login ──
 import Home               from './pages/home'
 import Login              from './pages/Login'
 import Cadastro           from './Components/Cadastro'
@@ -42,11 +43,17 @@ import EventosEmpresa     from './Components/EmpresaProfile/EventosEmpresa'
 import ColetadoresEmpresa from './Components/EmpresaProfile/ColetadoresEmpresa'
 import EducacaoEmpresa    from './Components/EmpresaProfile/Educacao'
 
-// ── Admin ──
-import DashboardAdmin from './Components/AdminProfile/DashboardAdmin'
+// ── Admin — importo todas as páginas do painel de administração ──
+import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
+import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
 
-
-// ── Rota protegida ──
+// ── RotaProtegida — componente que protege as páginas privadas ──
+// Se não estiver autenticado → redireciona para /Login
+// Se o tipo não corresponder → redireciona para /Login
+// Uso: <RotaProtegida tipos={["admin"]}> → só o admin entra
+//      <RotaProtegida tipos={["empresa"]}> → só empresas entram
+//      <RotaProtegida tipos={["coletor"]}> → só coletadores entram
+//      <RotaProtegida> sem tipos → qualquer autenticado entra
 import RotaProtegida from './Components/RotaProtegida'
 
 function App() {
@@ -55,6 +62,7 @@ function App() {
 
       {/* ═══════════════════════════════════════════════
           ROTAS PÚBLICAS
+          Estas páginas não precisam de login
       ═══════════════════════════════════════════════ */}
       <Route path='/'                         element={<Home />} />
       <Route path='/Login'                    element={<Login />} />
@@ -65,48 +73,59 @@ function App() {
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — utilizador comum
+          Sem tipos → qualquer utilizador autenticado entra
+          O utilizador comum não tem tipo definido, por isso
+          não uso tipos aqui para não bloquear o acesso
       ═══════════════════════════════════════════════ */}
-      <Route path='/PaginaInicial'    element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
-      <Route path='/Dashboard'        element={<RotaProtegida><Dashboard /></RotaProtegida>} />
-      <Route path='/UserProfile'      element={<RotaProtegida><UserProfile /></RotaProtegida>} />
-      <Route path='/Eventos'          element={<RotaProtegida><Eventos /></RotaProtegida>} />
-      <Route path='/Noticias'         element={<RotaProtegida><Noticias /></RotaProtegida>} />
-      <Route path='/Educacao'         element={<RotaProtegida><Educacao /></RotaProtegida>} />
-      <Route path='/Perfil'           element={<RotaProtegida><Perfil /></RotaProtegida>} />
-      <Route path='/Definicoes'       element={<RotaProtegida><Definicoes /></RotaProtegida>} />
-      <Route path='/Editar'           element={<RotaProtegida><Editar /></RotaProtegida>} />
-      <Route path='/NovoResiduo'      element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
+      <Route path='/Dashboard'     element={<RotaProtegida><Dashboard /></RotaProtegida>} />
+      <Route path='/UserProfile'   element={<RotaProtegida><UserProfile /></RotaProtegida>} />
+      <Route path='/Eventos'       element={<RotaProtegida><Eventos /></RotaProtegida>} />
+      <Route path='/Noticias'      element={<RotaProtegida><Noticias /></RotaProtegida>} />
+      <Route path='/Educacao'      element={<RotaProtegida><Educacao /></RotaProtegida>} />
+      <Route path='/Perfil'        element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/Definicoes'    element={<RotaProtegida><Definicoes /></RotaProtegida>} />
+      <Route path='/Editar'        element={<RotaProtegida><Editar /></RotaProtegida>} />
+      <Route path='/NovoResiduo'   element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — coletador
+          tipos={["coletor"]} → só coletadores entram
+          Se um utilizador comum tentar aceder a /ColetadorDashboard
+          é redireccionado para /Login automaticamente
       ═══════════════════════════════════════════════ */}
-      <Route path='/ColetadorInicio'     element={<RotaProtegida><PaginaInicialColetador /></RotaProtegida>} />
-      <Route path='/ColetadorDashboard'  element={<RotaProtegida><DashboardColetador /></RotaProtegida>} />
-      <Route path='/ColetadorProfile'    element={<RotaProtegida><ColetadorProfile /></RotaProtegida>} />
-      <Route path='/PedidosPendentes'    element={<RotaProtegida><PedidosPendentes /></RotaProtegida>} />
-      <Route path='/HistoricoColetas'    element={<RotaProtegida><HistoricoColetas /></RotaProtegida>} />
-      <Route path='/PerfilColetador'     element={<RotaProtegida><PerfilColetador /></RotaProtegida>} />
-      <Route path='/EditarColetador'     element={<RotaProtegida><EditarColetador /></RotaProtegida>} />
-      <Route path='/DefinicoesColetador' element={<RotaProtegida><DefinicoesColetador /></RotaProtegida>} />
-      <Route path='/ColetadorEventos'    element={<RotaProtegida><EventosColetador /></RotaProtegida>} />
-      <Route path='/ColetadorNoticias'   element={<RotaProtegida><NoticiasColetador /></RotaProtegida>} />
-      <Route path='/ColetadorEducacao'   element={<RotaProtegida><EducacaoColetador /></RotaProtegida>} />
+      <Route path='/ColetadorInicio'     element={<RotaProtegida tipos={["coletor"]}><PaginaInicialColetador /></RotaProtegida>} />
+      <Route path='/ColetadorDashboard'  element={<RotaProtegida tipos={["coletor"]}><DashboardColetador /></RotaProtegida>} />
+      <Route path='/ColetadorProfile'    element={<RotaProtegida tipos={["coletor"]}><ColetadorProfile /></RotaProtegida>} />
+      <Route path='/PedidosPendentes'    element={<RotaProtegida tipos={["coletor"]}><PedidosPendentes /></RotaProtegida>} />
+      <Route path='/HistoricoColetas'    element={<RotaProtegida tipos={["coletor"]}><HistoricoColetas /></RotaProtegida>} />
+      <Route path='/PerfilColetador'     element={<RotaProtegida tipos={["coletor"]}><PerfilColetador /></RotaProtegida>} />
+      <Route path='/EditarColetador'     element={<RotaProtegida tipos={["coletor"]}><EditarColetador /></RotaProtegida>} />
+      <Route path='/DefinicoesColetador' element={<RotaProtegida tipos={["coletor"]}><DefinicoesColetador /></RotaProtegida>} />
+      <Route path='/ColetadorEventos'    element={<RotaProtegida tipos={["coletor"]}><EventosColetador /></RotaProtegida>} />
+      <Route path='/ColetadorNoticias'   element={<RotaProtegida tipos={["coletor"]}><NoticiasColetador /></RotaProtegida>} />
+      <Route path='/ColetadorEducacao'   element={<RotaProtegida tipos={["coletor"]}><EducacaoColetador /></RotaProtegida>} />
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — empresa
+          tipos={["empresa"]} → só empresas entram
       ═══════════════════════════════════════════════ */}
-      <Route path='/DashboardEmpresa'   element={<RotaProtegida><DashboardEmpresa /></RotaProtegida>} />
-      <Route path='/PerfilEmpresa'      element={<RotaProtegida><PerfilEmpresa /></RotaProtegida>} />
-      <Route path='/EditarEmpresa'      element={<RotaProtegida><EditarEmpresa /></RotaProtegida>} />
-      <Route path='/EntregasEmpresa'    element={<RotaProtegida><EntregasEmpresa /></RotaProtegida>} />
-      <Route path='/EventosEmpresa'     element={<RotaProtegida><EventosEmpresa /></RotaProtegida>} />
-      <Route path='/ColetadoresEmpresa' element={<RotaProtegida><ColetadoresEmpresa /></RotaProtegida>} />
-      <Route path='/EmpresaEducacao'    element={<RotaProtegida><EducacaoEmpresa /></RotaProtegida>} />
+      <Route path='/DashboardEmpresa'   element={<RotaProtegida tipos={["empresa"]}><DashboardEmpresa /></RotaProtegida>} />
+      <Route path='/PerfilEmpresa'      element={<RotaProtegida tipos={["empresa"]}><PerfilEmpresa /></RotaProtegida>} />
+      <Route path='/EditarEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EditarEmpresa /></RotaProtegida>} />
+      <Route path='/EntregasEmpresa'    element={<RotaProtegida tipos={["empresa"]}><EntregasEmpresa /></RotaProtegida>} />
+      <Route path='/EventosEmpresa'     element={<RotaProtegida tipos={["empresa"]}><EventosEmpresa /></RotaProtegida>} />
+      <Route path='/ColetadoresEmpresa' element={<RotaProtegida tipos={["empresa"]}><ColetadoresEmpresa /></RotaProtegida>} />
+      <Route path='/EmpresaEducacao'    element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — admin
+          tipos={["admin"]} → só o admin entra
+          Qualquer outro tipo de utilizador que tente aceder
+          a uma rota de admin é redireccionado para /Login
       ═══════════════════════════════════════════════ */}
-      <Route path='/AdminDashboard'    element={<RotaProtegida><DashboardAdmin /></RotaProtegida>} />
+      <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
+      <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
 
     </Routes>
   )
