@@ -1,7 +1,3 @@
-// ============================================================
-//  entrega.routes.js — Rotas das entregas
-//  Guardar em: src/routes/entrega.routes.js
-// ============================================================
 
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
