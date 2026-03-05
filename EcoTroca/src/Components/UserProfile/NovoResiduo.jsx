@@ -1,10 +1,14 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { criarEntrega, getResiduos } from "../../api.js";
+import { useNavigate, useParams } from "react-router-dom";
+import { criarEntrega, editarEntrega, getEntrega, getResiduos } from "../../api.js";
 import Header from "./Header";
 
 export default function NovoResiduo() {
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
+  // Aqui vejo se existe um id no URL — se sim estou em modo edição
+  const { id }      = useParams();
+  const modoEdicao  = !!id;
 
   // Aqui guardo todos os resíduos vindos da base de dados
   const [todosResiduos, setTodosResiduos] = useState([]);
@@ -30,17 +34,33 @@ export default function NovoResiduo() {
   const [carregando, setCarregando] = useState(false);
 
   // Quando a página abre, vou buscar todos os resíduos ao servidor
+  // Se estiver em modo edição, carrego também os dados da entrega existente
   useEffect(() => {
     const carregar = async () => {
       try {
         const dados = await getResiduos();
         setTodosResiduos(dados);
-
-        // Aqui extraio os tipos únicos para o primeiro select
         const tipos = [...new Set(dados.map(r => r.tipo))];
         setTiposUnicos(tipos);
+
+        // Aqui carrego os dados existentes se estiver a editar
+        if (modoEdicao) {
+          const entrega = await getEntrega(id);
+          setTipoEntrega(entrega.tipo_entrega      || 'domicilio');
+          setEndereco(entrega.endereco_domicilio   || '');
+          setRecompensa(entrega.tipo_recompensa    || 'dinheiro');
+          setObservacoes(entrega.observacoes       || '');
+
+          // Aqui pré-selecciono o tipo e a qualidade do resíduo
+          if (entrega.tipo_residuo) {
+            setTipoSelecionado(entrega.tipo_residuo);
+            const qualidades = dados.filter(r => r.tipo === entrega.tipo_residuo);
+            setQualidadesDisponiveis(qualidades);
+            if (entrega.id_residuo) setIdResiduo(entrega.id_residuo);
+          }
+        }
       } catch (err) {
-        console.error('Erro ao carregar resíduos:', err);
+        console.error('Erro ao carregar:', err);
       }
     };
     carregar();
@@ -83,8 +103,8 @@ export default function NovoResiduo() {
       setErro('');
       setCarregando(true);
 
-      // Envio os dados no formato que o backend espera
-      await criarEntrega({
+      // Aqui decido se crio uma nova entrega ou edito uma existente
+      const dados = {
         tipo_entrega:       tipoEntrega,
         endereco_domicilio: endereco.trim(),
         id_ponto:           null,
@@ -92,10 +112,16 @@ export default function NovoResiduo() {
         observacoes:        observacoes || null,
         residuos: [{
           id_residuo: parseInt(idResiduo),
-          peso_kg:    0, // o coletador pesa o real na confirmação
+          peso_kg:    0,
           quantidade: 1,
         }],
-      });
+      };
+
+      if (modoEdicao) {
+        await editarEntrega(id, dados);
+      } else {
+        await criarEntrega(dados);
+      }
 
       navigate('/Dashboard');
 
@@ -112,7 +138,9 @@ export default function NovoResiduo() {
 
       <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-xl p-6">
 
-        <h2 className="text-2xl font-bold mb-1 text-green-700">Publicar Resíduo</h2>
+        <h2 className="text-2xl font-bold mb-1 text-green-700">
+          {modoEdicao ? 'Editar Resíduo' : 'Publicar Resíduo'}
+        </h2>
         <p className="text-gray-400 text-xs mb-6">
           A publicação expira em 7 dias se não houver interesse.
         </p>
@@ -303,7 +331,7 @@ export default function NovoResiduo() {
             disabled={carregando}
             className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl transition flex-1 text-sm font-medium"
           >
-            {carregando ? 'A publicar...' : 'Publicar Resíduo'}
+            {carregando ? 'A guardar...' : modoEdicao ? 'Guardar Alterações' : 'Publicar Resíduo'}
           </button>
         </div>
 

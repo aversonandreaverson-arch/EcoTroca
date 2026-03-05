@@ -104,7 +104,8 @@ function App() {
       <Route path='/Perfil'        element={<RotaProtegida><Perfil /></RotaProtegida>} />
       <Route path='/Definicoes'    element={<RotaProtegida><Definicoes /></RotaProtegida>} />
       <Route path='/Editar'        element={<RotaProtegida><Editar /></RotaProtegida>} />
-      <Route path='/NovoResiduo'   element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      <Route path='/NovoResiduo'              element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      <Route path='/EditarResiduo/:id'        element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
       {/* ═══════════════════════════════════════════════
           ROTAS PRIVADAS — coletador
