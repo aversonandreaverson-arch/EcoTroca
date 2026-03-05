@@ -152,7 +152,7 @@ export const apagarPublicacao = (id) => pedido(`/feed/${id}`, { method: 'DELETE'
 // PERFIL PÚBLICO
 // ============================================================
 
-export const getPerfilPublico = (id) => pedido(`/perfilpublico/${id}`);
+export const getPerfilPublico = (tipo, id) => pedido(`/perfilpublico/${tipo}/${id}`);
 
 // ============================================================
 // EMPRESAS — listagem pública
