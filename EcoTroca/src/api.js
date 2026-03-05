@@ -1,3 +1,6 @@
+// ============================================================
+// api.js — Ficheiro central de comunicação com o backend
+// ============================================================
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -127,6 +130,7 @@ export const enviarMensagem = (idEntrega, mensagem) => pedido(`/chat/${idEntrega
 
 export const getNotificacoes       = () => pedido('/notificacoes');
 export const marcarNotificacaoLida = (id) => pedido(`/notificacoes/${id}/ler`, { method: 'PATCH' });
+export const criarNotificacao      = (dados) => pedido('/notificacoes/criar', { method: 'POST', body: JSON.stringify(dados) });
 
 // ============================================================
 // RESÍDUOS
@@ -135,11 +139,10 @@ export const marcarNotificacaoLida = (id) => pedido(`/notificacoes/${id}/ler`, {
 export const getResiduos = () => pedido('/residuos');
 
 // ============================================================
-// FEED — publicações
+// PUBLICAÇÕES — Página Inicial
 // ============================================================
 
 export const getFeed          = () => pedido('/feed');
-export const getPublicacoes   = () => pedido('/feed');
 export const criarPublicacao  = (dados) => pedido('/feed', { method: 'POST', body: JSON.stringify(dados) });
 export const apagarPublicacao = (id) => pedido(`/feed/${id}`, { method: 'DELETE' });
 
