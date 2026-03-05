@@ -1,16 +1,6 @@
 // ============================================================
 //  entrega.routes.js — Rotas das entregas
 //  Guardar em: src/routes/entrega.routes.js
-//
-//  Aqui giro todo o ciclo de vida de uma entrega:
-//  pendente → aceita → coletada → pagamentos calculados
-//
-//  Cálculo por transacção (definido nas regras de negócio):
-//  valor_total      = peso_real × valor_por_kg
-//  valor_utilizador = (valor_total × 0.70) − 50 Kz fixos
-//  valor_coletador  = valor_total × 0.30 (sem desconto)
-//  comissao_empresa = valor_total × 0.10
-//  comissao_ecotroca = comissao_empresa + 50 Kz do utilizador
 // ============================================================
 
 import { Router } from 'express';
@@ -20,7 +10,6 @@ import pool from '../config/database.js';
 const router = Router();
 
 // ── GET /api/entregas ─────────────────────────────────────────
-// Aqui listo todas as entregas do utilizador autenticado
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -47,7 +36,8 @@ router.get('/', auth, async (req, res) => {
 });
 
 // ── POST /api/entregas ────────────────────────────────────────
-// Aqui crio uma nova entrega com os resíduos associados
+// Aqui crio a entrega e automaticamente uma Publicacao no feed
+// para que o resíduo apareça na Página Inicial para todos verem
 router.post('/', auth, async (req, res) => {
   try {
     const {
@@ -72,17 +62,76 @@ router.post('/', auth, async (req, res) => {
 
     const id_entrega = result.insertId;
 
-    // Aqui insiro cada resíduo na tabela Entrega_Residuo
+    // Insiro cada resíduo na tabela Entrega_Residuo
+    // e guardo o último id_residuo para associar à publicação
+    let id_residuo_principal = null;
     if (residuos && residuos.length > 0) {
       for (const r of residuos) {
         await pool.query(
           'INSERT INTO Entrega_Residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
           [id_entrega, r.id_residuo, r.quantidade || 1, r.peso_kg]
         );
+        id_residuo_principal = r.id_residuo;
       }
     }
 
-    // Aqui crio o chat para esta entrega — será activado após aceitação (Regra 18)
+    // ── Criação automática da Publicacao ─────────────────────
+    // Aqui vou buscar os detalhes do resíduo para construir o título
+    // e o intervalo de preço que aparece na Página Inicial
+    if (id_residuo_principal) {
+      const [residuoRows] = await pool.query(
+        'SELECT tipo, qualidade, preco_min, preco_max, descricao FROM Residuo WHERE id_residuo = ?',
+        [id_residuo_principal]
+      );
+
+      if (residuoRows.length > 0) {
+        const r = residuoRows[0];
+
+        // Título gerado automaticamente com base no tipo e qualidade
+        const labelQualidade = {
+          ruim:      'Ruim',
+          moderada:  'Moderada',
+          boa:       'Boa',
+          excelente: 'Excelente',
+        }[r.qualidade] || r.qualidade;
+
+        const titulo = `Oferta de ${r.tipo} — Qualidade ${labelQualidade}`;
+
+        // Descrição com o intervalo de preço e observações se existirem
+        let descricao = `${r.tipo} de qualidade ${labelQualidade}.`;
+        if (r.preco_min && r.preco_max) {
+          descricao += ` Valor estimado: ${r.preco_min}–${r.preco_max} Kz/kg.`;
+        }
+        if (observacoes) {
+          descricao += ` ${observacoes}`;
+        }
+
+        // Vou buscar a província do utilizador para mostrar na publicação
+        const [userRows] = await pool.query(
+          'SELECT provincia FROM Usuario WHERE id_usuario = ?',
+          [req.usuario.id_usuario]
+        );
+        const provincia = userRows[0]?.provincia || null;
+
+        // Insiro a publicação — tipo_autor = 'utilizador', tipo_publicacao = 'oferta_residuo'
+        await pool.query(
+          `INSERT INTO Publicacao
+            (id_usuario, tipo_autor, tipo_publicacao, titulo, descricao,
+             id_residuo, provincia, criado_em)
+           VALUES (?, 'utilizador', 'oferta_residuo', ?, ?, ?, ?, NOW())`,
+          [
+            req.usuario.id_usuario,
+            titulo,
+            descricao,
+            id_residuo_principal,
+            provincia,
+          ]
+        );
+      }
+    }
+    // ── Fim da criação automática ─────────────────────────────
+
+    // Crio o chat para esta entrega
     await pool.query('INSERT INTO Chat (id_entrega) VALUES (?)', [id_entrega]);
 
     res.status(201).json({ mensagem: 'Entrega criada com sucesso!', id_entrega });
@@ -92,7 +141,6 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ── GET /api/entregas/:id ─────────────────────────────────────
-// Aqui vou buscar uma entrega específica para o modo de edição
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -119,12 +167,10 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ── PUT /api/entregas/:id ─────────────────────────────────────
-// Aqui edito uma entrega — só funciona se ainda estiver pendente
 router.put('/:id', auth, async (req, res) => {
   try {
     const { tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes, residuos } = req.body;
 
-    // Verifico se a entrega existe, é do utilizador e está pendente
     const [rows] = await pool.query(
       'SELECT status FROM Entrega WHERE id_entrega = ? AND id_usuario = ?',
       [req.params.id, req.usuario.id_usuario]
@@ -132,7 +178,6 @@ router.put('/:id', auth, async (req, res) => {
     if (!rows.length) return res.status(404).json({ erro: 'Entrega não encontrada.' });
     if (rows[0].status !== 'pendente') return res.status(403).json({ erro: 'Só é possível editar entregas pendentes.' });
 
-    // Actualizo os dados principais da entrega
     await pool.query(
       `UPDATE Entrega SET
         tipo_entrega       = ?,
@@ -143,7 +188,6 @@ router.put('/:id', auth, async (req, res) => {
       [tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes || null, req.params.id]
     );
 
-    // Se o resíduo mudou, actualizo a tabela Entrega_Residuo
     if (residuos && residuos.length > 0) {
       await pool.query('DELETE FROM Entrega_Residuo WHERE id_entrega = ?', [req.params.id]);
       for (const r of residuos) {
@@ -161,8 +205,6 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/confirmar ────────────────────────
-// Aqui confirmo a coleta e calculo os pagamentos automaticamente
-// Este endpoint é chamado pelo coletador após pesar o resíduo real
 router.patch('/:id/confirmar', auth, async (req, res) => {
   try {
     const { peso_real } = req.body;
@@ -171,7 +213,6 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
       return res.status(400).json({ erro: 'O peso real é obrigatório para confirmar a coleta.' });
     }
 
-    // Aqui vou buscar o resíduo e o seu valor_por_kg para calcular o valor total
     const [rows] = await pool.query(
       `SELECT er.id_residuo, r.valor_por_kg
        FROM Entrega_Residuo er
@@ -185,39 +226,28 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
       return res.status(404).json({ erro: 'Entrega não encontrada.' });
     }
 
-    // Aqui vou buscar as comissões da tabela Configuracao
     const [configs] = await pool.query('SELECT chave, valor FROM Configuracao');
     const cfg = {};
     configs.forEach(c => { cfg[c.chave] = parseFloat(c.valor); });
 
-    const valor_por_kg        = parseFloat(rows[0].valor_por_kg);
-    const peso                = parseFloat(peso_real);
+    const valor_por_kg      = parseFloat(rows[0].valor_por_kg);
+    const peso              = parseFloat(peso_real);
+    const valor_total       = valor_por_kg * peso;
+    const comissao_empresa  = valor_total * (cfg.comissao_empresa || 0.10);
+    const valor_utilizador  = (valor_total * 0.70) - (cfg.comissao_utilizador_fixo || 50);
+    const valor_coletador   = valor_total * 0.30;
+    const comissao_ecotroca = comissao_empresa + (cfg.comissao_utilizador_fixo || 50);
 
-    // Aqui calculo todos os valores conforme as regras de negócio
-    const valor_total         = valor_por_kg * peso;
-    const comissao_empresa    = valor_total * (cfg.comissao_empresa    || 0.10);
-    const valor_utilizador    = (valor_total * 0.70) - (cfg.comissao_utilizador_fixo || 50);
-    const valor_coletador     = valor_total * 0.30; // sem desconto
-    const comissao_ecotroca   = comissao_empresa + (cfg.comissao_utilizador_fixo || 50);
-
-    // Aqui actualizo a entrega com o peso real e os valores calculados
     await pool.query(
       `UPDATE Entrega SET
-        status           = 'coletada',
-        peso_total       = ?,
-        valor_total      = ?,
-        valor_utilizador = ?,
-        valor_coletador  = ?,
+        status            = 'coletada',
+        peso_total        = ?,
+        valor_total       = ?,
+        valor_utilizador  = ?,
+        valor_coletador   = ?,
         comissao_ecotroca = ?
        WHERE id_entrega = ?`,
-      [
-        peso,
-        valor_total,
-        valor_utilizador,
-        valor_coletador,
-        comissao_ecotroca,
-        req.params.id,
-      ]
+      [peso, valor_total, valor_utilizador, valor_coletador, comissao_ecotroca, req.params.id]
     );
 
     res.json({
@@ -235,7 +265,6 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/cancelar ─────────────────────────
-// Aqui cancelo uma entrega — só funciona se estiver pendente
 router.patch('/:id/cancelar', auth, async (req, res) => {
   try {
     await pool.query(
