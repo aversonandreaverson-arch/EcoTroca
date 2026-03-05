@@ -1,22 +1,16 @@
-
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/perfil-publico/:tipo/:id ─────────────────────────
-// Devolvo os dados públicos do perfil e as suas publicações no feed
-// tipo → 'utilizador', 'empresa' ou 'coletor'
-// id   → ID do registo na tabela correspondente
+// ── GET /api/perfilpublico/:tipo/:id ──────────────────────────
 router.get('/:tipo/:id', auth, async (req, res) => {
   try {
     const { tipo, id } = req.params;
     let perfil = null;
 
     if (tipo === 'utilizador' || tipo === 'coletor') {
-      // Vou buscar os dados públicos da tabela Usuario
-      // Não exponho a senha nem o email completo por segurança
       const [rows] = await pool.query(`
         SELECT
           id_usuario, nome, provincia, municipio,
@@ -29,7 +23,6 @@ router.get('/:tipo/:id', auth, async (req, res) => {
       if (!rows.length) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
       perfil = rows[0];
 
-      // Se for coletador, adiciono os dados extra da tabela Coletador
       if (tipo === 'coletor') {
         const [cRows] = await pool.query(
           'SELECT tipo, id_empresa FROM Coletador WHERE id_usuario = ?',
@@ -39,7 +32,6 @@ router.get('/:tipo/:id', auth, async (req, res) => {
       }
 
     } else if (tipo === 'empresa') {
-      // Vou buscar os dados públicos da empresa
       const [rows] = await pool.query(`
         SELECT
           id_empresa AS id_usuario, nome, provincia,
@@ -55,19 +47,14 @@ router.get('/:tipo/:id', auth, async (req, res) => {
       return res.status(400).json({ erro: 'Tipo de perfil inválido.' });
     }
 
-    // Vou buscar as publicações do feed deste utilizador/empresa
-    // Só mostro publicações de resíduos (ofertas e pedidos)
-    const id_usuario = tipo === 'empresa' ? null : id;
-    const id_para_query = tipo === 'empresa'
-      ? await (async () => {
-          // Para empresas, procuro pelo id_empresa na tabela Publicacao
-          // através do id_usuario do dono da empresa
-          const [u] = await pool.query(
-            'SELECT id_usuario FROM EmpresaRecicladora WHERE id_empresa = ?', [id]
-          );
-          return u[0]?.id_usuario;
-        })()
-      : id;
+    // Para empresas, procuro o id_usuario do dono para buscar publicações
+    let id_para_query = id;
+    if (tipo === 'empresa') {
+      const [u] = await pool.query(
+        'SELECT id_usuario FROM EmpresaRecicladora WHERE id_empresa = ?', [id]
+      );
+      id_para_query = u[0]?.id_usuario;
+    }
 
     const [publicacoes] = await pool.query(`
       SELECT
