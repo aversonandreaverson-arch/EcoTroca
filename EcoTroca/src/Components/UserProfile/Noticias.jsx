@@ -1,102 +1,127 @@
-import React from "react";
-import { CalendarDays, Tag } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CalendarDays, Tag, Newspaper } from "lucide-react";
 import Header from "./Header";
+import { getFeed } from "../../api.js";
 
-// Componente Notícias
 export default function Noticias() {
+  const [noticias,   setNoticias]   = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro,       setErro]       = useState('');
+  const [aberta,     setAberta]     = useState(null);
 
-  // Lista de notícias para exibir
-  const noticias = [
-    {
-      titulo: "Reciclagem cresce em Angola",
-      descricao:
-        "O número de iniciativas sustentáveis aumentou significativamente nos últimos anos.",
-      data: "05 Fevereiro 2026",
-      categoria: "Sustentabilidade",
-      imagem: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9"
-    },
-    {
-      titulo: "Novas empresas apostam no verde",
-      descricao:
-        "Startups angolanas estão investindo em soluções ecológicas e economia circular.",
-      data: "02 Fevereiro 2026",
-      categoria: "Empresas",
-      imagem: "https://images.unsplash.com/photo-1492724441997-5dc865305da7"
-    }
-  ];
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const feed = await getFeed();
+        // Filtro apenas as publicações do tipo notícia
+        setNoticias(feed.filter(p => p.tipo_publicacao === 'noticia'));
+      } catch (err) {
+        setErro(err.message);
+      } finally {
+        setCarregando(false);
+      }
+    };
+    carregar();
+  }, []);
 
   return (
-    // Container principal da página
-    <div id="Noticias" className="min-h-screen bg-green-700 pt-24 p-6">
-      
-      {/* Header separado */}
-      <div className="mb-12">
-        <Header />
-      </div>
+    <div id="Noticias" className="min-h-screen bg-green-100 pt-24 p-6">
+      <Header />
 
-      {/* Conteúdo */}
-      <div className="px-6 pb-12">
+      <div className="max-w-4xl mx-auto pb-12">
 
-        {/* Título da seção */}
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold text-white">
-            Últimas Notícias 
-          </h2>
-          <p className="text-gray-300 mt-2">
-            Fique atualizado sobre sustentabilidade e inovação.
-          </p>
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-green-800">Últimas Notícias</h2>
+          <p className="text-green-600 text-sm mt-1">Fica actualizado sobre sustentabilidade e inovação.</p>
         </div>
 
-        {/* Grid de notícias */}
-        <div className="grid md:grid-cols-2 gap-8">
-          {noticias.map((noticia, index) => (
+        {carregando && <p className="text-green-700 text-center py-12">A carregar notícias...</p>}
+        {erro       && <p className="text-red-500 text-center py-6">{erro}</p>}
+
+        {!carregando && !erro && noticias.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-2xl border border-green-100">
+            <Newspaper size={48} className="mx-auto mb-3 text-green-200" />
+            <p className="text-gray-400">Nenhuma notícia disponível de momento.</p>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {noticias.map((noticia) => (
             <div
-              key={index}
-              className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition duration-300"
+              key={noticia.id_publicacao}
+              className="bg-white border border-green-100 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition duration-300"
             >
+              {noticia.imagem ? (
+                <img src={noticia.imagem} alt={noticia.titulo}
+                  className="w-full h-48 object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; }} />
+              ) : (
+                <div className="w-full h-48 bg-green-50 flex items-center justify-center">
+                  <Newspaper size={48} className="text-green-200" />
+                </div>
+              )}
 
-              {/* Imagem da notícia */}
-              <img
-                src={noticia.imagem}
-                alt={noticia.titulo}
-                className="w-full h-48 object-cover"
-              />
-
-              <div className="p-6">
-
-                {/* Categoria da notícia */}
-                <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
-                  <Tag size={14} />
-                  {noticia.categoria}
+              <div className="p-5">
+                <span className="inline-flex items-center gap-1 bg-cyan-100 text-cyan-700 text-xs font-medium px-3 py-1 rounded-full mb-3">
+                  <Tag size={11} /> Notícia
                 </span>
 
-                {/* Título da notícia */}
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  {noticia.titulo}
-                </h3>
+                <h3 className="text-base font-semibold text-green-800 mb-2">{noticia.titulo}</h3>
 
-                {/* Descrição da notícia */}
-                <p className="text-gray-600 text-sm mb-4">
-                  {noticia.descricao}
-                </p>
+                {noticia.descricao && (
+                  <p className="text-gray-500 text-xs mb-3 line-clamp-3">{noticia.descricao}</p>
+                )}
 
-                {/* Data da notícia */}
-                <div className="flex items-center gap-2 text-gray-500 text-xs mb-4">
-                  <CalendarDays size={14} />
-                  <span>{noticia.data}</span>
+                <div className="flex items-center gap-2 text-gray-400 text-xs mb-4">
+                  <CalendarDays size={12} />
+                  {new Date(noticia.criado_em).toLocaleDateString('pt-AO', {
+                    day: 'numeric', month: 'long', year: 'numeric'
+                  })}
                 </div>
 
-                {/* Botão para ler mais */}
-                <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-xl transition">
+                <button
+                  onClick={() => setAberta(noticia)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-xl transition"
+                >
                   Ler mais
                 </button>
-
               </div>
             </div>
           ))}
         </div>
-
       </div>
+
+      {/* Modal de detalhe */}
+      {aberta && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {aberta.imagem && (
+              <img src={aberta.imagem} alt={aberta.titulo}
+                className="w-full h-48 object-cover rounded-t-2xl"
+                onError={(e) => { e.target.style.display = 'none'; }} />
+            )}
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-green-800 mb-2">{aberta.titulo}</h2>
+              <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
+                <CalendarDays size={11} />
+                {new Date(aberta.criado_em).toLocaleDateString('pt-AO', {
+                  day: 'numeric', month: 'long', year: 'numeric'
+                })}
+                {aberta.nome_autor && <span className="ml-2">· {aberta.nome_autor}</span>}
+              </p>
+              {aberta.descricao && (
+                <p className="text-gray-600 text-sm leading-relaxed mb-3">{aberta.descricao}</p>
+              )}
+              <button
+                onClick={() => setAberta(null)}
+                className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium transition"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
