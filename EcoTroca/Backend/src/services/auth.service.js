@@ -1,16 +1,43 @@
-// ============================================================
-//  auth.service.js
-//  Lógica de autenticação: registo e login
-//  Suporta: utilizador comum, coletador e empresa
-// ============================================================
 
 import pool from '../config/database.js';
 import { hash as _hash, compare } from 'bcryptjs';
 import { gerarToken } from '../utils/jwt.js';
+import twilio from 'twilio';
+
+// Inicializo o cliente Twilio
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// Função auxiliar para normalizar número angolano 
+const normalizarTelefone = (telefone) => {
+  if (!telefone) return null;
+  let t = telefone.toString().trim().replace(/\s/g, '');
+  if (t.startsWith('+244')) return t;
+  if (t.startsWith('244'))  return '+' + t;
+  if (t.startsWith('9'))    return '+244' + t;
+  return '+244' + t;
+};
+
+// Função auxiliar para enviar SMS — não bloqueia o fluxo se falhar
+const enviarSMS = async (telefone, mensagem) => {
+  try {
+    const numero = normalizarTelefone(telefone);
+    if (!numero) return;
+    await twilioClient.messages.create({
+      body: mensagem,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to:   numero,
+    });
+    console.log(`✅ SMS enviado para ${numero}`);
+  } catch (err) {
+    console.error(`❌ Erro ao enviar SMS de boas-vindas: ${err.message}`);
+  }
+};
 
 // ──────────────────────────────────────────────────────────────
 // REGISTO
-// Cria conta conforme o tipo: comum, coletor ou empresa
 // ──────────────────────────────────────────────────────────────
 const registar = async ({
   nome, email, telefone, senha, tipo_usuario,
@@ -25,7 +52,7 @@ const registar = async ({
   );
   if (existe.length > 0) throw new Error('Email ou telefone já registado.');
 
-  // Gera o hash da senha para não guardar em texto simples
+  // Gera o hash da senha
   const hash = await _hash(senha, 10);
 
   // Insere o utilizador na tabela principal
@@ -49,22 +76,17 @@ const registar = async ({
 
   const id_usuario = result.insertId;
 
-  // ── Cria registos de suporte para todos os tipos ──
-
-  // Pontuação e recompensas (gamificação)
+  // Pontuação e recompensas
   await pool.query('INSERT INTO PontuacaoUsuario (id_usuario) VALUES (?)', [id_usuario]);
   await pool.query('INSERT INTO RecompensaUsuario (id_usuario) VALUES (?)', [id_usuario]);
 
   // Carteira — só para utilizadores e coletadores
-  // Empresas não têm carteira pois são elas quem paga (Regra 16)
   if (tipo_usuario !== 'empresa') {
     await pool.query('INSERT INTO Carteira (id_usuario) VALUES (?)', [id_usuario]);
   }
 
-  // ── Registo extra conforme o tipo de conta ──
-
+  // Registo extra conforme o tipo de conta
   if (tipo_usuario === 'coletor') {
-    // Coletador independente — ligado ao id_usuario criado acima
     await pool.query(
       `INSERT INTO Coletador (id_usuario, nome, telefone, tipo)
        VALUES (?, ?, ?, 'independente')`,
@@ -73,7 +95,6 @@ const registar = async ({
   }
 
   if (tipo_usuario === 'empresa') {
-    // Empresa recicladora — cria registo na tabela EmpresaRecicladora
     await pool.query(
       `INSERT INTO EmpresaRecicladora
          (id_usuario, nome, telefone, email, horario_abertura, horario_fechamento)
@@ -89,7 +110,21 @@ const registar = async ({
     );
   }
 
-  // Gera o token JWT para autenticação imediata após o registo
+  // ── SMS de boas-vindas ────────────────────────────────────
+  // Enviado para o número com que a pessoa se registou
+  const tipoLabel = tipo_usuario === 'empresa'  ? 'Empresa'    :
+                    tipo_usuario === 'coletor'   ? 'Coletador'  :
+                    'Utilizador';
+
+  const mensagemSMS =
+    `🌱 EcoTroca Angola\n` +
+    `Olá ${nome}, bem-vindo(a)!\n` +
+    `A tua conta de ${tipoLabel} foi criada com sucesso.\n` +
+    `Juntos tornamos Angola mais verde. ♻️`;
+
+  await enviarSMS(telefone, mensagemSMS);
+  // ─────────────────────────────────────────────────────────
+
   const token = gerarToken({ id_usuario, tipo_usuario: tipo_usuario || 'comum' });
 
   return { token, id_usuario, tipo_usuario: tipo_usuario || 'comum', nome };
@@ -97,11 +132,9 @@ const registar = async ({
 
 // ──────────────────────────────────────────────────────────────
 // LOGIN
-// Autentica o utilizador pelo email ou telefone
 // ──────────────────────────────────────────────────────────────
 const login = async ({ email, senha }) => {
 
-  // Procura pelo email ou telefone (o utilizador pode usar qualquer um)
   const [rows] = await pool.query(
     `SELECT * FROM Usuario
      WHERE (email = ? OR telefone = ?) AND ativo = TRUE`,
@@ -112,11 +145,9 @@ const login = async ({ email, senha }) => {
 
   const usuario = rows[0];
 
-  // Compara a senha introduzida com o hash guardado
   const senhaCorreta = await compare(senha, usuario.senha);
   if (!senhaCorreta) throw new Error('Senha incorreta.');
 
-  // Gera o token JWT
   const token = gerarToken({
     id_usuario:   usuario.id_usuario,
     tipo_usuario: usuario.tipo_usuario
