@@ -1,16 +1,8 @@
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import pool from '../config/database.js';
-import AfricasTalking from 'africastalking';
 
 const router = Router();
-
-// Inicializo o cliente AfricasTalking com as credenciais da sandbox
-const at  = AfricasTalking({
-  username: process.env.AT_USERNAME || 'sandbox',
-  apiKey:   process.env.AT_API_KEY  || 'TXPJ51x6L',
-});
-const sms = at.SMS;
 
 // ── GET /api/notificacoes ─────────────────────────────────────
 router.get('/', auth, async (req, res) => {
@@ -26,8 +18,8 @@ router.get('/', auth, async (req, res) => {
 });
 
 // ── POST /api/notificacoes/criar ──────────────────────────────
-// Aqui crio uma notificação na plataforma E envio SMS ao utilizador
-// Usado quando uma empresa mostra interesse numa oferta de resíduo
+// Cria notificação na plataforma para outro utilizador
+// Usado quando empresa mostra interesse numa oferta de resíduo
 router.post('/criar', auth, async (req, res) => {
   try {
     const { id_usuario_destino, titulo, mensagem } = req.body;
@@ -36,48 +28,10 @@ router.post('/criar', auth, async (req, res) => {
       return res.status(400).json({ erro: 'id_usuario_destino, titulo e mensagem são obrigatórios.' });
     }
 
-    // Guardo a notificação na base de dados — aparece no sino da plataforma
     await pool.query(
       'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
       [id_usuario_destino, titulo, mensagem]
     );
-
-    // Vou buscar o número de telefone do utilizador destino
-    const [rows] = await pool.query(
-      'SELECT telefone FROM Usuario WHERE id_usuario = ?',
-      [id_usuario_destino]
-    );
-
-    // Se o utilizador tiver número, envio o SMS
-    if (rows.length && rows[0].telefone) {
-      let telefone = rows[0].telefone.toString().trim();
-
-      // Normalizo o número para formato internacional com prefixo Angola (+244)
-      // Se já começar com +244 não faço nada
-      // Se começar com 244 adiciono o +
-      // Se começar com 9 (número local angolano) adiciono +244
-      if (telefone.startsWith('+244')) {
-        // já está correcto
-      } else if (telefone.startsWith('244')) {
-        telefone = '+' + telefone;
-      } else if (telefone.startsWith('9')) {
-        telefone = '+244' + telefone;
-      } else {
-        telefone = '+244' + telefone;
-      }
-
-      try {
-        await sms.send({
-          to:      [telefone],
-          message: `EcoTroca: ${mensagem}`,
-          from:    'EcoTroca', // Nome do remetente (pode não funcionar na sandbox)
-        });
-        console.log(`SMS enviado para ${telefone}`);
-      } catch (smsErr) {
-        // Se o SMS falhar não bloqueio a resposta — a notificação na plataforma já foi guardada
-        console.error('Erro ao enviar SMS:', smsErr.message);
-      }
-    }
 
     res.status(201).json({ mensagem: 'Notificação enviada com sucesso.' });
   } catch (err) {
