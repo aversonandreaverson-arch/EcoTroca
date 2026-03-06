@@ -1,11 +1,3 @@
-// ============================================================
-//  evento.routes.js
-//  Rotas de eventos:
-//    GET    /api/eventos        → listar todos os eventos ativos
-//    GET    /api/eventos/:id    → ver detalhes de um evento
-//    PUT    /api/eventos/:id    → editar evento (só dono ou admin)
-//    DELETE /api/eventos/:id    → apagar evento (só dono ou admin)
-// ============================================================
 
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
