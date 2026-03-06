@@ -2,15 +2,15 @@
 //  PaginaInicial.jsx — Página inicial do EcoTroca
 //  Guardar em: src/Components/UserProfile/PaginaInicial.jsx
 //
-//  Layout responsivo:
-//    Mobile  → coluna única (feed completo)
-//    Desktop → duas colunas (feed + barra lateral com estatísticas)
+//  Layout:
+//    Mobile  → coluna única
+//    Desktop → feed + sidebar (empresas parceiras + avisos)
 //
 //  Quem pode publicar:
 //    admin   → evento, educação, notícia, aviso
 //    empresa → pedido_residuo, evento, educação, notícia
 //    comum   → oferta_residuo
-//    coletor → só lê, não publica
+//    coletor → só lê
 //
 //  Botão "Tenho interesse" → só empresas, só em ofertas de resíduo
 // ============================================================
@@ -18,13 +18,12 @@
 import { useState, useEffect } from 'react';
 import {
   Recycle, Building2, MapPin,
-  Plus, Search, Trash2, X, HandshakeIcon,
-  Newspaper, CalendarDays, Bell
+  Plus, Search, Trash2, X, HandshakeIcon, Bell
 } from 'lucide-react';
 import Header from './Header';
 import {
   getFeed, criarPublicacao, apagarPublicacao,
-  getResiduos, getUtilizadorLocal, criarNotificacao
+  getResiduos, getUtilizadorLocal, criarNotificacao, getEmpresas
 } from '../../api.js';
 
 // ── Tipos de publicação permitidos por perfil ──
@@ -42,7 +41,7 @@ const TIPOS_POR_PERFIL = {
     { valor: 'noticia',        label: '📰 Notícia'           },
   ],
   comum:   [{ valor: 'oferta_residuo', label: '♻️ Oferta de Resíduo' }],
-  coletor: [], // coletador só lê
+  coletor: [],
 };
 
 // ── Filtros do feed ──
@@ -56,7 +55,7 @@ const FILTROS = [
   { valor: 'aviso',          label: 'Avisos',   icon: '📣' },
 ];
 
-// ── Estilos visuais por tipo de publicação ──
+// ── Estilos visuais por tipo ──
 const ESTILOS = {
   oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-100',  label: '♻️ Oferta de Resíduo' },
   pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-100', label: '🏭 Pedido de Empresa'  },
@@ -98,17 +97,20 @@ export default function PaginaInicial() {
   const [mensagemInteresse, setMensagemInteresse] = useState('');
   const [enviandoInteresse, setEnviandoInteresse] = useState(false);
   const [erroInteresse,     setErroInteresse]     = useState('');
-  // Regista quais publicações já receberam proposta nesta sessão
-  const [interesseEnviado, setInteresseEnviado]   = useState({});
+  const [interesseEnviado,  setInteresseEnviado]  = useState({});
+
+  // Dados da sidebar
+  const [empresas, setEmpresas] = useState([]);
 
   const tiposDisponiveis     = TIPOS_POR_PERFIL[tipo] || [];
   const podePublicar         = tiposDisponiveis.length > 0;
   const mostrarCamposResiduo = ['oferta_residuo', 'pedido_residuo'].includes(formulario.tipo_publicacao);
 
-  // Carrego o feed e os resíduos ao montar o componente
+  // Carrego feed, resíduos e empresas ao montar
   useEffect(() => {
     carregarFeed();
     carregarResiduos();
+    getEmpresas().then(setEmpresas).catch(console.error);
   }, []);
 
   const carregarFeed = async () => {
@@ -127,7 +129,7 @@ export default function PaginaInicial() {
     catch (err) { console.error(err); }
   };
 
-  // Aplico filtro de tipo e pesquisa em simultâneo
+  // Aplico filtro de tipo e pesquisa
   const feedFiltrado = feed
     .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro)
     .filter(p => {
@@ -141,13 +143,8 @@ export default function PaginaInicial() {
       );
     });
 
-  // Estatísticas para a barra lateral
-  const contagem = {
-    ofertas:  feed.filter(p => p.tipo_publicacao === 'oferta_residuo').length,
-    pedidos:  feed.filter(p => p.tipo_publicacao === 'pedido_residuo').length,
-    eventos:  feed.filter(p => p.tipo_publicacao === 'evento').length,
-    noticias: feed.filter(p => p.tipo_publicacao === 'noticia').length,
-  };
+  // Avisos reais do feed para a sidebar
+  const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
 
   const handleCampo = (campo, valor) =>
     setFormulario(prev => ({ ...prev, [campo]: valor }));
@@ -155,7 +152,6 @@ export default function PaginaInicial() {
   const handleTipo = (novoTipo) =>
     setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
 
-  // Publica novo conteúdo no feed
   const handlePublicar = async () => {
     if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
     try {
@@ -168,14 +164,12 @@ export default function PaginaInicial() {
     finally { setPublicando(false); }
   };
 
-  // Remove publicação (soft delete)
   const handleApagar = async (id) => {
     if (!window.confirm('Remover esta publicação?')) return;
     try { await apagarPublicacao(id); await carregarFeed(); }
     catch (err) { alert(err.message); }
   };
 
-  // Abre o modal de proposta da empresa
   const abrirModalInteresse = (publicacao) => {
     setPublicacaoAlvo(publicacao);
     setValorProposto('');
@@ -184,13 +178,11 @@ export default function PaginaInicial() {
     setModalInteresse(true);
   };
 
-  // Envia proposta de compra ao dono do resíduo via notificação
   const handleEnviarInteresse = async () => {
-    const vMin     = publicacaoAlvo?.preco_min ? parseFloat(publicacaoAlvo.preco_min) : null;
-    const vMax     = publicacaoAlvo?.preco_max ? parseFloat(publicacaoAlvo.preco_max) : null;
+    const vMin      = publicacaoAlvo?.preco_min ? parseFloat(publicacaoAlvo.preco_min) : null;
+    const vMax      = publicacaoAlvo?.preco_max ? parseFloat(publicacaoAlvo.preco_max) : null;
     const vProposto = parseFloat(valorProposto);
 
-    // Validações de valor
     if (!valorProposto || vProposto <= 0) {
       setErroInteresse('Indica um valor proposto em Kz.'); return;
     }
@@ -204,18 +196,16 @@ export default function PaginaInicial() {
     try {
       setEnviandoInteresse(true);
       setErroInteresse('');
-
       const nomeEmpresa   = utilizador?.nome || 'Uma empresa';
       const tituloResiduo = publicacaoAlvo?.titulo || 'resíduo';
 
-      // Cria notificação para o dono do resíduo
+      // Envia notificação ao dono do resíduo
       await criarNotificacao({
         id_usuario_destino: publicacaoAlvo.id_autor,
         titulo:   '💼 Nova proposta de compra',
         mensagem: `${nomeEmpresa} quer comprar o teu resíduo "${tituloResiduo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
       });
 
-      // Marca esta publicação como já proposta nesta sessão
       setInteresseEnviado(prev => ({ ...prev, [publicacaoAlvo.id_publicacao]: true }));
       setModalInteresse(false);
     } catch (err) {
@@ -229,10 +219,9 @@ export default function PaginaInicial() {
     <div id="PaginaInicial" className="min-h-screen bg-green-100 pt-24 pb-12">
       <Header />
 
-      {/* ── Layout principal ── */}
       <div className="max-w-6xl mx-auto px-6">
 
-        {/* Cabeçalho da página */}
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-green-800">Página Inicial</h1>
@@ -240,7 +229,6 @@ export default function PaginaInicial() {
               Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vindo'} 👋
             </p>
           </div>
-          {/* Botão publicar — só aparece se o perfil puder publicar */}
           {podePublicar && (
             <button
               onClick={() => {
@@ -254,9 +242,13 @@ export default function PaginaInicial() {
           )}
         </div>
 
-        <div>
+        {/* Layout: feed + sidebar */}
+        <div className="flex gap-6 items-start">
 
-            {/* Barra de pesquisa */}
+          {/* ── Coluna do feed ── */}
+          <div className="flex-1 min-w-0">
+
+            {/* Pesquisa */}
             <div className="relative mb-4">
               <Search size={15} className="absolute left-3 top-3.5 text-gray-400" />
               <input
@@ -272,7 +264,7 @@ export default function PaginaInicial() {
               )}
             </div>
 
-            {/* Filtros de tipo */}
+            {/* Filtros */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
               {FILTROS.map(f => (
                 <button
@@ -291,9 +283,12 @@ export default function PaginaInicial() {
 
             {/* Lista de publicações — 1 coluna mobile, 2 colunas desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {carregando && <p className="text-green-700 text-center py-12">A carregar...</p>}
-              {erro       && <p className="text-red-500 text-center py-6">{erro}</p>}
-
+              {carregando && (
+                <p className="text-green-700 text-center py-12 md:col-span-2">A carregar...</p>
+              )}
+              {erro && (
+                <p className="text-red-500 text-center py-6 md:col-span-2">{erro}</p>
+              )}
               {!carregando && !erro && feedFiltrado.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border border-green-100 md:col-span-2">
                   <p className="text-gray-400">Nenhuma publicação encontrada.</p>
@@ -305,7 +300,6 @@ export default function PaginaInicial() {
                   )}
                 </div>
               )}
-
               {feedFiltrado.map(p => (
                 <CartaoPublicacao
                   key={p.id_publicacao}
@@ -318,6 +312,70 @@ export default function PaginaInicial() {
                 />
               ))}
             </div>
+          </div>
+
+          {/* ── Sidebar — só no desktop ── */}
+          <div className="hidden lg:flex flex-col gap-4 w-68 shrink-0">
+
+            {/* Card: Empresas Parceiras */}
+            <div className="bg-white border border-green-100 rounded-2xl shadow-sm p-5">
+              <h3 className="text-green-800 font-semibold text-sm mb-4 flex items-center gap-2">
+                <Building2 size={15} className="text-purple-600" /> Empresas Parceiras
+              </h3>
+              {empresas.length === 0 ? (
+                <p className="text-gray-400 text-xs">Nenhuma empresa registada.</p>
+              ) : (
+                <div className="space-y-3">
+                  {empresas.slice(0, 5).map(e => (
+                    <div key={e.id_empresa} className="flex items-center gap-3">
+                      {/* Avatar com inicial da empresa */}
+                      <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {e.nome?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-gray-700 text-xs font-medium truncate">{e.nome}</p>
+                        {e.provincia && (
+                          <p className="text-gray-400 text-xs flex items-center gap-1">
+                            <MapPin size={10} /> {e.provincia}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {empresas.length > 5 && (
+                    <p className="text-green-600 text-xs text-center mt-1">
+                      +{empresas.length - 5} empresas
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Card: Avisos da plataforma — dados reais do feed */}
+            <div className="bg-white border border-red-100 rounded-2xl shadow-sm p-5">
+              <h3 className="text-red-600 font-semibold text-sm mb-4 flex items-center gap-2">
+                <Bell size={15} /> Avisos
+              </h3>
+              {avisos.length === 0 ? (
+                <p className="text-gray-400 text-xs">Sem avisos de momento.</p>
+              ) : (
+                <div className="space-y-3">
+                  {avisos.slice(0, 3).map(aviso => (
+                    <div key={aviso.id_publicacao} className="border-l-2 border-red-300 pl-3">
+                      <p className="text-gray-700 text-xs font-medium">{aviso.titulo}</p>
+                      {aviso.descricao && (
+                        <p className="text-gray-400 text-xs mt-0.5 line-clamp-2">{aviso.descricao}</p>
+                      )}
+                      <p className="text-gray-300 text-xs mt-1">
+                        {new Date(aviso.criado_em).toLocaleDateString('pt-AO')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
         </div>
       </div>
 
@@ -333,7 +391,7 @@ export default function PaginaInicial() {
 
             <div className="space-y-4">
 
-              {/* Selector de tipo — só aparece se houver mais de um tipo disponível */}
+              {/* Selector de tipo */}
               {tiposDisponiveis.length > 1 && (
                 <div>
                   <label className="text-gray-600 text-sm block mb-2">O que quero publicar</label>
@@ -374,7 +432,7 @@ export default function PaginaInicial() {
                 />
               </div>
 
-              {/* Campos de resíduo — só para ofertas e pedidos */}
+              {/* Campos de resíduo */}
               {mostrarCamposResiduo && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -399,7 +457,7 @@ export default function PaginaInicial() {
                 </div>
               )}
 
-              {/* Província para outros tipos de publicação */}
+              {/* Província para outros tipos */}
               {!mostrarCamposResiduo && (
                 <div>
                   <label className="text-gray-600 text-sm block mb-1">Província (opcional)</label>
@@ -434,7 +492,7 @@ export default function PaginaInicial() {
               <button onClick={() => setModalInteresse(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
 
-            {/* Resumo do resíduo alvo */}
+            {/* Resumo do resíduo */}
             <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
               <p className="text-green-800 font-medium text-sm">{publicacaoAlvo.titulo}</p>
               {publicacaoAlvo.tipo_residuo && (
@@ -451,7 +509,7 @@ export default function PaginaInicial() {
 
             <div className="space-y-3">
 
-              {/* Campo do valor proposto */}
+              {/* Valor proposto */}
               <div>
                 <label className="text-gray-600 text-sm block mb-1">
                   Valor que propões <span className="text-red-500">*</span>
@@ -467,7 +525,6 @@ export default function PaginaInicial() {
                   />
                   <span className="absolute right-4 top-3 text-gray-400 text-sm">Kz</span>
                 </div>
-                {/* Mostra o intervalo de referência se disponível */}
                 {publicacaoAlvo.preco_min && publicacaoAlvo.preco_max && (
                   <p className="text-xs text-gray-400 mt-1">
                     Referência: {publicacaoAlvo.preco_min}–{publicacaoAlvo.preco_max} Kz/kg
@@ -475,7 +532,7 @@ export default function PaginaInicial() {
                 )}
               </div>
 
-              {/* Nota opcional para o utilizador */}
+              {/* Nota opcional */}
               <div>
                 <label className="text-gray-600 text-sm block mb-1">Nota (opcional)</label>
                 <textarea
@@ -506,14 +563,14 @@ export default function PaginaInicial() {
   );
 }
 
-// ── Cartão individual de cada publicação ──
+// ── Cartão individual de publicação ──
 function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, onInteresse, interesseJaEnviado }) {
-  const estilo     = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
+  const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
 
-  // Admin pode apagar tudo; autor pode apagar as suas próprias publicações
+  // Admin pode apagar tudo; autor apaga as suas próprias
   const podeApagar = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
 
-  // Só empresas podem mostrar interesse, e só em ofertas de outros utilizadores
+  // Só empresas podem mostrar interesse em ofertas de outros utilizadores
   const podeTeresseInteresse =
     tipoUtilizador === 'empresa' &&
     p.tipo_publicacao === 'oferta_residuo' &&
@@ -522,7 +579,7 @@ function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar,
   return (
     <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm`}>
 
-      {/* Imagem da publicação se existir */}
+      {/* Imagem se existir */}
       {p.imagem && (
         <img src={p.imagem} alt={p.titulo} className="w-full h-48 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }} />
@@ -530,7 +587,7 @@ function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar,
 
       <div className="p-4">
 
-        {/* Badge do tipo e data */}
+        {/* Badge e data */}
         <div className="flex items-center justify-between mb-2">
           <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${estilo.badge}`}>
             {estilo.label}
@@ -546,7 +603,7 @@ function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar,
           <p className="text-gray-500 text-xs mb-2 line-clamp-2">{p.descricao}</p>
         )}
 
-        {/* Detalhes de resíduo — só para ofertas e pedidos */}
+        {/* Detalhes de resíduo */}
         {(p.tipo_publicacao === 'oferta_residuo' || p.tipo_publicacao === 'pedido_residuo') && (
           <div className="flex flex-wrap gap-3 mb-2">
             {p.tipo_residuo && (
@@ -565,7 +622,7 @@ function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar,
         {/* Rodapé: autor e acções */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
 
-          {/* Informação do autor */}
+          {/* Autor */}
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold">
               {p.nome_autor?.charAt(0).toUpperCase()}
@@ -578,18 +635,14 @@ function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar,
             )}
           </div>
 
-          {/* Botões de acção */}
+          {/* Acções */}
           <div className="flex items-center gap-2">
-
-            {/* Botão remover — só para admin ou autor */}
             {podeApagar && (
               <button onClick={() => onApagar(p.id_publicacao)}
                 className="text-red-400 hover:text-red-500 text-xs flex items-center gap-1 transition">
                 <Trash2 size={12} /> Remover
               </button>
             )}
-
-            {/* Botão de interesse — só para empresas em ofertas de outros */}
             {podeTeresseInteresse && (
               interesseJaEnviado
                 ? <span className="text-green-600 text-xs font-medium">✓ Proposta enviada</span>
