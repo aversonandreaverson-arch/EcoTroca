@@ -1,7 +1,3 @@
-// ============================================================
-//  app.js — Configuração principal do servidor Express
-//  Define middlewares, CORS e todas as rotas da API
-// ============================================================
 
 import express, { json } from 'express';
 import cors from 'cors';
@@ -38,7 +34,10 @@ app.use(cors({
 }));
 
 // ── Middleware para ler JSON no body dos pedidos ──
-app.use(json());
+// Limite de 10mb para suportar upload de imagens em base64
+// Uma imagem de 5MB em base64 ocupa ~7MB de texto
+app.use(json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── Rotas da API ──
 app.use('/api/auth',           authRoutes);
