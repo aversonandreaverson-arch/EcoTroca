@@ -1,5 +1,3 @@
-// ============================================================
-//  api.js — Ficheiro central de comunicação com o backend
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -211,6 +209,12 @@ export const marcarNotificacaoLida = (id) => pedido(`/notificacoes/${id}/ler`, {
 // Cria uma notificação para outro utilizador — usado quando empresa envia proposta
 // Também muda o status da publicação para 'em_negociacao' se vier id_publicacao
 export const criarNotificacao = (dados) => pedido('/notificacoes/criar', { method: 'POST', body: JSON.stringify(dados) });
+
+// Aceita a proposta de uma empresa — publicação fica 'fechada' + empresa é notificada
+export const aceitarProposta = (id) => pedido(`/notificacoes/${id}/aceitar`, { method: 'POST' });
+
+// Recusa a proposta de uma empresa — publicação volta 'disponivel' + empresa é notificada
+export const recusarProposta = (id) => pedido(`/notificacoes/${id}/recusar`, { method: 'POST' });
 
 // ============================================================
 // RESÍDUOS

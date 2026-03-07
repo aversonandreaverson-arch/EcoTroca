@@ -1,8 +1,17 @@
-
+// ============================================================
+//  PaginaInicial.jsx — Página inicial do EcoTroca
+//  Guardar em: src/Components/UserProfile/PaginaInicial.jsx
+//
+//  Layout:
 //    Mobile  → coluna única
 //    Desktop → feed + sidebar (empresas parceiras + avisos)
 //
-
+//  Quem pode publicar:
+//    admin   → evento, educação, notícia, aviso
+//    empresa → pedido_residuo, evento, educação, notícia
+//    comum   → oferta_residuo
+//    coletor → só lê
+//
 //  Botão "Tenho interesse" → só empresas, só em ofertas de resíduo
 // ============================================================
 
@@ -209,6 +218,7 @@ export default function PaginaInicial() {
         titulo:             '💼 Nova proposta de compra',
         mensagem:           `${nomeEmpresa} quer comprar o teu resíduo "${tituloResiduo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
         id_publicacao:      publicacaoAlvo.id_publicacao,
+        tipo:               'proposta',
       });
 
       setInteresseEnviado(prev => ({ ...prev, [publicacaoAlvo.id_publicacao]: true }));
