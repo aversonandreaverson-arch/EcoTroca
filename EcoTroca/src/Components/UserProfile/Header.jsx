@@ -1,11 +1,4 @@
 
-//  Fluxo das notificações:
-//    1. Ao montar, vai buscar notificações via GET /api/notificacoes
-//    2. Conta quantas têm lida = false
-//    3. Mostra o número em cima do sino
-//    4. Ao clicar no sino abre/fecha o painel de notificações
-//    5. Ao clicar numa notificação marca como lida via PATCH /api/notificacoes/:id/ler
-
 import { useState, useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { Bell, X } from "lucide-react";
