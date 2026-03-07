@@ -39,22 +39,26 @@ router.get('/', auth, role('admin'), async (req, res) => {
 // para evitar o erro de UNIQUE KEY no campo telefone e email
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nome, telefone, provincia, municipio, bairro } = req.body;
+    const { nome, provincia, municipio, bairro, data_nascimento } = req.body;
 
     // Nome é obrigatório — não pode ficar vazio
     if (!nome?.trim()) {
       return res.status(400).json({ erro: 'O nome é obrigatório.' });
     }
 
-    // Só o telefone precisa de ser convertido para NULL quando vazio
-    // porque tem UNIQUE KEY — dois utilizadores não podem ter o mesmo telefone
-    // Os outros campos (provincia, municipio, bairro) são dados comuns
-    // e podem ser iguais entre utilizadores sem qualquer problema
-    const telefoneFinal = telefone?.trim() || null;
-
+    // Actualizo apenas os campos que vieram no body
+    // O telefone NÃO é actualizado aqui porque o formulário de edição não tem esse campo
+    // Tem UNIQUE KEY — se vier vazio pode causar conflito com outros utilizadores
     await pool.query(
-      'UPDATE Usuario SET nome = ?, telefone = ?, provincia = ?, municipio = ?, bairro = ? WHERE id_usuario = ?',
-      [nome.trim(), telefoneFinal, provincia || null, municipio || null, bairro || null, req.usuario.id_usuario]
+      'UPDATE Usuario SET nome = ?, provincia = ?, municipio = ?, bairro = ?, data_nascimento = ? WHERE id_usuario = ?',
+      [
+        nome.trim(),
+        provincia       || null,
+        municipio       || null,
+        bairro          || null,
+        data_nascimento || null,
+        req.usuario.id_usuario,
+      ]
     );
 
     res.json({ mensagem: 'Perfil actualizado com sucesso!' });
