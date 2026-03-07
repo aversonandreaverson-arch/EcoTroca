@@ -1,3 +1,4 @@
+
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
@@ -5,7 +6,8 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// Ver perfil do utilizador logado
+// ── GET /api/usuarios/perfil ──────────────────────────────────
+// Devolve os dados do perfil do utilizador autenticado
 router.get('/perfil', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -18,7 +20,8 @@ router.get('/perfil', auth, async (req, res) => {
   }
 });
 
-// Listar todos os utilizadores (só admin)
+// ── GET /api/usuarios ─────────────────────────────────────────
+// Lista todos os utilizadores — só acessível pelo admin
 router.get('/', auth, role('admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -30,21 +33,38 @@ router.get('/', auth, role('admin'), async (req, res) => {
   }
 });
 
-// Actualizar perfil
+// ── PUT /api/usuarios/perfil ──────────────────────────────────
+// Actualiza o perfil do utilizador autenticado
+// Campos com string vazia são convertidos para NULL
+// para evitar o erro de UNIQUE KEY no campo telefone e email
 router.put('/perfil', auth, async (req, res) => {
   try {
     const { nome, telefone, provincia, municipio, bairro } = req.body;
+
+    // Nome é obrigatório — não pode ficar vazio
+    if (!nome?.trim()) {
+      return res.status(400).json({ erro: 'O nome é obrigatório.' });
+    }
+
+    // Só o telefone precisa de ser convertido para NULL quando vazio
+    // porque tem UNIQUE KEY — dois utilizadores não podem ter o mesmo telefone
+    // Os outros campos (provincia, municipio, bairro) são dados comuns
+    // e podem ser iguais entre utilizadores sem qualquer problema
+    const telefoneFinal = telefone?.trim() || null;
+
     await pool.query(
       'UPDATE Usuario SET nome = ?, telefone = ?, provincia = ?, municipio = ?, bairro = ? WHERE id_usuario = ?',
-      [nome, telefone, provincia, municipio, bairro, req.usuario.id_usuario]
+      [nome.trim(), telefoneFinal, provincia || null, municipio || null, bairro || null, req.usuario.id_usuario]
     );
+
     res.json({ mensagem: 'Perfil actualizado com sucesso!' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
 });
 
-// Ver pontuação do utilizador
+// ── GET /api/usuarios/pontuacao ───────────────────────────────
+// Devolve a pontuação e o nível de recompensa do utilizador
 router.get('/pontuacao', auth, async (req, res) => {
   try {
     const [pontuacao] = await pool.query(
@@ -60,12 +80,10 @@ router.get('/pontuacao', auth, async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
-// ─────────────────────────────────────────────
-// ADICIONA ESTAS ROTAS no teu src/routes/usuario.routes.js
-// antes do: export default router
-// ─────────────────────────────────────────────
 
-// Ver carteira do utilizador autenticado
+// ── GET /api/usuarios/carteira ────────────────────────────────
+// Devolve o saldo da carteira do utilizador
+// Se ainda não tiver carteira, cria automaticamente com saldo zero
 router.get('/carteira', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -88,7 +106,8 @@ router.get('/carteira', auth, async (req, res) => {
   }
 });
 
-// Ver resíduos disponíveis (para o formulário de nova entrega)
+// ── GET /api/usuarios/residuos ────────────────────────────────
+// Lista todos os resíduos activos — usado no formulário de nova entrega
 router.get('/residuos', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -99,4 +118,5 @@ router.get('/residuos', auth, async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
+
 export default router;
