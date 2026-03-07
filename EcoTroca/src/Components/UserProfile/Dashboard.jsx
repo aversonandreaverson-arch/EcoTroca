@@ -19,10 +19,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp, PlusCircle, Pencil, Trash2,
-  Package, Recycle, Star, Banknote
+  Package, Recycle, Star, Banknote, LogOut
 } from "lucide-react";
 import Header from "./Header";
-import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega } from "../../api.js";
+import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout } from "../../api.js";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -129,9 +129,19 @@ export default function Dashboard() {
 
         {/* ── Card de nível e progresso do utilizador ── */}
         <div className="bg-green-700 text-white rounded-2xl p-6 mb-6 shadow">
-          <p className="text-green-300 text-sm capitalize mb-1">
-            EcoAmigo — Nível {nivel}
-          </p>
+          <div className="flex items-start justify-between mb-1">
+            <p className="text-green-300 text-sm capitalize">
+              EcoAmigo — Nível {nivel}
+            </p>
+            {/* Botão logout — termina a sessão e redireciona para o login */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-1 text-green-300 hover:text-white text-xs transition"
+              title="Terminar sessão"
+            >
+              <LogOut size={14} /> Sair
+            </button>
+          </div>
           <h2 className="text-2xl font-bold mb-3">
             {usuario?.nome || 'Utilizador'}
           </h2>
