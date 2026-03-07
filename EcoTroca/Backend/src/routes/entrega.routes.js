@@ -1,4 +1,11 @@
 
+//  Fluxo principal:
+//    1. Utilizador cria entrega via NovoResiduo.jsx
+//    2. Backend cria Entrega + Entrega_Residuo + Publicacao (automática) + Chat
+//    3. Publicação aparece na Página Inicial para empresas verem
+//    4. Se utilizador cancelar → entrega fica 'cancelada' + publicação eliminada do feed
+// ============================================================
+
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import pool from '../config/database.js';
@@ -6,6 +13,8 @@ import pool from '../config/database.js';
 const router = Router();
 
 // ── GET /api/entregas ─────────────────────────────────────────
+// Lista todas as entregas do utilizador autenticado
+// Agrega os resíduos, peso total, qualidade e preços
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -32,7 +41,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // ── POST /api/entregas ────────────────────────────────────────
-// Aqui crio a entrega e automaticamente uma Publicacao no feed
+// Cria a entrega e automaticamente uma Publicacao no feed
 // para que o resíduo apareça na Página Inicial para todos verem
 router.post('/', auth, async (req, res) => {
   try {
@@ -41,7 +50,7 @@ router.post('/', auth, async (req, res) => {
       tipo_recompensa, residuos, observacoes
     } = req.body;
 
-    // Insiro a entrega principal
+    // Insiro a entrega principal na tabela Entrega
     const [result] = await pool.query(
       `INSERT INTO Entrega
         (id_usuario, tipo_entrega, endereco_domicilio, id_ponto, tipo_recompensa, observacoes, data_hora)
@@ -72,9 +81,11 @@ router.post('/', auth, async (req, res) => {
     }
 
     // ── Criação automática da Publicacao ─────────────────────
-    // Aqui vou buscar os detalhes do resíduo para construir o título
-    // e o intervalo de preço que aparece na Página Inicial
+    // Quando o utilizador cria uma entrega, criamos automaticamente
+    // uma publicação do tipo 'oferta_residuo' que aparece na Página Inicial
     if (id_residuo_principal) {
+
+      // Vou buscar os detalhes do resíduo para construir o título e descrição
       const [residuoRows] = await pool.query(
         'SELECT tipo, qualidade, preco_min, preco_max, descricao FROM Residuo WHERE id_residuo = ?',
         [id_residuo_principal]
@@ -93,7 +104,7 @@ router.post('/', auth, async (req, res) => {
 
         const titulo = `Oferta de ${r.tipo} — Qualidade ${labelQualidade}`;
 
-        // Descrição com o intervalo de preço e observações se existirem
+        // Descrição com intervalo de preço e observações opcionais
         let descricao = `${r.tipo} de qualidade ${labelQualidade}.`;
         if (r.preco_min && r.preco_max) {
           descricao += ` Valor estimado: ${r.preco_min}–${r.preco_max} Kz/kg.`;
@@ -102,32 +113,34 @@ router.post('/', auth, async (req, res) => {
           descricao += ` ${observacoes}`;
         }
 
-        // Vou buscar a província do utilizador para mostrar na publicação
+        // Vou buscar a província do utilizador para mostrar no cartão
         const [userRows] = await pool.query(
           'SELECT provincia FROM Usuario WHERE id_usuario = ?',
           [req.usuario.id_usuario]
         );
         const provincia = userRows[0]?.provincia || null;
 
-        // Insiro a publicação — tipo_autor = 'utilizador', tipo_publicacao = 'oferta_residuo'
+        // Insiro a publicação — status 'disponivel' por defeito
+        // Guardo também o id_entrega para ligar directamente à entrega
         await pool.query(
           `INSERT INTO Publicacao
             (id_usuario, tipo_autor, tipo_publicacao, titulo, descricao,
-             id_residuo, provincia, criado_em)
-           VALUES (?, 'utilizador', 'oferta_residuo', ?, ?, ?, ?, NOW())`,
+             id_residuo, provincia, status, id_entrega, criado_em)
+           VALUES (?, 'utilizador', 'oferta_residuo', ?, ?, ?, ?, 'disponivel', ?, NOW())`,
           [
             req.usuario.id_usuario,
             titulo,
             descricao,
             id_residuo_principal,
             provincia,
+            id_entrega,
           ]
         );
       }
     }
-    // ── Fim da criação automática ─────────────────────────────
+    // ── Fim da criação automática da Publicacao ───────────────
 
-    // Crio o chat para esta entrega
+    // Crio o chat para esta entrega — usado depois da negociação
     await pool.query('INSERT INTO Chat (id_entrega) VALUES (?)', [id_entrega]);
 
     res.status(201).json({ mensagem: 'Entrega criada com sucesso!', id_entrega });
@@ -137,6 +150,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ── GET /api/entregas/:id ─────────────────────────────────────
+// Devolve o detalhe de uma entrega específica do utilizador
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -163,17 +177,22 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ── PUT /api/entregas/:id ─────────────────────────────────────
+// Edita uma entrega — só permitido se ainda estiver pendente
 router.put('/:id', auth, async (req, res) => {
   try {
     const { tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes, residuos } = req.body;
 
+    // Verifico se a entrega existe e pertence ao utilizador
     const [rows] = await pool.query(
       'SELECT status FROM Entrega WHERE id_entrega = ? AND id_usuario = ?',
       [req.params.id, req.usuario.id_usuario]
     );
     if (!rows.length) return res.status(404).json({ erro: 'Entrega não encontrada.' });
-    if (rows[0].status !== 'pendente') return res.status(403).json({ erro: 'Só é possível editar entregas pendentes.' });
+    if (rows[0].status !== 'pendente') {
+      return res.status(403).json({ erro: 'Só é possível editar entregas pendentes.' });
+    }
 
+    // Actualizo os dados da entrega
     await pool.query(
       `UPDATE Entrega SET
         tipo_entrega       = ?,
@@ -184,6 +203,7 @@ router.put('/:id', auth, async (req, res) => {
       [tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes || null, req.params.id]
     );
 
+    // Se vieram novos resíduos, apago os antigos e insiro os novos
     if (residuos && residuos.length > 0) {
       await pool.query('DELETE FROM Entrega_Residuo WHERE id_entrega = ?', [req.params.id]);
       for (const r of residuos) {
@@ -201,6 +221,8 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/confirmar ────────────────────────
+// Confirma a coleta com o peso real e calcula todos os valores
+// Comissão: empresa paga 10%, utilizador recebe 70% - 50Kz, coletador recebe 30%
 router.patch('/:id/confirmar', auth, async (req, res) => {
   try {
     const { peso_real } = req.body;
@@ -209,6 +231,7 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
       return res.status(400).json({ erro: 'O peso real é obrigatório para confirmar a coleta.' });
     }
 
+    // Vou buscar o valor por kg do resíduo desta entrega
     const [rows] = await pool.query(
       `SELECT er.id_residuo, r.valor_por_kg
        FROM Entrega_Residuo er
@@ -222,10 +245,12 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
       return res.status(404).json({ erro: 'Entrega não encontrada.' });
     }
 
+    // Vou buscar as configurações de comissão da base de dados
     const [configs] = await pool.query('SELECT chave, valor FROM Configuracao');
     const cfg = {};
     configs.forEach(c => { cfg[c.chave] = parseFloat(c.valor); });
 
+    // Cálculo dos valores com base no peso real
     const valor_por_kg      = parseFloat(rows[0].valor_por_kg);
     const peso              = parseFloat(peso_real);
     const valor_total       = valor_por_kg * peso;
@@ -234,6 +259,7 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
     const valor_coletador   = valor_total * 0.30;
     const comissao_ecotroca = comissao_empresa + (cfg.comissao_utilizador_fixo || 50);
 
+    // Actualizo a entrega com o status 'coletada' e todos os valores calculados
     await pool.query(
       `UPDATE Entrega SET
         status            = 'coletada',
@@ -261,14 +287,36 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/cancelar ─────────────────────────
+// Cancela a entrega E elimina a publicação correspondente do feed
+// Assim o resíduo deixa de aparecer na Página Inicial automaticamente
 router.patch('/:id/cancelar', auth, async (req, res) => {
   try {
-    await pool.query(
+    // Cancelo a entrega — só funciona se ainda estiver pendente
+    const [result] = await pool.query(
       `UPDATE Entrega SET status = 'cancelada'
        WHERE id_entrega = ? AND id_usuario = ? AND status = 'pendente'`,
       [req.params.id, req.usuario.id_usuario]
     );
-    res.json({ mensagem: 'Entrega cancelada.' });
+
+    if (result.affectedRows === 0) {
+      return res.status(403).json({
+        erro: 'Não foi possível cancelar. A entrega pode já não estar pendente.'
+      });
+    }
+
+    // Elimino a publicação correspondente do feed (soft delete)
+    // Identifico a publicação exacta pelo id_entrega — sem risco de apagar a errada
+    await pool.query(
+      `UPDATE Publicacao
+       SET eliminado = 1
+       WHERE id_entrega = ?
+         AND id_usuario = ?
+         AND eliminado = 0
+         AND status != 'fechada'`,
+      [req.params.id, req.usuario.id_usuario]
+    );
+
+    res.json({ mensagem: 'Entrega cancelada e publicação removida do feed.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
