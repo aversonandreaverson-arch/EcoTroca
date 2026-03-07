@@ -1,3 +1,10 @@
+
+//  Quando empresa envia proposta:
+//    1. Guarda notificação na base de dados
+//    2. Muda status da publicação para 'em_negociacao'
+//       → protege a publicação de ser apagada sem penalização
+// ============================================================
+
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import pool from '../config/database.js';
@@ -5,6 +12,7 @@ import pool from '../config/database.js';
 const router = Router();
 
 // ── GET /api/notificacoes ─────────────────────────────────────
+// Lista todas as notificações do utilizador autenticado
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -19,19 +27,30 @@ router.get('/', auth, async (req, res) => {
 
 // ── POST /api/notificacoes/criar ──────────────────────────────
 // Cria notificação na plataforma para outro utilizador
-// Usado quando empresa mostra interesse numa oferta de resíduo
+// Quando empresa envia proposta → muda status da publicação para 'em_negociacao'
 router.post('/criar', auth, async (req, res) => {
   try {
-    const { id_usuario_destino, titulo, mensagem } = req.body;
+    const { id_usuario_destino, titulo, mensagem, id_publicacao } = req.body;
 
     if (!id_usuario_destino || !titulo || !mensagem) {
       return res.status(400).json({ erro: 'id_usuario_destino, titulo e mensagem são obrigatórios.' });
     }
 
+    // Guardo a notificação na base de dados — aparece no sino
     await pool.query(
       'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
       [id_usuario_destino, titulo, mensagem]
     );
+
+    // Se veio com id_publicacao, mudo o status para 'em_negociacao'
+    // Isto protege a publicação — o dono não pode apagar sem penalização
+    if (id_publicacao) {
+      await pool.query(
+        `UPDATE Publicacao SET status = 'em_negociacao'
+         WHERE id_publicacao = ? AND status = 'disponivel'`,
+        [id_publicacao]
+      );
+    }
 
     res.status(201).json({ mensagem: 'Notificação enviada com sucesso.' });
   } catch (err) {
@@ -41,6 +60,7 @@ router.post('/criar', auth, async (req, res) => {
 });
 
 // ── PATCH /api/notificacoes/:id/ler ──────────────────────────
+// Marca uma notificação como lida
 router.patch('/:id/ler', auth, async (req, res) => {
   try {
     await pool.query(
@@ -54,6 +74,7 @@ router.patch('/:id/ler', auth, async (req, res) => {
 });
 
 // ── PATCH /api/notificacoes/todas/lidas ──────────────────────
+// Marca todas as notificações do utilizador como lidas
 router.patch('/todas/lidas', auth, async (req, res) => {
   try {
     await pool.query(
