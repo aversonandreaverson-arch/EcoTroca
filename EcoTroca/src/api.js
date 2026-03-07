@@ -1,3 +1,5 @@
+// ============================================================
+//  api.js — Ficheiro central de comunicação com o backend
 
 const BASE_URL = 'http://localhost:3000/api';
 
