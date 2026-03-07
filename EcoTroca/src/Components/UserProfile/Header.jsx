@@ -1,10 +1,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
-import { Bell, X } from "lucide-react";
-import { getNotificacoes, marcarNotificacaoLida } from "../../api.js";
+import { Bell, X, Check, XCircle } from "lucide-react";
+import { getNotificacoes, marcarNotificacaoLida, aceitarProposta, recusarProposta } from "../../api.js";
 
-// Links de navegação — adicionados aqui para não repetir código
+// Links de navegação — centralizados aqui para não repetir código
 const links = [
   { label: "Página Inicial", to: "/PaginaInicial" },
   { label: "Dashboard",      to: "/Dashboard"     },
@@ -23,6 +23,10 @@ const Header = () => {
 
   // Lista de notificações do utilizador autenticado
   const [notificacoes, setNotificacoes] = useState([]);
+
+  // Guarda o id da notificação que está a ser processada (aceitar/recusar)
+  // para mostrar estado de carregamento no botão correcto
+  const [processando, setProcessando] = useState(null);
 
   // Referência ao painel para fechar ao clicar fora
   const painelRef = useRef(null);
@@ -53,16 +57,60 @@ const Header = () => {
     }
   };
 
-  // Marca uma notificação como lida e actualiza a lista
+  // Marca uma notificação normal como lida ao clicar
   const marcarLida = async (id) => {
     try {
-      await marcarNotificacaoLida(id); // PATCH /api/notificacoes/:id/ler
-      // Actualizo localmente sem precisar de recarregar tudo
+      await marcarNotificacaoLida(id);
+      // Actualizo localmente sem recarregar tudo
       setNotificacoes(prev =>
         prev.map(n => n.id_notificacao === id ? { ...n, lida: true } : n)
       );
     } catch (err) {
       console.error('Erro ao marcar notificação:', err);
+    }
+  };
+
+  // Utilizador aceita a proposta da empresa
+  // → publicação fica 'fechada' + empresa recebe notificação de confirmação
+  const handleAceitar = async (e, notif) => {
+    e.stopPropagation(); // Evito que o clique feche o painel
+    try {
+      setProcessando(notif.id_notificacao);
+      await aceitarProposta(notif.id_notificacao); // POST /api/notificacoes/:id/aceitar
+      // Actualizo a notificação localmente para mostrar como lida e sem botões
+      setNotificacoes(prev =>
+        prev.map(n => n.id_notificacao === notif.id_notificacao
+          ? { ...n, lida: true, tipo: 'geral' }
+          : n
+        )
+      );
+    } catch (err) {
+      console.error('Erro ao aceitar proposta:', err);
+      alert(err.message);
+    } finally {
+      setProcessando(null);
+    }
+  };
+
+  // Utilizador recusa a proposta da empresa
+  // → publicação volta para 'disponivel' + empresa recebe notificação de recusa
+  const handleRecusar = async (e, notif) => {
+    e.stopPropagation(); // Evito que o clique feche o painel
+    try {
+      setProcessando(notif.id_notificacao);
+      await recusarProposta(notif.id_notificacao); // POST /api/notificacoes/:id/recusar
+      // Actualizo a notificação localmente para mostrar como lida e sem botões
+      setNotificacoes(prev =>
+        prev.map(n => n.id_notificacao === notif.id_notificacao
+          ? { ...n, lida: true, tipo: 'geral' }
+          : n
+        )
+      );
+    } catch (err) {
+      console.error('Erro ao recusar proposta:', err);
+      alert(err.message);
+    } finally {
+      setProcessando(null);
     }
   };
 
@@ -138,25 +186,56 @@ const Header = () => {
                 {/* Lista de notificações */}
                 <div className="max-h-96 overflow-y-auto">
                   {notificacoes.length === 0 ? (
+
                     // Estado vazio — sem notificações
                     <div className="text-center py-8 text-gray-400 text-sm">
                       <Bell size={32} className="mx-auto mb-2 opacity-30" />
                       Sem notificações
                     </div>
+
                   ) : (
                     notificacoes.map(n => (
                       <div
                         key={n.id_notificacao}
-                        onClick={() => !n.lida && marcarLida(n.id_notificacao)}
-                        className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition ${
-                          // Notificações não lidas têm fundo ligeiramente verde
+                        onClick={() => !n.lida && n.tipo !== 'proposta' && marcarLida(n.id_notificacao)}
+                        className={`px-4 py-3 border-b border-gray-50 transition ${
+                          // Notificações não lidas têm fundo verde claro
                           !n.lida ? 'bg-green-50' : 'bg-white'
-                        }`}
+                        } ${n.tipo !== 'proposta' ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                       >
                         {/* Título da notificação */}
                         <p className="text-gray-800 text-xs font-semibold mb-0.5">{n.titulo}</p>
+
                         {/* Mensagem da notificação */}
                         <p className="text-gray-500 text-xs leading-relaxed">{n.mensagem}</p>
+
+                        {/* ── Botões aceitar/recusar — só para propostas não lidas ── */}
+                        {n.tipo === 'proposta' && !n.lida && (
+                          <div className="flex gap-2 mt-2">
+
+                            {/* Botão Aceitar — muda publicação para 'fechada' */}
+                            <button
+                              onClick={(e) => handleAceitar(e, n)}
+                              disabled={processando === n.id_notificacao}
+                              className="flex-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-medium py-1.5 rounded-lg transition"
+                            >
+                              <Check size={12} />
+                              {processando === n.id_notificacao ? 'A processar...' : 'Aceitar'}
+                            </button>
+
+                            {/* Botão Recusar — publicação volta para 'disponivel' */}
+                            <button
+                              onClick={(e) => handleRecusar(e, n)}
+                              disabled={processando === n.id_notificacao}
+                              className="flex-1 flex items-center justify-center gap-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-medium py-1.5 rounded-lg transition"
+                            >
+                              <XCircle size={12} />
+                              {processando === n.id_notificacao ? 'A processar...' : 'Recusar'}
+                            </button>
+
+                          </div>
+                        )}
+
                         {/* Data e indicador de não lida */}
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-gray-300 text-xs">
@@ -169,6 +248,7 @@ const Header = () => {
                             <span className="w-2 h-2 bg-green-500 rounded-full" />
                           )}
                         </div>
+
                       </div>
                     ))
                   )}
