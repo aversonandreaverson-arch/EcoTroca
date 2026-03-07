@@ -1,17 +1,8 @@
-// ============================================================
-//  PaginaInicial.jsx — Página inicial do EcoTroca
-//  Guardar em: src/Components/UserProfile/PaginaInicial.jsx
-//
-//  Layout:
+
 //    Mobile  → coluna única
 //    Desktop → feed + sidebar (empresas parceiras + avisos)
 //
-//  Quem pode publicar:
-//    admin   → evento, educação, notícia, aviso
-//    empresa → pedido_residuo, evento, educação, notícia
-//    comum   → oferta_residuo
-//    coletor → só lê
-//
+
 //  Botão "Tenho interesse" → só empresas, só em ofertas de resíduo
 // ============================================================
 
@@ -55,7 +46,8 @@ const FILTROS = [
   { valor: 'aviso',          label: 'Avisos',   icon: '📣' },
 ];
 
-// ── Estilos visuais por tipo ──
+// ── Estilos visuais por tipo de publicação ──
+// Cada tipo tem uma cor de badge e de borda diferente para identificação rápida
 const ESTILOS = {
   oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-100',  label: '♻️ Oferta de Resíduo' },
   pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-100', label: '🏭 Pedido de Empresa'  },
@@ -65,7 +57,7 @@ const ESTILOS = {
   aviso:          { badge: 'bg-red-100 text-red-700',       borda: 'border-red-100',    label: '📣 Aviso'              },
 };
 
-// ── Formulário vazio para reset ──
+// ── Formulário vazio — usado para resetar o modal após publicar ──
 const FORM_VAZIO = {
   tipo_publicacao: 'oferta_residuo',
   titulo: '', descricao: '', id_residuo: '',
@@ -113,6 +105,7 @@ export default function PaginaInicial() {
     getEmpresas().then(setEmpresas).catch(console.error);
   }, []);
 
+  // Vai buscar todas as publicações ao backend via GET /api/feed
   const carregarFeed = async () => {
     try {
       setCarregando(true);
@@ -124,12 +117,14 @@ export default function PaginaInicial() {
     }
   };
 
+  // Vai buscar os tipos de resíduos para o selector do formulário
   const carregarResiduos = async () => {
     try { setResiduos(await getResiduos()); }
     catch (err) { console.error(err); }
   };
 
-  // Aplico filtro de tipo e pesquisa
+  // Aplico filtro de tipo e pesquisa em simultâneo
+  // Pesquisa por título, descrição, autor ou província
   const feedFiltrado = feed
     .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro)
     .filter(p => {
@@ -146,12 +141,15 @@ export default function PaginaInicial() {
   // Avisos reais do feed para a sidebar
   const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
 
+  // Função auxiliar para actualizar um campo do formulário
   const handleCampo = (campo, valor) =>
     setFormulario(prev => ({ ...prev, [campo]: valor }));
 
+  // Quando muda o tipo de publicação — reseta o formulário mas mantém o tipo
   const handleTipo = (novoTipo) =>
     setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
 
+  // Submete a nova publicação ao backend via POST /api/feed
   const handlePublicar = async () => {
     if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
     try {
@@ -164,12 +162,15 @@ export default function PaginaInicial() {
     finally { setPublicando(false); }
   };
 
+  // Apaga publicação via DELETE /api/feed/:id
+  // O backend verifica o status e aplica penalização se necessário
   const handleApagar = async (id) => {
     if (!window.confirm('Remover esta publicação?')) return;
     try { await apagarPublicacao(id); await carregarFeed(); }
     catch (err) { alert(err.message); }
   };
 
+  // Abre o modal de proposta — só para empresas em ofertas de resíduo
   const abrirModalInteresse = (publicacao) => {
     setPublicacaoAlvo(publicacao);
     setValorProposto('');
@@ -178,6 +179,9 @@ export default function PaginaInicial() {
     setModalInteresse(true);
   };
 
+  // Envia proposta de compra ao dono do resíduo
+  // Valida o valor dentro do intervalo preco_min/preco_max
+  // Cria notificação no backend que também muda o status da publicação para 'em_negociacao'
   const handleEnviarInteresse = async () => {
     const vMin      = publicacaoAlvo?.preco_min ? parseFloat(publicacaoAlvo.preco_min) : null;
     const vMax      = publicacaoAlvo?.preco_max ? parseFloat(publicacaoAlvo.preco_max) : null;
@@ -199,11 +203,12 @@ export default function PaginaInicial() {
       const nomeEmpresa   = utilizador?.nome || 'Uma empresa';
       const tituloResiduo = publicacaoAlvo?.titulo || 'resíduo';
 
-      // Envia notificação ao dono do resíduo
+      // Envia notificação ao dono do resíduo e muda status para 'em_negociacao'
       await criarNotificacao({
         id_usuario_destino: publicacaoAlvo.id_autor,
-        titulo:   '💼 Nova proposta de compra',
-        mensagem: `${nomeEmpresa} quer comprar o teu resíduo "${tituloResiduo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
+        titulo:             '💼 Nova proposta de compra',
+        mensagem:           `${nomeEmpresa} quer comprar o teu resíduo "${tituloResiduo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
+        id_publicacao:      publicacaoAlvo.id_publicacao,
       });
 
       setInteresseEnviado(prev => ({ ...prev, [publicacaoAlvo.id_publicacao]: true }));
@@ -564,6 +569,8 @@ export default function PaginaInicial() {
 }
 
 // ── Cartão individual de publicação ──
+// Recebe a publicação e as funções de acção do componente pai
+// Decide quem pode apagar e quem vê o botão "Tenho interesse"
 function CartaoPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, onInteresse, interesseJaEnviado }) {
   const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
 
