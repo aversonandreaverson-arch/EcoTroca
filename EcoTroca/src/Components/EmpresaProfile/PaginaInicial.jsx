@@ -218,7 +218,7 @@ export default function PaginaInicial() {
     <div id="PaginaInicial" className="min-h-screen bg-green-100 pt-24 pb-12">
       <Header />
 
-      <div className="px-6">
+      <div className="max-w-6xl mx-auto px-6">
 
         {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">

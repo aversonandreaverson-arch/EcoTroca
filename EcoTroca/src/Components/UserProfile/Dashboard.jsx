@@ -1,19 +1,3 @@
-// ============================================================
-//  Dashboard.jsx — Painel do utilizador comum
-//  Guardar em: src/Components/UserProfile/Dashboard.jsx
-//
-//  Mostra:
-//    - Card de nível e barra de progresso do utilizador
-//    - 4 estatísticas: resíduos publicados, recolhas concluídas,
-//      pontos acumulados, dinheiro ganho
-//    - Grelha de resíduos publicados com botões editar/excluir
-//    - Actividade recente (últimas 3 entregas)
-//
-//  Dados reais:
-//    - getPerfil()        → GET /api/usuarios/perfil
-//    - getPontuacao()     → GET /api/usuarios/pontuacao
-//    - getMinhasEntregas() → GET /api/entregas
-// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -125,7 +109,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-green-100 pt-24 p-6">
       <Header />
 
-      <div className="max-w-5xl mx-auto">
+      <div className="px-2">
 
         {/* ── Card de nível e progresso do utilizador ── */}
         <div className="bg-green-700 text-white rounded-2xl p-6 mb-6 shadow">
@@ -136,7 +120,7 @@ export default function Dashboard() {
             {/* Botão logout — termina a sessão e redireciona para o login */}
             <button
               onClick={logout}
-              className="flex items-center gap-1 text-green-300 hover:text-white text-xs transition"
+              className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs transition"
               title="Terminar sessão"
             >
               <LogOut size={14} /> Sair
