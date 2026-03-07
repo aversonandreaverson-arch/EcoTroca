@@ -1,10 +1,19 @@
-
+// ============================================================
+//  Dashboard.jsx — Painel do utilizador comum
+//  Guardar em: src/Components/UserProfile/Dashboard.jsx
+//
+//  Mostra:
 //    - Card de nível e barra de progresso do utilizador
 //    - 4 estatísticas: resíduos publicados, recolhas concluídas,
 //      pontos acumulados, dinheiro ganho
 //    - Grelha de resíduos publicados com botões editar/excluir
 //    - Actividade recente (últimas 3 entregas)
 //
+//  Dados reais:
+//    - getPerfil()        → GET /api/usuarios/perfil
+//    - getPontuacao()     → GET /api/usuarios/pontuacao
+//    - getMinhasEntregas() → GET /api/entregas
+// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -312,15 +321,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Actividade recente — últimas 3 entregas ── */}
-        {entregas.length > 0 && (
+        {/* ── Actividade recente — últimas 3 entregas não canceladas ── */}
+        {entregas.filter(e => e.status !== 'cancelada').length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <TrendingUp size={18} className="text-green-600" />
               Atividade Recente
             </h3>
             <ul className="space-y-3">
-              {entregas.slice(0, 3).map(e => (
+              {entregas.filter(e => e.status !== 'cancelada').slice(0, 3).map(e => (
                 <li key={e.id_entrega} className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">
                     Entrega #{e.id_entrega} — {e.tipos_residuos || 'Resíduo'}
