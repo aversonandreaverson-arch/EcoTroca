@@ -84,7 +84,7 @@ function App() {
       <Route path='/Login'                    element={<Login />} />
       <Route path='/Cadastro'                 element={<Cadastro />} />
       <Route path='/RecuperacaoDeSenha'       element={<RecuperacaoDeSenha />} />
-      <Route path='/RedefinirSenha/:token123' element={<RedefinirSenha />} />
+      <Route path='/RedefinirSenha/:token' element={<RedefinirSenha />} />
       <Route path='/Footer'                   element={<Footer />} />
 
       {/* ═══════════════════════════════════════════════
