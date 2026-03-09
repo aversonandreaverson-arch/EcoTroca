@@ -1,17 +1,3 @@
-// ============================================================
-//  RedefinirSenha.jsx — Página de redefinição de senha
-//  Guardar em: src/Components/RedefinirSenha.jsx
-//
-//  URL esperada: /RedefinirSenha/:token
-//  O token vem no link enviado por email/SMS pelo backend
-//
-//  Fluxo:
-//    1. Utilizador chega aqui pelo link do email/SMS
-//    2. Introduz a nova senha e confirma
-//    3. Chama POST /api/auth/redefinir-senha/:token via api.js
-//    4. Backend valida o token, verifica expiração, guarda hash bcrypt
-//    5. Redireciona para o login após sucesso
-// ============================================================
 
 import { useState }       from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
