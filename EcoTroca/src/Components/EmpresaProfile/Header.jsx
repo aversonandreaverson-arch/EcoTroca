@@ -6,15 +6,15 @@ import { logout, getNotificacoes, marcarNotificacaoLida, aceitarProposta, recusa
 
 // Links do menu da empresa — diferentes do utilizador comum
 const links = [
-  { label: "Início",            to: "/DashboardEmpresa"      }, // Dashboard principal da empresa
-  { label: "Fed",              to: "/PaginaInicialEmpresa"  }, // Feed de publicações da empresa
+  { label: "Dashboard",         to: "/DashboardEmpresa"      }, // Dashboard principal da empresa
+  { label: "Página Inicial",    to: "/PaginaInicialEmpresa"  }, // Página inicial da empresa (feed)
   { label: "Entregas",          to: "/EntregasEmpresa"       }, // Gestão de entregas
   { label: "Eventos",           to: "/EventosEmpresa"        }, // Eventos criados pela empresa
   { label: "Coletadores",       to: "/ColetadoresEmpresa"    }, // Coletadores associados
   { label: "Perfil",            to: "/PerfilEmpresa"         }, // Perfil da empresa
 ];
 
-const EmpresaHeader = () => {
+const Header = () => {
   const navigate = useNavigate();                                              // Hook para navegar após logout
 
   const [isOpen,       setIsOpen]       = useState(false);                   // Controla abertura do menu mobile
