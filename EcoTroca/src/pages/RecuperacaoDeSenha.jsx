@@ -1,7 +1,7 @@
 
 import { useState }      from "react";
 import { Link }          from "react-router-dom";
-import { recuperarSenha } from "../../api.js";
+import { recuperarSenha } from "../api.js";
 import logo              from "../assets/Ecotroca-logo-2.0.png";
 
 export default function RecuperacaoDeSenha() {
