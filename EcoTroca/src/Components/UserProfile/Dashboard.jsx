@@ -1,3 +1,19 @@
+// ============================================================
+//  Dashboard.jsx — Painel do utilizador comum
+//  Guardar em: src/Components/UserProfile/Dashboard.jsx
+//
+//  Mostra:
+//    - Card de nível e barra de progresso do utilizador
+//    - 4 estatísticas: resíduos publicados, recolhas concluídas,
+//      pontos acumulados, dinheiro ganho
+//    - Grelha de resíduos publicados com botões editar/excluir
+//    - Actividade recente (últimas 3 entregas)
+//
+//  Dados reais:
+//    - getPerfil()        → GET /api/usuarios/perfil
+//    - getPontuacao()     → GET /api/usuarios/pontuacao
+//    - getMinhasEntregas() → GET /api/entregas
+// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -218,10 +234,19 @@ export default function Dashboard() {
                 return (
                   <div key={e.id_entrega} className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
 
-                    {/* Área do ícone — fundo verde claro */}
-                    <div className="bg-green-50 flex items-center justify-center h-32">
-                      <Package size={52} className="text-green-300" />
-                    </div>
+                    {/* Imagem do resíduo — mostra a foto se existir, senão ícone placeholder */}
+                    {e.imagem ? (
+                      <img
+                        src={e.imagem}
+                        alt={tipo}
+                        className="w-full h-32 object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="bg-green-50 flex items-center justify-center h-32">
+                        <Package size={52} className="text-green-300" />
+                      </div>
+                    )}
 
                     <div className="p-4">
 
