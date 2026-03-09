@@ -1,7 +1,3 @@
-// ============================================================
-//  auth.routes.js — Rotas de autenticação
-//  Guardar em: src/routes/auth.routes.js
-// ============================================================
 
 import { Router } from 'express';
 import { registar, login, recuperarSenha, redefinirSenha } from '../controllers/auth.controller.js';
