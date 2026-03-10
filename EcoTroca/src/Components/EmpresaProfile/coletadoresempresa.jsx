@@ -1,12 +1,6 @@
-// ============================================================
-//  ColetadoresEmpresa.jsx
-//  Página de gestão de coletadores dependentes da empresa
-//  Permite: ver, adicionar e remover coletadores ligados à empresa
-// ============================================================
-
 import React, { useState, useEffect } from 'react';
 import { Truck, Plus, Trash2, Phone, X } from 'lucide-react';
-import Header from './Header.jsx';
+import HeaderEmpresa from './HeaderEmpresa.jsx';
 import {
   getColetadoresEmpresa,
   adicionarColetadorEmpresa,
@@ -15,21 +9,15 @@ import {
 
 export default function ColetadoresEmpresa() {
 
-  // Lista de coletadores dependentes da empresa
   const [coletadores, setColetadores] = useState([]);
-  const [carregando, setCarregando]   = useState(true);
-  const [erro, setErro]               = useState('');
-  const [sucesso, setSucesso]         = useState('');
-
-  // Controla o modal de adicionar coletador
+  const [carregando,  setCarregando]  = useState(true);
+  const [erro,        setErro]        = useState('');
+  const [sucesso,     setSucesso]     = useState('');
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [idColetador,  setIdColetador]  = useState('');
+  const [adicionando,  setAdicionando]  = useState(false);
+  const [removendo,    setRemovendo]    = useState(null);
 
-  // ID do coletador a adicionar — digitado pelo gestor da empresa
-  const [idColetador, setIdColetador]   = useState('');
-  const [adicionando, setAdicionando]   = useState(false);
-  const [removendo, setRemovendo]       = useState(null); // id do coletador a ser removido
-
-  // Carrega a lista de coletadores ao abrir a página
   const carregar = async () => {
     try {
       setErro('');
@@ -44,22 +32,17 @@ export default function ColetadoresEmpresa() {
 
   useEffect(() => { carregar(); }, []);
 
-  // Adiciona um coletador independente à empresa
   const handleAdicionar = async () => {
     setErro('');
-
-    // Valida o ID introduzido
-    if (!idColetador || isNaN(idColetador)) {
+    if (!idColetador || isNaN(idColetador))
       return setErro('Introduz um ID de coletador válido.');
-    }
-
     try {
       setAdicionando(true);
       await adicionarColetadorEmpresa(parseInt(idColetador));
       setSucesso('Coletador adicionado com sucesso!');
       setMostrarModal(false);
       setIdColetador('');
-      await carregar(); // recarrega a lista
+      await carregar();
       setTimeout(() => setSucesso(''), 3000);
     } catch (err) {
       setErro(err.message);
@@ -68,11 +51,8 @@ export default function ColetadoresEmpresa() {
     }
   };
 
-  // Remove um coletador da empresa (volta a ser independente)
   const handleRemover = async (idColetadorRemover) => {
-    // Confirmação antes de remover
     if (!window.confirm('Tens a certeza que queres remover este coletador da empresa?')) return;
-
     try {
       setRemovendo(idColetadorRemover);
       await removerColetadorEmpresa(idColetadorRemover);
@@ -87,67 +67,52 @@ export default function ColetadoresEmpresa() {
   };
 
   return (
-    <div className="min-h-screen bg-green-700 pt-24 p-6">
-      <Header />
+    <div className="min-h-screen bg-green-100 pt-24 p-6">
+      <HeaderEmpresa />
 
-      {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Coletadores da Empresa</h1>
-          <p className="text-gray-300 mt-1">
-            Gere os coletadores que trabalham para a tua empresa.
-          </p>
+          <h1 className="text-3xl font-bold text-green-800">Coletadores da Empresa</h1>
+          <p className="text-gray-500 mt-1">Gere os coletadores que trabalham para a tua empresa.</p>
         </div>
         <button
           onClick={() => { setMostrarModal(true); setErro(''); }}
-          className="bg-white text-green-700 font-semibold px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-green-50 transition"
+          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-3 rounded-xl flex items-center gap-2 transition"
         >
           <Plus size={18} /> Adicionar Coletador
         </button>
       </div>
 
-      {/* Mensagens de feedback */}
       {erro && (
-        <div className="bg-red-100 border border-red-300 text-red-700 rounded-xl p-4 mb-4">
-          {erro}
-        </div>
+        <div className="bg-red-100 border border-red-300 text-red-700 rounded-xl p-4 mb-4">{erro}</div>
       )}
       {sucesso && (
-        <div className="bg-green-100 border border-green-300 text-green-700 rounded-xl p-4 mb-4">
-          ✅ {sucesso}
-        </div>
+        <div className="bg-green-100 border border-green-300 text-green-700 rounded-xl p-4 mb-4">✅ {sucesso}</div>
       )}
 
-      {/* Informação sobre coletadores dependentes */}
-      <div className="bg-white/10 rounded-2xl p-4 mb-6 text-white text-sm">
-        <p className="font-medium mb-1">ℹ️ O que são coletadores dependentes?</p>
-        <p className="text-green-200">
+      <div className="bg-white border border-green-100 rounded-2xl p-4 mb-6 text-sm shadow-sm">
+        <p className="font-medium text-green-800 mb-1">ℹ️ O que são coletadores dependentes?</p>
+        <p className="text-gray-500">
           São coletadores que trabalham exclusivamente para a tua empresa.
           Só veem e aceitam pedidos destinados à tua empresa.
           Para adicionar um coletador, precisas do ID de registo dele na plataforma.
         </p>
       </div>
 
-      {/* Lista de coletadores */}
       {carregando ? (
-        <p className="text-white text-center">A carregar coletadores...</p>
+        <p className="text-green-700 text-center">A carregar coletadores...</p>
       ) : coletadores.length === 0 ? (
-        <div className="bg-white/10 rounded-2xl p-10 text-center text-white">
-          <Truck size={48} className="mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">Nenhum coletador dependente ainda.</p>
-          <p className="text-sm text-gray-300 mt-1">
-            Clica em "Adicionar Coletador" para ligar um coletador à empresa.
-          </p>
+        <div className="bg-white border border-green-100 rounded-2xl p-10 text-center shadow-sm">
+          <Truck size={48} className="mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-600">Nenhum coletador dependente ainda.</p>
+          <p className="text-sm text-gray-400 mt-1">Clica em "Adicionar Coletador" para ligar um coletador à empresa.</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {coletadores.map(c => (
-            <div key={c.id_coletador} className="bg-white rounded-2xl shadow-md p-5">
-
-              {/* Cabeçalho do cartão */}
+            <div key={c.id_coletador} className="bg-white rounded-2xl shadow-sm border border-green-100 p-5">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  {/* Avatar */}
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                     <Truck size={20} className="text-green-600" />
                   </div>
@@ -156,18 +121,13 @@ export default function ColetadoresEmpresa() {
                     <p className="text-xs text-gray-400">ID #{c.id_coletador}</p>
                   </div>
                 </div>
-
-                {/* Badge de estado */}
                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  c.ativo
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
+                  c.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                 }`}>
                   {c.ativo ? '🟢 Ativo' : '🔴 Inativo'}
                 </span>
               </div>
 
-              {/* Contacto */}
               <div className="space-y-1 text-sm text-gray-600 mb-4">
                 {c.telefone && (
                   <div className="flex items-center gap-2">
@@ -175,12 +135,9 @@ export default function ColetadoresEmpresa() {
                     <span>{c.telefone}</span>
                   </div>
                 )}
-                {c.email && (
-                  <p className="text-xs text-gray-400 pl-5">{c.email}</p>
-                )}
+                {c.email && <p className="text-xs text-gray-400 pl-5">{c.email}</p>}
               </div>
 
-              {/* Botão de remover */}
               <button
                 onClick={() => handleRemover(c.id_coletador)}
                 disabled={removendo === c.id_coletador}
@@ -194,26 +151,19 @@ export default function ColetadoresEmpresa() {
         </div>
       )}
 
-      {/* Modal de adicionar coletador */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-
-            {/* Cabeçalho do modal */}
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-green-700">Adicionar Coletador</h3>
               <button onClick={() => { setMostrarModal(false); setErro(''); }}>
                 <X size={20} className="text-gray-400 hover:text-gray-600" />
               </button>
             </div>
-
-            {/* Explicação */}
             <p className="text-sm text-gray-500 mb-4">
               Introduz o ID do coletador que queres adicionar à empresa.
               O coletador deve estar já registado na plataforma EcoTroca.
             </p>
-
-            {/* Campo do ID */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ID do Coletador <span className="text-red-500">*</span>
@@ -223,18 +173,12 @@ export default function ColetadoresEmpresa() {
                 value={idColetador}
                 onChange={e => setIdColetador(e.target.value)}
                 placeholder="Ex: 12"
-                className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
               />
             </div>
-
-            {/* Erro do modal */}
             {erro && (
-              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
-                {erro}
-              </p>
+              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mt-3">{erro}</p>
             )}
-
-            {/* Botões */}
             <div className="grid grid-cols-2 gap-3 mt-6">
               <button
                 onClick={() => { setMostrarModal(false); setErro(''); setIdColetador(''); }}

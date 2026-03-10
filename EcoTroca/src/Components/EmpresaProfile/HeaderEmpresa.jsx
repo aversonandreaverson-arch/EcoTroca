@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";                          // Hooks do React
 import { NavLink, useNavigate } from "react-router-dom";                      // Navegação entre páginas
 import { Bell, X, Check, XCircle } from "lucide-react";                       // Ícones do sino e botões
@@ -297,4 +296,4 @@ const Header = () => {
   );
 };
 
-export default EmpresaHeader;
+export default HeaderEmpresa;
