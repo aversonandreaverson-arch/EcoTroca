@@ -1,4 +1,3 @@
-
 import { Routes, Route } from 'react-router-dom'
 
 // ── Páginas públicas ──
@@ -35,14 +34,14 @@ import NoticiasColetador      from './Components/ColetadorProfile/Noticias'
 import EducacaoColetador      from './Components/ColetadorProfile/Educacao'
 
 // ── Empresa ──
-import DashboardEmpresa      from './Components/EmpresaProfile/DashboardEmpresa'
-import PaginaInicialEmpresa  from './Components/EmpresaProfile/PaginaInicialEmpresa'  // ← ADICIONADO
-import PerfilEmpresa         from './Components/EmpresaProfile/PerfilEmpresa'
-import EditarEmpresa         from './Components/EmpresaProfile/EditarEmpresa'
-import EntregasEmpresa       from './Components/EmpresaProfile/EntregasEmpresa'
-import EventosEmpresa        from './Components/EmpresaProfile/EventosEmpresa'
-import ColetadoresEmpresa    from './Components/EmpresaProfile/ColetadoresEmpresa'
-import EducacaoEmpresa       from './Components/EmpresaProfile/Educacao'
+import DashboardEmpresa     from './Components/EmpresaProfile/DashboardEmpresa'
+import PaginaInicialEmpresa from './Components/EmpresaProfile/PaginaInicialEmpresa'
+import PerfilEmpresa        from './Components/EmpresaProfile/PerfilEmpresa'
+import EditarEmpresa        from './Components/EmpresaProfile/EditarEmpresa'
+import EntregasEmpresa      from './Components/EmpresaProfile/EntregasEmpresa'
+import EventosEmpresa       from './Components/EmpresaProfile/EventosEmpresa'
+import ColetadoresEmpresa   from './Components/EmpresaProfile/ColetadoresEmpresa'
+import EducacaoEmpresa      from './Components/EmpresaProfile/EducacaoEmpresa'
 
 // ── Feed ──
 import Feed          from './Components/Feed/Feed'
@@ -61,9 +60,7 @@ function App() {
   return (
     <Routes>
 
-      {/* ═══════════════════════════════════════════════
-          ROTAS PÚBLICAS
-      ═══════════════════════════════════════════════ */}
+      {/* ROTAS PÚBLICAS */}
       <Route path='/'                      element={<Home />} />
       <Route path='/Login'                 element={<Login />} />
       <Route path='/Cadastro'              element={<Cadastro />} />
@@ -71,26 +68,22 @@ function App() {
       <Route path='/RedefinirSenha/:token' element={<RedefinirSenha />} />
       <Route path='/Footer'                element={<Footer />} />
 
-      {/* ═══════════════════════════════════════════════
-          ROTAS PRIVADAS — utilizador comum
-      ═══════════════════════════════════════════════ */}
-      <Route path='/Feed'                  element={<RotaProtegida><Feed /></RotaProtegida>} />
-      <Route path='/Perfil/:tipo/:id'      element={<RotaProtegida><PerfilPublico /></RotaProtegida>} />
-      <Route path='/PaginaInicial'         element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
-      <Route path='/Dashboard'             element={<RotaProtegida><Dashboard /></RotaProtegida>} />
-      <Route path='/UserProfile'           element={<RotaProtegida><UserProfile /></RotaProtegida>} />
-      <Route path='/Eventos'               element={<RotaProtegida><Eventos /></RotaProtegida>} />
-      <Route path='/Noticias'              element={<RotaProtegida><Noticias /></RotaProtegida>} />
-      <Route path='/Educacao'              element={<RotaProtegida><Educacao /></RotaProtegida>} />
-      <Route path='/Perfil'                element={<RotaProtegida><Perfil /></RotaProtegida>} />
-      <Route path='/Definicoes'            element={<RotaProtegida><Definicoes /></RotaProtegida>} />
-      <Route path='/Editar'                element={<RotaProtegida><Editar /></RotaProtegida>} />
-      <Route path='/NovoResiduo'           element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
-      <Route path='/EditarResiduo/:id'     element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      {/* ROTAS PRIVADAS — utilizador comum */}
+      <Route path='/Feed'              element={<RotaProtegida><Feed /></RotaProtegida>} />
+      <Route path='/Perfil/:tipo/:id'  element={<RotaProtegida><PerfilPublico /></RotaProtegida>} />
+      <Route path='/PaginaInicial'     element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
+      <Route path='/Dashboard'         element={<RotaProtegida><Dashboard /></RotaProtegida>} />
+      <Route path='/UserProfile'       element={<RotaProtegida><UserProfile /></RotaProtegida>} />
+      <Route path='/Eventos'           element={<RotaProtegida><Eventos /></RotaProtegida>} />
+      <Route path='/Noticias'          element={<RotaProtegida><Noticias /></RotaProtegida>} />
+      <Route path='/Educacao'          element={<RotaProtegida><Educacao /></RotaProtegida>} />
+      <Route path='/Perfil'            element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/Definicoes'        element={<RotaProtegida><Definicoes /></RotaProtegida>} />
+      <Route path='/Editar'            element={<RotaProtegida><Editar /></RotaProtegida>} />
+      <Route path='/NovoResiduo'       element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
+      <Route path='/EditarResiduo/:id' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
-      {/* ═══════════════════════════════════════════════
-          ROTAS PRIVADAS — coletador
-      ═══════════════════════════════════════════════ */}
+      {/* ROTAS PRIVADAS — coletador */}
       <Route path='/ColetadorInicio'     element={<RotaProtegida tipos={["coletor"]}><PaginaInicialColetador /></RotaProtegida>} />
       <Route path='/ColetadorDashboard'  element={<RotaProtegida tipos={["coletor"]}><DashboardColetador /></RotaProtegida>} />
       <Route path='/ColetadorProfile'    element={<RotaProtegida tipos={["coletor"]}><ColetadorProfile /></RotaProtegida>} />
@@ -103,21 +96,17 @@ function App() {
       <Route path='/ColetadorNoticias'   element={<RotaProtegida tipos={["coletor"]}><NoticiasColetador /></RotaProtegida>} />
       <Route path='/ColetadorEducacao'   element={<RotaProtegida tipos={["coletor"]}><EducacaoColetador /></RotaProtegida>} />
 
-      {/* ═══════════════════════════════════════════════
-          ROTAS PRIVADAS — empresa
-      ═══════════════════════════════════════════════ */}
-      <Route path='/DashboardEmpresa'      element={<RotaProtegida tipos={["empresa"]}><DashboardEmpresa /></RotaProtegida>} />
-      <Route path='/PaginaInicialEmpresa'  element={<RotaProtegida tipos={["empresa"]}><PaginaInicialEmpresa /></RotaProtegida>} />   {/* ← ADICIONADO */}
-      <Route path='/PerfilEmpresa'         element={<RotaProtegida tipos={["empresa"]}><PerfilEmpresa /></RotaProtegida>} />
-      <Route path='/EditarEmpresa'         element={<RotaProtegida tipos={["empresa"]}><EditarEmpresa /></RotaProtegida>} />
-      <Route path='/EntregasEmpresa'       element={<RotaProtegida tipos={["empresa"]}><EntregasEmpresa /></RotaProtegida>} />
-      <Route path='/EventosEmpresa'        element={<RotaProtegida tipos={["empresa"]}><EventosEmpresa /></RotaProtegida>} />
-      <Route path='/ColetadoresEmpresa'    element={<RotaProtegida tipos={["empresa"]}><ColetadoresEmpresa /></RotaProtegida>} />
-      <Route path='/EmpresaEducacao'       element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
+      {/* ROTAS PRIVADAS — empresa */}
+      <Route path='/DashboardEmpresa'     element={<RotaProtegida tipos={["empresa"]}><DashboardEmpresa /></RotaProtegida>} />
+      <Route path='/PaginaInicialEmpresa' element={<RotaProtegida tipos={["empresa"]}><PaginaInicialEmpresa /></RotaProtegida>} />
+      <Route path='/PerfilEmpresa'        element={<RotaProtegida tipos={["empresa"]}><PerfilEmpresa /></RotaProtegida>} />
+      <Route path='/EditarEmpresa'        element={<RotaProtegida tipos={["empresa"]}><EditarEmpresa /></RotaProtegida>} />
+      <Route path='/EntregasEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EntregasEmpresa /></RotaProtegida>} />
+      <Route path='/EventosEmpresa'       element={<RotaProtegida tipos={["empresa"]}><EventosEmpresa /></RotaProtegida>} />
+      <Route path='/ColetadoresEmpresa'   element={<RotaProtegida tipos={["empresa"]}><ColetadoresEmpresa /></RotaProtegida>} />
+      <Route path='/EducacaoEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
 
-      {/* ═══════════════════════════════════════════════
-          ROTAS PRIVADAS — admin
-      ═══════════════════════════════════════════════ */}
+      {/* ROTAS PRIVADAS — admin */}
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
       <Route path='/AdminFeed'         element={<RotaProtegida tipos={["admin"]}><Feed /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
