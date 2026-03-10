@@ -13,7 +13,7 @@ const links = [
   { label: "Perfil",            to: "/PerfilEmpresa"         }, // Perfil da empresa
 ];
 
-const Header = () => {
+const HeaderEmpresa = () => {
   const navigate = useNavigate();                                              // Hook para navegar após logout
 
   const [isOpen,       setIsOpen]       = useState(false);                   // Controla abertura do menu mobile
