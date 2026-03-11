@@ -208,14 +208,14 @@ router.delete('/:id', auth, async (req, res) => {
         [publicacao.id_usuario]
       );
 
-      if (u[0].advertencias >= 3) {
+      if (u[0].advertencias >= 3) { 
         // Calculo a data de fim da suspensão (hoje + 7 dias)
         const suspensaoAte = new Date();
         suspensaoAte.setDate(suspensaoAte.getDate() + 7);
 
-        await pool.query(
+        await pool.query(  
           'UPDATE Usuario SET suspenso_ate = ? WHERE id_usuario = ?',
-          [suspensaoAte, publicacao.id_usuario]
+          [suspensaoAte, publicacao.id_usuario] 
         );
       }
 
