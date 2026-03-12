@@ -1,14 +1,16 @@
+
 import { Routes, Route } from 'react-router-dom'
 
-// ── Páginas públicas ──
+// ── Páginas públicas ──────────────────────────────────────────
 import Home               from './pages/home'
 import Login              from './pages/Login'
 import Cadastro           from './Components/Cadastro'
 import RecuperacaoDeSenha from './pages/RecuperacaoDeSenha'
 import RedefinirSenha     from './pages/RedefinirSenha'
 import Footer             from './Components/Footer'
+import ConfirmarEmail     from './Components/ConfirmarEmail' // página de confirmação de email
 
-// ── Utilizador comum ──
+// ── Utilizador comum ──────────────────────────────────────────
 import UserProfile    from './pages/UserProfile'
 import PaginaInicial  from './Components/UserProfile/PaginaInicial'
 import Dashboard      from './Components/UserProfile/Dashboard'
@@ -20,7 +22,7 @@ import Definicoes     from './Components/UserProfile/Definicoes'
 import Editar         from './Components/UserProfile/Editar'
 import NovoResiduo    from './Components/UserProfile/NovoResiduo'
 
-// ── Coletador ──
+// ── Coletador ─────────────────────────────────────────────────
 import ColetadorProfile       from './pages/ColetadorProfile'
 import PaginaInicialColetador from './Components/ColetadorProfile/PaginaInicial'
 import DashboardColetador     from './Components/ColetadorProfile/DashboardColetador'
@@ -33,7 +35,7 @@ import EventosColetador       from './Components/ColetadorProfile/Eventos'
 import NoticiasColetador      from './Components/ColetadorProfile/Noticias'
 import EducacaoColetador      from './Components/ColetadorProfile/Educacao'
 
-// ── Empresa ──
+// ── Empresa ───────────────────────────────────────────────────
 import DashboardEmpresa     from './Components/EmpresaProfile/DashboardEmpresa'
 import PaginaInicialEmpresa from './Components/EmpresaProfile/PaginaInicialEmpresa'
 import PerfilEmpresa        from './Components/EmpresaProfile/PerfilEmpresa'
@@ -41,27 +43,28 @@ import EditarEmpresa        from './Components/EmpresaProfile/EditarEmpresa'
 import EntregasEmpresa      from './Components/EmpresaProfile/EntregasEmpresa'
 import EventosEmpresa       from './Components/EmpresaProfile/EventosEmpresa'
 import ColetadoresEmpresa   from './Components/EmpresaProfile/ColetadoresEmpresa'
-import EducacaoEmpresa   from './Components/EmpresaProfile/EducacaoEmpresa'
-import NoticiasEmpresa   from './Components/EmpresaProfile/NoticiasEmpresa'
+import EducacaoEmpresa      from './Components/EmpresaProfile/EducacaoEmpresa'
+import NoticiasEmpresa      from './Components/EmpresaProfile/NoticiasEmpresa'
 
-// ── Feed ──
+// ── Feed ──────────────────────────────────────────────────────
 import Feed          from './Components/Feed/Feed'
 import PerfilPublico from './Components/Feed/PerfilPublico'
 
-// ── Admin ──
+// ── Admin ─────────────────────────────────────────────────────
 import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
 import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
 import AdminEducacao     from './Components/AdminProfile/AdminEducacao'
 import AdminRelatorios   from './Components/AdminProfile/AdminRelatorios'
 
-// ── RotaProtegida ──
+// ── Protecção de rotas ────────────────────────────────────────
 import RotaProtegida from './Components/RotaProtegida'
 
 function App() {
   return (
     <Routes>
 
-      {/* ROTAS PÚBLICAS */}
+      {/* ── ROTAS PÚBLICAS ─────────────────────────────────────
+          Acessíveis sem login — qualquer pessoa pode aceder     */}
       <Route path='/'                      element={<Home />} />
       <Route path='/Login'                 element={<Login />} />
       <Route path='/Cadastro'              element={<Cadastro />} />
@@ -69,7 +72,13 @@ function App() {
       <Route path='/RedefinirSenha/:token' element={<RedefinirSenha />} />
       <Route path='/Footer'                element={<Footer />} />
 
-      {/* ROTAS PRIVADAS — utilizador comum */}
+      {/* Confirmação de email — pública porque o utilizador ainda não tem sessão.
+          O :token vem no link enviado para o email após o registo.
+          Após confirmar, redireciona para /Login?confirmado=1             */}
+      <Route path='/ConfirmarEmail/:token' element={<ConfirmarEmail />} />
+
+      {/* ── ROTAS PRIVADAS — utilizador comum ──────────────────
+          Requerem login — qualquer tipo de conta pode aceder    */}
       <Route path='/Feed'              element={<RotaProtegida><Feed /></RotaProtegida>} />
       <Route path='/Perfil/:tipo/:id'  element={<RotaProtegida><PerfilPublico /></RotaProtegida>} />
       <Route path='/PaginaInicial'     element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
@@ -84,7 +93,8 @@ function App() {
       <Route path='/NovoResiduo'       element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
       <Route path='/EditarResiduo/:id' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
-      {/* ROTAS PRIVADAS — coletador */}
+      {/* ── ROTAS PRIVADAS — coletador ──────────────────────────
+          Só acessíveis com tipo_usuario = 'coletor'             */}
       <Route path='/ColetadorInicio'     element={<RotaProtegida tipos={["coletor"]}><PaginaInicialColetador /></RotaProtegida>} />
       <Route path='/ColetadorDashboard'  element={<RotaProtegida tipos={["coletor"]}><DashboardColetador /></RotaProtegida>} />
       <Route path='/ColetadorProfile'    element={<RotaProtegida tipos={["coletor"]}><ColetadorProfile /></RotaProtegida>} />
@@ -97,7 +107,8 @@ function App() {
       <Route path='/ColetadorNoticias'   element={<RotaProtegida tipos={["coletor"]}><NoticiasColetador /></RotaProtegida>} />
       <Route path='/ColetadorEducacao'   element={<RotaProtegida tipos={["coletor"]}><EducacaoColetador /></RotaProtegida>} />
 
-      {/* ROTAS PRIVADAS — empresa */}
+      {/* ── ROTAS PRIVADAS — empresa ────────────────────────────
+          Só acessíveis com tipo_usuario = 'empresa'             */}
       <Route path='/DashboardEmpresa'     element={<RotaProtegida tipos={["empresa"]}><DashboardEmpresa /></RotaProtegida>} />
       <Route path='/PaginaInicialEmpresa' element={<RotaProtegida tipos={["empresa"]}><PaginaInicialEmpresa /></RotaProtegida>} />
       <Route path='/PerfilEmpresa'        element={<RotaProtegida tipos={["empresa"]}><PerfilEmpresa /></RotaProtegida>} />
@@ -105,10 +116,11 @@ function App() {
       <Route path='/EntregasEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EntregasEmpresa /></RotaProtegida>} />
       <Route path='/EventosEmpresa'       element={<RotaProtegida tipos={["empresa"]}><EventosEmpresa /></RotaProtegida>} />
       <Route path='/ColetadoresEmpresa'   element={<RotaProtegida tipos={["empresa"]}><ColetadoresEmpresa /></RotaProtegida>} />
-      <Route path='/EducacaoEmpresa'  element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
-      <Route path='/NoticiasEmpresa'  element={<RotaProtegida tipos={["empresa"]}><NoticiasEmpresa /></RotaProtegida>} />
+      <Route path='/EducacaoEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
+      <Route path='/NoticiasEmpresa'      element={<RotaProtegida tipos={["empresa"]}><NoticiasEmpresa /></RotaProtegida>} />
 
-      {/* ROTAS PRIVADAS — admin */}
+      {/* ── ROTAS PRIVADAS — admin ──────────────────────────────
+          Só acessíveis com tipo_usuario = 'admin'               */}
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
       <Route path='/AdminFeed'         element={<RotaProtegida tipos={["admin"]}><Feed /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />

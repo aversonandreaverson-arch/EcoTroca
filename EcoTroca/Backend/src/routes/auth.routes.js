@@ -10,8 +10,7 @@ import {
 
 const router = Router();
 
-// ── Wrapper assíncrono ────────────────────────────────────────
-// Envolve cada handler para apanhar erros e devolver sempre JSON.
+// Wrapper assíncrono — apanha erros e devolve sempre JSON limpo.
 // Junta req.body e req.params num único objecto para simplificar
 // a assinatura das funções no controller.
 const handle = (fn) => async (req, res) => {
@@ -19,37 +18,29 @@ const handle = (fn) => async (req, res) => {
     const resultado = await fn({ ...req.body, ...req.params });
     res.json(resultado);
   } catch (err) {
-    // Devolve o erro como JSON com código 400 (Bad Request)
     res.status(400).json({ erro: err.message });
   }
 };
 
-// ── Registo de nova conta ─────────────────────────────────────
-// Cria utilizador com ativo=0 e envia email de confirmação
+// Registo — cria utilizador com ativo=0 e envia email de confirmação
 router.post('/registar', handle(registar));
 
-// ── Login ─────────────────────────────────────────────────────
-// Valida credenciais e devolve JWT — só aceita contas com ativo=1
+// Login — só aceita contas com ativo=1 (confirmadas)
 router.post('/login', handle(login));
 
-// ── Pedido de recuperação de senha ────────────────────────────
-// Gera token e envia link por email e SMS
+// Recuperação de senha — envia link por email e SMS
 router.post('/recuperar-senha', handle(recuperarSenha));
 
-// ── Redefinição de senha ──────────────────────────────────────
-// Valida o token do link e guarda a nova senha em hash
-// O :token vem no URL, a nova senha vem no body
+// Redefinição de senha — valida token e guarda nova senha em hash
 router.post(
   '/redefinir-senha/:token',
   handle(({ token, senha }) => redefinirSenha({ token, senha }))
 );
 
-// ── Confirmação de email ──────────────────────────────────────
-// O utilizador chega aqui ao clicar no link do email de registo
-// Valida o token e activa a conta (ativo = 1)
-// Usa GET porque é chamado directamente pelo browser via link
+// Confirmação de email — chamado pelo browser ao clicar no link do email
+// Usa GET porque é acedido directamente como URL, não via fetch do frontend
 router.get(
-  '/confirmar-email/:token',
+  '/confirmarEmail/:token',
   handle(({ token }) => confirmarEmail({ token }))
 );
 
