@@ -104,7 +104,7 @@ export default function ConfirmarEmail() {
           </div>
         )}
 
-        {/* ── Erro ─────────────────────────────────────── */}
+        {/*  Erro  */}
         {estado === 'erro' && (
           <div>
             {/* Ícone de X vermelho */}
