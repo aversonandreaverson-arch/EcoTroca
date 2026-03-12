@@ -41,7 +41,8 @@ import EditarEmpresa        from './Components/EmpresaProfile/EditarEmpresa'
 import EntregasEmpresa      from './Components/EmpresaProfile/EntregasEmpresa'
 import EventosEmpresa       from './Components/EmpresaProfile/EventosEmpresa'
 import ColetadoresEmpresa   from './Components/EmpresaProfile/ColetadoresEmpresa'
-import EducacaoEmpresa      from './Components/EmpresaProfile/EducacaoEmpresa'
+import EducacaoEmpresa   from './Components/EmpresaProfile/EducacaoEmpresa'
+import NoticiasEmpresa   from './Components/EmpresaProfile/NoticiasEmpresa'
 
 // ── Feed ──
 import Feed          from './Components/Feed/Feed'
@@ -104,7 +105,8 @@ function App() {
       <Route path='/EntregasEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EntregasEmpresa /></RotaProtegida>} />
       <Route path='/EventosEmpresa'       element={<RotaProtegida tipos={["empresa"]}><EventosEmpresa /></RotaProtegida>} />
       <Route path='/ColetadoresEmpresa'   element={<RotaProtegida tipos={["empresa"]}><ColetadoresEmpresa /></RotaProtegida>} />
-      <Route path='/EducacaoEmpresa'      element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
+      <Route path='/EducacaoEmpresa'  element={<RotaProtegida tipos={["empresa"]}><EducacaoEmpresa /></RotaProtegida>} />
+      <Route path='/NoticiasEmpresa'  element={<RotaProtegida tipos={["empresa"]}><NoticiasEmpresa /></RotaProtegida>} />
 
       {/* ROTAS PRIVADAS — admin */}
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
