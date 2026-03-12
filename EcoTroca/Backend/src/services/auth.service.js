@@ -142,7 +142,7 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
       await transporter.sendMail({
         from:    `"EcoTroca Angola" <${process.env.EMAIL_USER}>`,
         to:      usuario.email,
-        subject: '🔒 Recuperação de senha — EcoTroca Angola',
+        subject: ' Recuperação de senha — EcoTroca Angola',
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">
             <h2 style="color:#15803d;">EcoTroca Angola</h2>
