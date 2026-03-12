@@ -44,9 +44,9 @@ export default function ConfirmarEmail() {
 
   // ── Contagem regressiva após sucesso 
   // Arranca quando o estado muda para 'sucesso'
-  // Redireciona para Login com ?confirmado=1 ao chegar a zero
-  useEffect(() => {
-    if (estado !== 'sucesso') return;
+  // Redireciona para Login com ?confirmado=1 ao chegar a zero 
+  useEffect(() => { 
+    if (estado !== 'sucesso') return; 
 
     const intervalo = setInterval(() => {
       setContador(prev => {
@@ -69,7 +69,7 @@ export default function ConfirmarEmail() {
         {/* Logo da plataforma */}
         <img src={logo} alt="EcoTroca" className="h-10 mx-auto mb-6" />
 
-        {/* ── A verificar ──────────────────────────────── */}
+        {/* ── A verificar*/}
         {estado === 'a_verificar' && (
           <div>
             {/* Spinner animado enquanto aguarda resposta do servidor */}
@@ -78,7 +78,7 @@ export default function ConfirmarEmail() {
           </div>
         )}
 
-        {/* ── Sucesso ──────────────────────────────────── */}
+        {/* ── Sucesso*/}
         {estado === 'sucesso' && (
           <div>
             {/* Ícone de visto verde */}
