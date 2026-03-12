@@ -235,6 +235,10 @@ export const getFeed = () => pedido('/feed');
 // Cria uma nova publicação no feed — usado pelo botão Publicar da Página Inicial
 export const criarPublicacao = (dados) => pedido('/feed', { method: 'POST', body: JSON.stringify(dados) });
 
+// Edita uma publicação existente — só o autor pode editar
+// Campos editáveis: titulo, descricao, id_residuo, quantidade_kg, valor_proposto, provincia, imagem
+export const editarPublicacao = (id, dados) => pedido(`/feed/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+
 // Apaga uma publicação do feed — backend verifica status e aplica penalização se necessário
 export const apagarPublicacao = (id) => pedido(`/feed/${id}`, { method: 'DELETE' });
 
