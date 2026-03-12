@@ -42,7 +42,7 @@ export default function ConfirmarEmail() {
     confirmar();
   }, [token]);
 
-  // ── Contagem regressiva após sucesso ─────────────────────
+  // ── Contagem regressiva após sucesso 
   // Arranca quando o estado muda para 'sucesso'
   // Redireciona para Login com ?confirmado=1 ao chegar a zero
   useEffect(() => {
