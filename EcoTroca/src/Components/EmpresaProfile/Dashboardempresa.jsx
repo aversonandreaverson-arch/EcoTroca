@@ -1,8 +1,3 @@
-// ============================================================
-//  DashboardEmpresa.jsx
-//  Guardar em: src/Components/EmpresaProfile/DashboardEmpresa.jsx
-//  Dashboard principal da empresa recicladora no EcoTroca
-// ============================================================
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
