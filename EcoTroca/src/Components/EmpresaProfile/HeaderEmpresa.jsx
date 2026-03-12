@@ -4,8 +4,8 @@ import { Bell, X, Check, XCircle } from 'lucide-react';
 import { logout, getNotificacoes, marcarNotificacaoLida, aceitarProposta, recusarProposta } from '../../api.js';
 
 const links = [
-  { label: 'Dashboard',      to: '/DashboardEmpresa'      },
   { label: 'Página Inicial', to: '/PaginaInicialEmpresa'  },
+    { label: 'Dashboard',      to: '/DashboardEmpresa'      },
   { label: 'Entregas',       to: '/EntregasEmpresa'       },
   { label: 'Eventos',        to: '/EventosEmpresa'        },
   { label: 'Educação',       to: '/EducacaoEmpresa'       },
