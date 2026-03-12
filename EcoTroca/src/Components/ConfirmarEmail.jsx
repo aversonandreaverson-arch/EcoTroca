@@ -18,7 +18,7 @@ export default function ConfirmarEmail() {
   // Contador regressivo de 5 segundos exibido no estado de sucesso
   const [contador, setContador] = useState(5);
 
-  // ── Chama o backend ao montar ────────────────────────────
+  //  Chama o backend ao montar
   // Só corre uma vez — o token não muda
   useEffect(() => {
     const confirmar = async () => {
