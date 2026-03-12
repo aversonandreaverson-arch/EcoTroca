@@ -136,7 +136,7 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
   // Link de redefinição que vai no email e no SMS
   const link = `${process.env.FRONTEND_URL}/RedefinirSenha/${token}`;
 
-  // ── Email via Gmail ───────────────────────────────────────
+  // ── Email via Gmail 
   if (usuario.email) {
     try {
       await transporter.sendMail({
