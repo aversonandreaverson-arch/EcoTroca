@@ -1,11 +1,4 @@
-// ============================================================
-//  NovoResiduo.jsx — Formulário de publicação/edição de resíduo
-//  Guardar em: src/Components/UserProfile/NovoResiduo.jsx
-//
-//  Funciona em dois modos:
-//    - Criação  → URL: /NovoResiduo
-//    - Edição   → URL: /EditarResiduo/:id
-//
+
 //  Passo a passo do formulário:
 //    1. Tipo de resíduo (Plástico, Papel, Metal, Vidro)
 //    2. Qualidade (Ruim, Moderada, Boa, Excelente) com intervalo de preço
@@ -14,16 +7,7 @@
 //    5. Forma de recompensa (dinheiro ou saldo EcoTroca)
 //    6. Upload de foto do resíduo (opcional)
 //    7. Observações opcionais
-//
-//  Ao submeter:
-//    - Criação → POST /api/entregas (cria Entrega + Publicacao automaticamente)
-//    - Edição  → PATCH /api/entregas/:id
-//
-//  Upload de imagem:
-//    - Ficheiro convertido para base64 antes de enviar
-//    - Preview da imagem antes de publicar
-//    - Limite de 5MB no frontend
-// ============================================================
+
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
