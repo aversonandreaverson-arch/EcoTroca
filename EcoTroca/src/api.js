@@ -85,10 +85,10 @@ export const actualizarPerfil = (dados) => pedido('/usuarios/perfil', { method: 
 export const getPontuacao = () => pedido('/usuarios/pontuacao');
 
 // Envia email/telefone para recuperar senha
-export const recuperarSenha = (emailOuTelefone) => pedido('/auth/RecuperacaoDeSenha', { method: 'POST', body: JSON.stringify({ emailOuTelefone }) });
+export const recuperarSenha = (emailOuTelefone) => pedido('/auth/recuperar-senha', { method: 'POST', body: JSON.stringify({ emailOuTelefone }) });
 
 // Redefine a senha usando o token enviado por email
-export const redefinirSenha = (token, novaSenha) => pedido(`/auth/RedefinirSenha/${token}`, { method: 'POST', body: JSON.stringify({ senha: novaSenha }) });
+export const redefinirSenha = (token, novaSenha) => pedido(`/auth/redefinir-senha/${token}`, { method: 'POST', body: JSON.stringify({ senha: novaSenha }) });
 
 // ============================================================
 // CARTEIRA
@@ -226,7 +226,7 @@ export const recusarProposta = (id) => pedido(`/notificacoes/${id}/recusar`, { m
 export const getResiduos = () => pedido('/residuos');
 
 // ============================================================
-// PUBLICAÇÕES — Página Inicial 
+// PUBLICAÇÕES — Página Inicial (feed)
 // ============================================================
 
 // Lista todas as publicações activas do feed para a Página Inicial
