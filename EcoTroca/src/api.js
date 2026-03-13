@@ -1,10 +1,10 @@
-// ============================================================
-//  api.js — Ficheiro central de comunicação com o backend
 
 const BASE_URL = 'http://localhost:3000/api';
 
-// Função base para todas as chamadas ao backend
-// Adiciona o token JWT automaticamente e trata erros de autenticação
+// ── Função base para todas as chamadas
+// Adiciona o token JWT automaticamente em cada pedido.
+// Se o servidor devolver 401 (token expirado/inválido),
+// limpa o localStorage e redireciona para o login.
 const pedido = async (endpoint, opcoes = {}) => {
   const token = localStorage.getItem('token');
   const headers = {
@@ -14,7 +14,7 @@ const pedido = async (endpoint, opcoes = {}) => {
   };
   const resposta = await fetch(`${BASE_URL}${endpoint}`, { ...opcoes, headers });
 
-  // Se o token expirou ou é inválido, limpo o localStorage e redireciono para o login
+  // Token expirado ou inválido — força novo login
   if (resposta.status === 401) {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
@@ -24,129 +24,166 @@ const pedido = async (endpoint, opcoes = {}) => {
 
   const dados = await resposta.json();
 
-  // Se o servidor devolveu um erro, lanço-o para o componente tratar
+  // Erro do servidor — lança para o componente tratar com try/catch
   if (!resposta.ok) throw new Error(dados.erro || 'Erro no servidor');
   return dados;
 };
 
 // ============================================================
-// AUTENTICAÇÃO
+//  AUTENTICAÇÃO
 // ============================================================
 
-// Faz login e guarda o token e dados do utilizador no localStorage
+// Faz login, guarda o token e os dados do utilizador no localStorage.
+// Guarda: nome, tipo, tipo_usuario e id — todos usados nos componentes.
 export const login = async (emailOuTelefone, senha) => {
   const dados = await pedido('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email: emailOuTelefone, senha }),
   });
+  // Guarda o token para autenticar pedidos futuros
   localStorage.setItem('token', dados.token);
-  localStorage.setItem('usuario', JSON.stringify({ nome: dados.nome, tipo: dados.tipo_usuario }));
+  // Guarda os dados do utilizador para uso nos componentes sem chamar o servidor
+  // id e tipo_usuario são necessários para verificar permissões e autoria
+  localStorage.setItem('usuario', JSON.stringify({
+    id:           dados.id_usuario,
+    nome:         dados.nome,
+    tipo:         dados.tipo_usuario,
+    tipo_usuario: dados.tipo_usuario, // alias — alguns componentes usam tipo, outros tipo_usuario
+  }));
   return dados;
 };
 
-// Regista um novo utilizador e guarda o token no localStorage
+// Regista um novo utilizador.
+// O backend devolve { mensagem, confirmar_email } — não devolve token
+// porque a conta ainda não está activa (ativo=0 até confirmar email).
 export const registar = async (dadosFormulario) => {
   const dados = await pedido('/auth/registar', {
     method: 'POST',
     body: JSON.stringify(dadosFormulario),
   });
-  localStorage.setItem('token', dados.token);
+  // Não guarda token — utilizador precisa de confirmar email antes de entrar
   return dados;
 };
 
-// Remove o token e redireciona para o login
+// Reenvia o email de confirmação — usado quando o link de 24h expirou
+// O utilizador fornece o email e recebe um novo link
+export const reenviarConfirmacao = (email) =>
+  pedido('/auth/reenviarConfirmacao', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+
+// Remove sessão local e redireciona para o login
 export const logout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('usuario');
   window.location.href = '/Login';
 };
 
-// Verifica se existe token no localStorage — não valida no servidor
+// Verifica se existe token guardado — não valida no servidor
 export const estaAutenticado = () => !!localStorage.getItem('token');
 
-// Devolve os dados básicos do utilizador guardados localmente após o login
+// Devolve os dados do utilizador guardados localmente após o login.
+// Contém: id, nome, tipo, tipo_usuario
+// Usado nos componentes para verificar autoria de publicações e permissões
 export const getUtilizadorLocal = () => {
   const dados = localStorage.getItem('usuario');
   return dados ? JSON.parse(dados) : null;
 };
 
 // ============================================================
-// UTILIZADOR
+//  UTILIZADOR
 // ============================================================
 
-// Vai buscar o perfil completo do utilizador autenticado
+// Perfil completo do utilizador autenticado
 export const getPerfil = () => pedido('/usuarios/perfil');
 
-// Actualiza nome, provincia, municipio, bairro e data_nascimento
-// Não toca no telefone nem no email para evitar conflitos de UNIQUE KEY
-export const actualizarPerfil = (dados) => pedido('/usuarios/perfil', { method: 'PUT', body: JSON.stringify(dados) });
+// Actualiza nome, provincia, municipio, bairro, data_nascimento
+// Não toca no telefone nem email para evitar conflitos de UNIQUE KEY
+export const actualizarPerfil = (dados) =>
+  pedido('/usuarios/perfil', { method: 'PUT', body: JSON.stringify(dados) });
 
-// Devolve pontuação total e nível de recompensa do utilizador
+// Pontuação total e nível de recompensa do utilizador
 export const getPontuacao = () => pedido('/usuarios/pontuacao');
 
-// Envia email/telefone para recuperar senha
-export const recuperarSenha = (emailOuTelefone) => pedido('/auth/recuperar-senha', { method: 'POST', body: JSON.stringify({ emailOuTelefone }) });
+// Envia email/telefone para receber link de recuperação de senha
+export const recuperarSenha = (emailOuTelefone) =>
+  pedido('/auth/recuperar-senha', {
+    method: 'POST',
+    body: JSON.stringify({ emailOuTelefone }),
+  });
 
-// Redefine a senha usando o token enviado por email
-export const redefinirSenha = (token, novaSenha) => pedido(`/auth/redefinir-senha/${token}`, { method: 'POST', body: JSON.stringify({ senha: novaSenha }) });
+// Redefine a senha usando o token recebido por email
+export const redefinirSenha = (token, novaSenha) =>
+  pedido(`/auth/redefinir-senha/${token}`, {
+    method: 'POST',
+    body: JSON.stringify({ senha: novaSenha }),
+  });
 
 // ============================================================
-// CARTEIRA
+//  CARTEIRA
 // ============================================================
 
-// Devolve o saldo em dinheiro e saldo EcoTroca do utilizador
+// Saldo em dinheiro e saldo EcoTroca do utilizador
 export const getCarteira = () => pedido('/usuarios/carteira');
 
 // ============================================================
-// ENTREGAS — utilizador comum
+//  ENTREGAS — utilizador comum
 // ============================================================
 
 // Lista todas as entregas do utilizador autenticado
 export const getMinhasEntregas = () => pedido('/entregas');
 
-// Devolve o detalhe de uma entrega específica
+// Detalhe de uma entrega específica
 export const getEntrega = (id) => pedido(`/entregas/${id}`);
 
-// Cria uma nova entrega e automaticamente uma publicação no feed
-export const criarEntrega = (dados) => pedido('/entregas', { method: 'POST', body: JSON.stringify(dados) });
+// Cria nova entrega e publica automaticamente no feed
+export const criarEntrega = (dados) =>
+  pedido('/entregas', { method: 'POST', body: JSON.stringify(dados) });
 
-// Edita uma entrega pendente — não é permitido editar após aceite
-export const editarEntrega = (id, dados) => pedido(`/entregas/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+// Edita uma entrega pendente — não permitido após aceite
+export const editarEntrega = (id, dados) =>
+  pedido(`/entregas/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
 
-// Cancela a entrega E remove a publicação correspondente do feed
-export const cancelarEntrega = (id) => pedido(`/entregas/${id}/cancelar`, { method: 'PATCH' });
+// Cancela a entrega e remove a publicação correspondente do feed
+export const cancelarEntrega = (id) =>
+  pedido(`/entregas/${id}/cancelar`, { method: 'PATCH' });
 
 // ============================================================
-// COLETADOR
+//  COLETADOR
 // ============================================================
 
-// Lista todas as entregas pendentes disponíveis para o coletador aceitar
+// Entregas pendentes disponíveis para o coletador aceitar
 export const getEntregasPendentes = () => pedido('/coletador/entregas/pendentes');
 
-// Lista as entregas que o coletador já aceitou
+// Entregas que o coletador já aceitou
 export const getMinhasColetasColetador = () => pedido('/coletador/entregas/minhas');
 
 // Coletador aceita uma entrega pendente
-export const aceitarEntrega = (id) => pedido(`/coletador/entregas/${id}/aceitar`, { method: 'PATCH' });
+export const aceitarEntrega = (id) =>
+  pedido(`/coletador/entregas/${id}/aceitar`, { method: 'PATCH' });
 
 // Coletador confirma que foi recolher o resíduo
-export const recolherEntrega = (id) => pedido(`/coletador/entregas/${id}/recolher`, { method: 'PATCH' });
+export const recolherEntrega = (id) =>
+  pedido(`/coletador/entregas/${id}/recolher`, { method: 'PATCH' });
 
 // ============================================================
-// EMPRESA
+//  EMPRESA
 // ============================================================
 
-// Vai buscar o perfil da empresa autenticada
+// Perfil da empresa autenticada
 export const getPerfilEmpresa = () => pedido('/empresas/perfil');
 
 // Actualiza os dados do perfil da empresa
-export const atualizarEmpresa = (dados) => pedido('/empresas/perfil', { method: 'PUT', body: JSON.stringify(dados) });
+export const atualizarEmpresa = (dados) =>
+  pedido('/empresas/perfil', { method: 'PUT', body: JSON.stringify(dados) });
 
-// Lista as entregas associadas à empresa
+// Entregas associadas à empresa
 export const getEntregasEmpresa = () => pedido('/empresas/minhas/entregas');
 
 // Empresa aceita uma entrega de resíduo
-export const aceitarEntregaEmpresa = (id) => pedido(`/empresas/minhas/entregas/${id}/aceitar`, { method: 'POST' });
+export const aceitarEntregaEmpresa = (id) =>
+  pedido(`/empresas/minhas/entregas/${id}/aceitar`, { method: 'POST' });
 
 // Empresa rejeita uma entrega com motivo opcional
 export const rejeitarEntregaEmpresa = (id, motivo, pede_foto, pede_limpeza) =>
@@ -155,156 +192,189 @@ export const rejeitarEntregaEmpresa = (id, motivo, pede_foto, pede_limpeza) =>
     body: JSON.stringify({ motivo, pede_foto, pede_limpeza }),
   });
 
-// Lista os coletadores associados à empresa
+// Coletadores associados à empresa
 export const getColetadoresEmpresa = () => pedido('/empresas/minhas/coletadores');
 
 // Adiciona um coletador à empresa pelo id ou telefone
 export const adicionarColetadorEmpresa = (id_coletador, telefone) =>
-  pedido('/empresas/minhas/coletadores', { method: 'POST', body: JSON.stringify({ id_coletador, telefone }) });
+  pedido('/empresas/minhas/coletadores', {
+    method: 'POST',
+    body: JSON.stringify({ id_coletador, telefone }),
+  });
 
 // Remove um coletador da empresa
-export const removerColetadorEmpresa = (id) => pedido(`/empresas/minhas/coletadores/${id}`, { method: 'DELETE' });
+export const removerColetadorEmpresa = (id) =>
+  pedido(`/empresas/minhas/coletadores/${id}`, { method: 'DELETE' });
 
-// Lista os eventos criados pela empresa
+// Eventos criados pela empresa
 export const getEventosEmpresa = () => pedido('/empresas/minhas/eventos');
 
-// Cria um novo evento para a empresa
-export const criarEventoEmpresa = (dados) => pedido('/empresas/minhas/eventos', { method: 'POST', body: JSON.stringify(dados) });
+// Cria novo evento para a empresa
+export const criarEventoEmpresa = (dados) =>
+  pedido('/empresas/minhas/eventos', { method: 'POST', body: JSON.stringify(dados) });
 
 // ============================================================
-// EVENTOS
+//  EVENTOS
 // ============================================================
 
-// Lista todos os eventos activos da plataforma
+// Todos os eventos activos da plataforma
 export const getEventos = () => pedido('/eventos');
 
-// Devolve o detalhe de um evento específico
+// Detalhe de um evento específico
 export const getEvento = (id) => pedido(`/eventos/${id}`);
 
 // Edita um evento existente
-export const editarEvento = (id, dados) => pedido(`/eventos/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+export const editarEvento = (id, dados) =>
+  pedido(`/eventos/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
 
 // Apaga um evento
-export const apagarEvento = (id) => pedido(`/eventos/${id}`, { method: 'DELETE' });
+export const apagarEvento = (id) =>
+  pedido(`/eventos/${id}`, { method: 'DELETE' });
 
 // ============================================================
-// CHAT
+//  CHAT
 // ============================================================
 
-// Lista todas as mensagens do chat de uma entrega
+// Mensagens do chat de uma entrega
 export const getMensagens = (idEntrega) => pedido(`/chat/${idEntrega}/mensagens`);
 
-// Envia uma nova mensagem no chat de uma entrega
+// Envia nova mensagem no chat de uma entrega
 export const enviarMensagem = (idEntrega, mensagem) =>
-  pedido(`/chat/${idEntrega}/mensagens`, { method: 'POST', body: JSON.stringify({ mensagem }) });
+  pedido(`/chat/${idEntrega}/mensagens`, {
+    method: 'POST',
+    body: JSON.stringify({ mensagem }),
+  });
 
 // ============================================================
-// NOTIFICAÇÕES
+//  NOTIFICAÇÕES
 // ============================================================
 
-// Lista todas as notificações do utilizador autenticado
+// Todas as notificações do utilizador autenticado
 export const getNotificacoes = () => pedido('/notificacoes');
 
-// Marca uma notificação como lida — remove o ponto verde e não conta no badge
-export const marcarNotificacaoLida = (id) => pedido(`/notificacoes/${id}/ler`, { method: 'PATCH' });
+// Marca uma notificação como lida — remove o ponto verde do badge
+export const marcarNotificacaoLida = (id) =>
+  pedido(`/notificacoes/${id}/ler`, { method: 'PATCH' });
 
-// Cria uma notificação para outro utilizador — usado quando empresa envia proposta
-// Também muda o status da publicação para 'em_negociacao' se vier id_publicacao
-export const criarNotificacao = (dados) => pedido('/notificacoes/criar', { method: 'POST', body: JSON.stringify(dados) });
+// Cria notificação para outro utilizador — usado quando empresa envia proposta.
+// Também muda o status da publicação para 'em_negociacao' se vier id_publicacao.
+export const criarNotificacao = (dados) =>
+  pedido('/notificacoes/criar', { method: 'POST', body: JSON.stringify(dados) });
 
-// Aceita a proposta de uma empresa — publicação fica 'fechada' + empresa é notificada
-export const aceitarProposta = (id) => pedido(`/notificacoes/${id}/aceitar`, { method: 'POST' });
+// Aceita proposta de empresa — publicação fica 'fechada' e empresa é notificada
+export const aceitarProposta = (id) =>
+  pedido(`/notificacoes/${id}/aceitar`, { method: 'POST' });
 
-// Recusa a proposta de uma empresa — publicação volta 'disponivel' + empresa é notificada
-export const recusarProposta = (id) => pedido(`/notificacoes/${id}/recusar`, { method: 'POST' });
+// Recusa proposta de empresa — publicação volta 'disponivel' e empresa é notificada
+export const recusarProposta = (id) =>
+  pedido(`/notificacoes/${id}/recusar`, { method: 'POST' });
 
 // ============================================================
-// RESÍDUOS
+//  RESÍDUOS
 // ============================================================
 
-// Lista todos os tipos de resíduos activos com qualidade e intervalos de preço
+// Todos os tipos de resíduos activos com qualidade e intervalos de preço
 export const getResiduos = () => pedido('/residuos');
 
 // ============================================================
-// PUBLICAÇÕES — Página Inicial (feed)
+//  PUBLICAÇÕES — feed da Página Inicial
 // ============================================================
 
-// Lista todas as publicações activas do feed para a Página Inicial
+// Todas as publicações activas do feed
 export const getFeed = () => pedido('/feed');
 
-// Cria uma nova publicação no feed — usado pelo botão Publicar da Página Inicial
-export const criarPublicacao = (dados) => pedido('/feed', { method: 'POST', body: JSON.stringify(dados) });
+// Cria nova publicação no feed
+export const criarPublicacao = (dados) =>
+  pedido('/feed', { method: 'POST', body: JSON.stringify(dados) });
 
-// Edita uma publicação existente — só o autor pode editar
+// Edita publicação existente — só o autor pode editar.
 // Campos editáveis: titulo, descricao, id_residuo, quantidade_kg, valor_proposto, provincia, imagem
-export const editarPublicacao = (id, dados) => pedido(`/feed/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+export const editarPublicacao = (id, dados) =>
+  pedido(`/feed/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
 
-// Apaga uma publicação do feed — backend verifica status e aplica penalização se necessário
-export const apagarPublicacao = (id) => pedido(`/feed/${id}`, { method: 'DELETE' });
+// Apaga publicação — backend verifica autoria e aplica penalização se necessário
+export const apagarPublicacao = (id) =>
+  pedido(`/feed/${id}`, { method: 'DELETE' });
 
 // ============================================================
-// PERFIL PÚBLICO
+//  PERFIL PÚBLICO
 // ============================================================
 
-// Devolve o perfil público de um utilizador ou empresa pelo tipo e id
+// Perfil público de um utilizador ou empresa pelo tipo e id
 export const getPerfilPublico = (tipo, id) => pedido(`/perfilpublico/${tipo}/${id}`);
 
 // ============================================================
-// EMPRESAS — listagem pública
+//  EMPRESAS — listagem pública
 // ============================================================
 
-// Lista todas as empresas activas — usado na sidebar da Página Inicial
+// Todas as empresas activas — usado na sidebar da Página Inicial
 export const getEmpresas = () => pedido('/empresas');
 
-// Devolve o detalhe de uma empresa específica
+// Detalhe de uma empresa específica
 export const getEmpresa = (id) => pedido(`/empresas/${id}`);
 
 // ============================================================
-// ADMIN
+//  ADMIN
 // ============================================================
 
-// Devolve estatísticas gerais da plataforma para o painel admin
-export const getEstatisticas = () => pedido('/admin/stats');
+// Estatísticas gerais da plataforma — rota correcta: /admin/estatisticas
+export const getEstatisticas = () => pedido('/admin/estatisticas');
 
-// Lista todos os utilizadores registados na plataforma
-export const getUtilizadores = () => pedido('/admin/usuarios');
-
-// Lista todas as entregas da plataforma
-export const getTodasEntregas = () => pedido('/admin/entregas');
-
-// Devolve dados completos para o dashboard do admin
+// Dados completos para o dashboard do admin (numa só chamada)
 export const getDashboardAdmin = () => pedido('/admin/dashboard');
 
-// Lista utilizadores com opções de gestão (advertências, suspensão, bloqueio)
+// Lista todos os utilizadores — rota correcta: /admin/utilizadores
+export const getUtilizadores = () => pedido('/admin/utilizadores');
+
+// Alias usado pelo AdminUtilizadores.jsx
 export const getAdminUtilizadores = () => pedido('/admin/utilizadores');
 
-// Aplica uma advertência manual a um utilizador ou empresa
+// Todas as entregas da plataforma
+export const getTodasEntregas = () => pedido('/admin/entregas');
+
+// Aplica advertência manual a utilizador, coletador ou empresa
 export const aplicarAdvertencia = (id, tipo, motivo) =>
-  pedido(`/admin/utilizadores/${id}/advertencia`, { method: 'PATCH', body: JSON.stringify({ tipo, motivo }) });
+  pedido(`/admin/utilizadores/${id}/advertencia`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tipo, motivo }),
+  });
 
-// Suspende um utilizador ou empresa temporariamente
+// Suspende conta temporariamente (7 dias)
 export const suspenderUtilizador = (id, tipo, motivo) =>
-  pedido(`/admin/utilizadores/${id}/suspender`, { method: 'PATCH', body: JSON.stringify({ tipo, motivo }) });
+  pedido(`/admin/utilizadores/${id}/suspender`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tipo, motivo }),
+  });
 
-// Bloqueia permanentemente um utilizador ou empresa
+// Bloqueia conta permanentemente
 export const bloquearUtilizador = (id, tipo, motivo) =>
-  pedido(`/admin/utilizadores/${id}/bloquear`, { method: 'PATCH', body: JSON.stringify({ tipo, motivo }) });
+  pedido(`/admin/utilizadores/${id}/bloquear`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tipo, motivo }),
+  });
 
-// Reactiva uma conta suspensa ou bloqueada
+// Reactiva conta suspensa ou bloqueada
 export const reativarUtilizador = (id, tipo) =>
-  pedido(`/admin/utilizadores/${id}/reativar`, { method: 'PATCH', body: JSON.stringify({ tipo }) });
+  pedido(`/admin/utilizadores/${id}/reativar`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tipo }),
+  });
 
-// Lista o conteúdo educativo da plataforma
+// Conteúdo educativo da plataforma
 export const getAdminEducacao = () => pedido('/educacao');
 
-// Cria um novo conteúdo educativo
-export const criarEducacao = (dados) => pedido('/admin/educacao', { method: 'POST', body: JSON.stringify(dados) });
+// Cria novo conteúdo educativo
+export const criarEducacao = (dados) =>
+  pedido('/admin/educacao', { method: 'POST', body: JSON.stringify(dados) });
 
-// Edita um conteúdo educativo existente
-export const editarEducacao = (id, dados) => pedido(`/admin/educacao/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+// Edita conteúdo educativo existente
+export const editarEducacao = (id, dados) =>
+  pedido(`/admin/educacao/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
 
-// Apaga um conteúdo educativo
-export const apagarEducacao = (id) => pedido(`/admin/educacao/${id}`, { method: 'DELETE' });
+// Apaga conteúdo educativo (soft delete no servidor)
+export const apagarEducacao = (id) =>
+  pedido(`/admin/educacao/${id}`, { method: 'DELETE' });
 
-// Devolve relatórios da plataforma por período (dia, semana, mes, ano)
-export const getRelatoriosAdmin = (periodo = 'mes') => pedido(`/admin/relatorios?periodo=${periodo}`);
+// Relatórios financeiros por período: hoje | semana | mes | total
+export const getRelatoriosAdmin = (periodo = 'mes') =>
+  pedido(`/admin/relatorios?periodo=${periodo}`);
