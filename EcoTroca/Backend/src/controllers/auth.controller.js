@@ -1,89 +1,173 @@
+// ============================================================
+//  auth.controller.js
+//  Guardar em: src/controllers/auth.controller.js
+//
 //  Funções de autenticação da plataforma EcoTroca Angola:
-//  - registar         → cria conta com ativo=0, envia email de confirmação
-//  - confirmarEmail   → valida token e activa a conta (ativo=1)
-//  - login            → valida credenciais, devolve JWT
-//  - recuperarSenha   → envia link de redefinição por email e SMS
-//  - redefinirSenha   → valida token e guarda nova senha em hash
+//  - registar       → cria conta com ativo=1 e envia email de boas-vindas
+//  - confirmarEmail → mantido por compatibilidade (já não é obrigatório)
+//  - login          → valida credenciais e devolve JWT
+//  - recuperarSenha → envia link de redefinição por email e SMS
+//  - redefinirSenha → valida token e guarda nova senha em hash
+// ============================================================
 
 import pool           from '../config/database.js';
 import { hash as _hash, compare } from 'bcryptjs';
-import { gerarToken } from '../utils/jwt.js';
-import crypto         from 'crypto';
-import nodemailer     from 'nodemailer';
-import AfricasTalking from 'africastalking';
+import { gerarToken }  from '../utils/jwt.js';
+import crypto          from 'crypto';
+import nodemailer      from 'nodemailer';
+import AfricasTalking  from 'africastalking';
 
 // ── Nodemailer: envia emails via conta Gmail ──────────────────
-// EMAIL_PASS deve ser uma "palavra-passe de aplicação" do Gmail
-// Gerar em: Google Account → Segurança → Verificação em 2 etapas → Palavras-passe de app
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // ex: aversondaniel01@gmail.com
-    pass: process.env.EMAIL_PASS, // palavra-passe de app (não a senha normal)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
 // ── Africa's Talking: envia SMS para números angolanos ────────
-// AT_USERNAME=sandbox para testes locais
-// Em produção substitui pelo nome real da aplicação no painel AT
 const AT  = AfricasTalking({ apiKey: process.env.AT_API_KEY, username: process.env.AT_USERNAME });
 const sms = AT.SMS;
 
-// ════════════════════════════════════════════════════════════
-//  FUNÇÃO AUXILIAR: enviarEmailConfirmacao
-//  Gera um token aleatório seguro, guarda na tabela
-//  confirmacaoemail e envia o link por email ao utilizador.
-//  Chamada internamente pelo registar — não é uma rota directa.
-// ════════════════════════════════════════════════════════════
-const enviarEmailConfirmacao = async (id_usuario, email, nome) => {
 
-  // Gera token hexadecimal de 64 caracteres (32 bytes aleatórios)
-  const token     = crypto.randomBytes(32).toString('hex');
+//  Envia email de boas-vindas após o registo bem-sucedido.
+const enviarEmailBoasVindas = async (email, nome, tipo_usuario) => {
 
-  // O link de confirmação expira ao fim de 24 horas
-  const expiracao = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // Mensagem personalizada por tipo de conta
+  const mensagens = {
+  comum: {
+    titulo: 'Bem-vindo à EcoTroca Angola!',
+    corpo:  `Agora és parte de uma comunidade que transforma resíduos em valor. Podes publicar os teus materiais recicláveis, receber propostas de empresas e ganhar dinheiro enquanto cuidas do ambiente.`,
+    cta:    'Começar a Vender',
+    link:   `${process.env.FRONTEND_URL}/PaginaInicial`,
+  },
+  coletor: {
+    titulo: 'Bem-vindo à EcoTroca Angola!',
+    corpo:  `A tua conta de coletador está activa. Podes agora aceitar pedidos de recolha, gerir as tuas entregas e fazer parte de uma rede que valoriza o trabalho de quem recolhe.`,
+    cta:    'Ver Pedidos Disponíveis',
+    link:   `${process.env.FRONTEND_URL}/PaginaInicial`,
+  },
+  empresa: {
+    titulo: 'Bem-vinda à EcoTroca Angola!',
+    corpo:  `A tua empresa está registada na maior plataforma de reciclagem de Angola. Podes agora encontrar fornecedores de resíduos, gerir entregas e expandir a tua rede de coletadores.`,
+    cta:    'Aceder à Plataforma',
+    link:   `${process.env.FRONTEND_URL}/PaginaInicialEmpresa`,
+  },
+};
+  
 
-  // Apaga tokens anteriores deste utilizador para evitar duplicados na BD
-  await pool.query('DELETE FROM confirmacaoemail WHERE id_usuario = ?', [id_usuario]);
+  // Usa o tipo correcto ou cai no comum se não reconhecer
+  const m = mensagens[tipo_usuario] || mensagens.comum;
 
-  // Guarda o novo token associado ao utilizador
-  await pool.query(
-    'INSERT INTO confirmacaoemail (id_usuario, token, expira_em) VALUES (?, ?, ?)',
-    [id_usuario, token, expiracao]
-  );
-
-  // Constrói o link que vai no email — aponta para a página ConfirmarEmail do frontend
-  const link = `${process.env.FRONTEND_URL}/ConfirmarEmail/${token}`;
-
-  // Envia o email — erros aqui não bloqueiam o registo, apenas ficam no log
   try {
     await transporter.sendMail({
       from:    `"EcoTroca Angola" <${process.env.EMAIL_USER}>`,
       to:      email,
-      subject: 'Confirma a tua conta — EcoTroca Angola',
+      subject: m.titulo,
       html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">
-          <h2 style="color:#15803d;">EcoTroca Angola</h2>
-          <p>Olá, <strong>${nome}</strong>!</p>
-          <p>Obrigado por te registares na plataforma EcoTroca Angola.</p>
-          <p>Clica no botão abaixo para confirmar o teu email e activar a tua conta:</p>
-          <a href="${link}"
-             style="display:inline-block;background:#15803d;color:white;padding:12px 24px;
-                    border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">
-            Confirmar Email
-          </a>
-          <p style="color:#666;font-size:12px;">
-            Este link expira em <strong>24 horas</strong>.<br>
-            Se não criaste uma conta no EcoTroca, podes ignorar este email.
-          </p>
-          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-          <p style="color:#aaa;font-size:11px;">EcoTroca Angola — Conectando pessoas pela sustentabilidade</p>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;background:#f0fdf4;font-family:Arial,sans-serif;">
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;padding:40px 20px;">
+            <tr>
+              <td align="center">
+                <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+                  <!-- Cabeçalho verde -->
+                  <tr>
+                    <td style="background:#15803d;padding:36px 40px;text-align:center;">
+                      <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px;">
+                        🌿 EcoTroca Angola
+                      </h1>
+                      <p style="color:#bbf7d0;margin:8px 0 0;font-size:14px;">
+                        Conectando pessoas pela sustentabilidade
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Corpo -->
+                  <tr>
+                    <td style="padding:40px 40px 32px;">
+                      <h2 style="color:#14532d;font-size:22px;margin:0 0 16px;">
+                        ${m.titulo}
+                      </h2>
+                      <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 12px;">
+                        Olá, <strong>${nome}</strong>!
+                      </p>
+                      <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 28px;">
+                        ${m.corpo}
+                      </p>
+
+                      <!-- Botão CTA -->
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="background:#15803d;border-radius:10px;">
+                            <a href="${m.link}"
+                               style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;
+                                      padding:14px 32px;text-decoration:none;letter-spacing:0.3px;">
+                              ${m.cta} →
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Destaques da plataforma -->
+                  <tr>
+                    <td style="padding:0 40px 32px;">
+                      <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="background:#f0fdf4;border-radius:10px;padding:20px 24px;">
+                            <p style="color:#15803d;font-weight:700;font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px;">
+                              O que podes fazer na plataforma
+                            </p>
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="padding:4px 0;color:#374151;font-size:14px;">♻️ &nbsp;Publicar e gerir resíduos recicláveis</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:4px 0;color:#374151;font-size:14px;">💰 &nbsp;Receber propostas e ganhar dinheiro</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:4px 0;color:#374151;font-size:14px;">🤝 &nbsp;Conectar com empresas e coletadores</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:4px 0;color:#374151;font-size:14px;">📊 &nbsp;Acompanhar o teu impacto ambiental</td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Rodapé -->
+                  <tr>
+                    <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+                      <p style="color:#9ca3af;font-size:12px;margin:0;">
+                        EcoTroca Angola — Conectando pessoas pela sustentabilidade<br>
+                        Se não criaste esta conta, ignora este email.
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+        </body>
+        </html>
       `,
     });
+    console.log(`Email de boas-vindas enviado para ${email}`);
   } catch (errEmail) {
-    // Regista o erro mas não interrompe o fluxo — o utilizador pode pedir reenvio
-    console.error('Erro ao enviar email de confirmação:', errEmail.message);
+    // Erro no email não bloqueia o registo — utilizador já entrou na plataforma
+    console.error('Erro ao enviar email de boas-vindas:', errEmail.message);
   }
 };
 
@@ -91,16 +175,10 @@ const enviarEmailConfirmacao = async (id_usuario, email, nome) => {
 //  registar
 //  POST /api/auth/registar
 //
-//  Cria a conta do utilizador com ativo=0 (inactiva).
-//  A conta só fica activa depois de o utilizador clicar
-//  no link de confirmação enviado para o email.
-//
-//  Cria também os registos associados:
-//  - pontuacaousuario  → pontos de reciclagem
-//  - recompensausuario → histórico de recompensas
-//  - carteira          → saldo (não criada para empresas)
-//  - coletador         → perfil de coletador (só tipo 'coletor')
-//  - empresarecicladora→ perfil de empresa (só tipo 'empresa')
+//  Cria a conta com ativo=1 — activa imediatamente.
+//  O utilizador é redirecionado para a plataforma logo após
+//  o cadastro, sem precisar de confirmar o email.
+//  Se tiver email, recebe uma mensagem de boas-vindas.
 // ════════════════════════════════════════════════════════════
 const registar = async ({
   nome, email, telefone, senha, tipo_usuario,
@@ -108,49 +186,47 @@ const registar = async ({
   horario_abertura, horario_fechamento
 }) => {
 
-  // Verifica se já existe uma conta com o mesmo email ou telefone
+  // Verifica se já existe conta com o mesmo email ou telefone
   const [existe] = await pool.query(
     'SELECT id_usuario FROM usuario WHERE email = ? OR telefone = ?',
     [email || null, telefone]
   );
   if (existe.length > 0) throw new Error('Email ou telefone já registado.');
 
-  // Nunca guardar a senha em texto claro — sempre hash bcrypt com custo 10
+  // Hash da senha — nunca guardar em texto claro
   const hash = await _hash(senha, 10);
 
-  // Insere o utilizador com ativo=0 — fica bloqueado até confirmar o email
+  // Cria a conta com ativo=1 — activa imediatamente após o registo
   const [result] = await pool.query(
     `INSERT INTO usuario
        (nome, email, telefone, senha, tipo_usuario, provincia, municipio, bairro, bi, data_nascimento, ativo)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     [
       nome,
-      email        || null,
+      email           || null,
       telefone,
       hash,
-      tipo_usuario || 'comum',
-      provincia    || null,
-      municipio    || null,
-      bairro       || null,
-      bi           || null,
+      tipo_usuario    || 'comum',
+      provincia       || null,
+      municipio       || null,
+      bairro          || null,
+      bi              || null,
       data_nascimento || null,
     ]
   );
 
   const id_usuario = result.insertId;
 
-  // Cria registo de pontuação — começa em zero
+  // Cria registos associados ao novo utilizador
   await pool.query('INSERT INTO pontuacaousuario (id_usuario) VALUES (?)', [id_usuario]);
-
-  // Cria registo de recompensas — começa vazio
   await pool.query('INSERT INTO recompensausuario (id_usuario) VALUES (?)', [id_usuario]);
 
-  // Empresas não têm carteira — os pagamentos passam pelo modelo de comissão
+  // Carteira só para não-empresas
   if (tipo_usuario !== 'empresa') {
     await pool.query('INSERT INTO carteira (id_usuario) VALUES (?)', [id_usuario]);
   }
 
-  // Coletadores precisam de um registo extra na tabela coletador
+  // Registo extra para coletadores
   if (tipo_usuario === 'coletor') {
     await pool.query(
       `INSERT INTO coletador (id_usuario, nome, telefone, tipo) VALUES (?, ?, ?, 'independente')`,
@@ -158,7 +234,7 @@ const registar = async ({
     );
   }
 
-  // Empresas precisam de um registo extra na tabela empresarecicladora
+  // Registo extra para empresas
   if (tipo_usuario === 'empresa') {
     await pool.query(
       `INSERT INTO empresarecicladora
@@ -168,97 +244,68 @@ const registar = async ({
     );
   }
 
-  // Envia email de confirmação se o utilizador forneceu email
-  // Registo sem email (só telefone) fica pendente de activação manual pelo admin
-  if (email) await enviarEmailConfirmacao(id_usuario, email, nome);
+  // Envia email de boas-vindas em segundo plano — não bloqueia o login
+  if (email) enviarEmailBoasVindas(email, nome, tipo_usuario || 'comum');
 
-  // Não devolve token de sessão — o utilizador ainda não está activo
+  // Gera token JWT — utilizador entra directamente na plataforma
+  const token = gerarToken({ id_usuario, tipo_usuario: tipo_usuario || 'comum' });
+
   return {
-    mensagem: email
-      ? 'Conta criada! Verifica o teu email para activar a conta.'
-      : 'Conta criada! Fala com um administrador para activar a tua conta.',
-    confirmar_email: !!email, // o frontend usa isto para mostrar aviso apropriado
+    token,
+    id_usuario,
+    tipo_usuario: tipo_usuario || 'comum',
+    nome,
   };
 };
 
 // ════════════════════════════════════════════════════════════
-//  confirmarEmail
-//  GET /api/auth/confirmar-email/:token
-//
-//  Recebe o token do link enviado por email.
-//  Valida se o token existe e não expirou.
-//  Se válido: activa a conta (ativo=1) e apaga o token.
-//  Se inválido ou expirado: devolve erro com instrução.
+//  confirmarEmail — mantido por compatibilidade
+//  Já não é obrigatório para activar a conta mas pode ser
+//  usado futuramente para verificar o email do utilizador.
 // ════════════════════════════════════════════════════════════
 const confirmarEmail = async ({ token }) => {
   if (!token) throw new Error('Token inválido.');
 
-  // Procura o token na BD — só aceita tokens que ainda não expiraram
   const [rows] = await pool.query(
     `SELECT id_usuario FROM confirmacaoemail
-     WHERE token = ? AND expira_em > NOW()
-     LIMIT 1`,
+     WHERE token = ? AND expira_em > NOW() LIMIT 1`,
     [token]
   );
 
-  // Token inválido, já usado ou expirado
   if (!rows.length)
-    throw new Error('Este link é inválido ou já expirou. Faz login para receber um novo link de confirmação.');
+    throw new Error('Este link é inválido ou já expirou.');
 
-  const { id_usuario } = rows[0];
-
-  // Activa a conta — agora o utilizador consegue fazer login
-  await pool.query('UPDATE usuario SET ativo = 1 WHERE id_usuario = ?', [id_usuario]);
-
-  // Apaga o token para que o mesmo link não possa ser usado novamente
+  await pool.query('UPDATE usuario SET ativo = 1 WHERE id_usuario = ?', [rows[0].id_usuario]);
   await pool.query('DELETE FROM confirmacaoemail WHERE token = ?', [token]);
 
-  return { mensagem: 'Email confirmado com sucesso! Já podes fazer login.' };
+  return { mensagem: 'Email confirmado com sucesso!' };
 };
 
 // ════════════════════════════════════════════════════════════
 //  login
 //  POST /api/auth/login
-//
-//  Valida email/telefone + senha.
-//  A condição ativo=TRUE garante que contas não confirmadas
-//  não conseguem entrar — devolve mensagem específica.
-//  Devolve JWT com id_usuario e tipo_usuario para o frontend
-//  guardar em localStorage e enviar nas chamadas autenticadas.
 // ════════════════════════════════════════════════════════════
 const login = async ({ email, senha }) => {
 
-  // Procura apenas contas activas — ativo=TRUE bloqueia contas por confirmar
   const [rows] = await pool.query(
     `SELECT * FROM usuario WHERE (email = ? OR telefone = ?) AND ativo = TRUE`,
     [email, email]
   );
 
   if (rows.length === 0) {
-
-    // Verifica se a conta existe mas ainda não foi confirmada
-    // para dar uma mensagem mais útil ao utilizador
     const [inativo] = await pool.query(
       'SELECT id_usuario FROM usuario WHERE email = ? OR telefone = ?',
       [email, email]
     );
-
-    if (inativo.length > 0) {
-      // Conta existe mas ativo=0 — falta confirmar o email
-      throw new Error('A tua conta ainda não foi activada. Verifica o teu email e clica no link de confirmação.');
-    }
-
-    // Conta não existe de todo
+    if (inativo.length > 0)
+      throw new Error('A tua conta está inactiva. Contacta o suporte.');
     throw new Error('Utilizador não encontrado.');
   }
 
-  const usuario = rows[0];
-
-  // Compara a senha fornecida com o hash guardado na BD
+  const usuario      = rows[0];
   const senhaCorreta = await compare(senha, usuario.senha);
   if (!senhaCorreta) throw new Error('Senha incorreta.');
 
-  // Gera JWT com os dados mínimos necessários para autenticar pedidos futuros
   const token = gerarToken({ id_usuario: usuario.id_usuario, tipo_usuario: usuario.tipo_usuario });
 
   return {
@@ -272,32 +319,22 @@ const login = async ({ email, senha }) => {
 // ════════════════════════════════════════════════════════════
 //  recuperarSenha
 //  POST /api/auth/recuperar-senha
-//
-//  Aceita email ou telefone. Gera token seguro, guarda na BD
-//  e envia link de redefinição por email (Gmail) e por SMS
-//  (Africa's Talking). Responde sempre com a mesma mensagem
-//  para não revelar se a conta existe (protecção anti-enumeração).
 // ════════════════════════════════════════════════════════════
 const recuperarSenha = async ({ emailOuTelefone }) => {
   if (!emailOuTelefone) throw new Error('Email ou telefone é obrigatório.');
 
-  // Procura a conta — sem filtro de ativo para permitir recuperação de contas inactivas
   const [rows] = await pool.query(
     'SELECT * FROM usuario WHERE email = ? OR telefone = ? LIMIT 1',
     [emailOuTelefone, emailOuTelefone]
   );
 
-  // Resposta genérica para não revelar se o email/telefone existe na BD
   if (!rows.length)
     return { mensagem: 'Se existir uma conta com esses dados, receberás as instruções.' };
 
   const usuario   = rows[0];
-
-  // Token aleatório seguro de 64 caracteres, expira em 1 hora
   const token     = crypto.randomBytes(32).toString('hex');
-  const expiracao = new Date(Date.now() + 60 * 60 * 1000);
+  const expiracao = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
-  // Substitui qualquer token anterior — só um link activo por vez
   await pool.query('DELETE FROM recuperacaosenha WHERE id_usuario = ?', [usuario.id_usuario]);
   await pool.query(
     'INSERT INTO recuperacaosenha (id_usuario, token, expira_em) VALUES (?, ?, ?)',
@@ -306,7 +343,6 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
 
   const link = `${process.env.FRONTEND_URL}/RedefinirSenha/${token}`;
 
-  // ── Email de redefinição ──────────────────────────────────
   if (usuario.email) {
     try {
       await transporter.sendMail({
@@ -318,42 +354,24 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
             <h2 style="color:#15803d;">EcoTroca Angola</h2>
             <p>Olá, <strong>${usuario.nome}</strong>!</p>
             <p>Recebemos um pedido para redefinir a senha da tua conta.</p>
-            <p>Clica no botão abaixo para criar uma nova senha:</p>
             <a href="${link}"
                style="display:inline-block;background:#15803d;color:white;padding:12px 24px;
                       border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">
               Redefinir Senha
             </a>
-            <p style="color:#666;font-size:12px;">
-              Este link expira em <strong>1 hora</strong>.<br>
-              Se não pediste a recuperação, ignora este email.
-            </p>
-            <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-            <p style="color:#aaa;font-size:11px;">EcoTroca Angola — Conectando pessoas pela sustentabilidade</p>
+            <p style="color:#666;font-size:12px;">Expira em <strong>1 hora</strong>.</p>
           </div>
         `,
       });
-    } catch (e) {
-      // Erro no email não bloqueia a resposta — SMS pode ainda chegar
-      console.error('Erro ao enviar email de recuperação:', e.message);
-    }
+    } catch (e) { console.error('Erro ao enviar email de recuperação:', e.message); }
   }
 
-  // ── SMS de redefinição via Africa's Talking ───────────────
   if (usuario.telefone) {
     try {
-      // Normaliza o número para formato internacional angolano (+244...)
       let tel = usuario.telefone.replace(/\s/g, '');
       if (!tel.startsWith('+')) tel = '+244' + tel.replace(/^0+/, '');
-
-      await sms.send({
-        to:      [tel],
-        message: `EcoTroca Angola: Redefine a tua senha (válido 1h): ${link}`,
-      });
-    } catch (e) {
-      // Erro no SMS não bloqueia a resposta — email pode já ter chegado
-      console.error('Erro ao enviar SMS de recuperação:', e.message);
-    }
+      await sms.send({ to: [tel], message: `EcoTroca Angola: Redefine a tua senha (1h): ${link}` });
+    } catch (e) { console.error('Erro ao enviar SMS de recuperação:', e.message); }
   }
 
   return { mensagem: 'Se existir uma conta com esses dados, receberás as instruções.' };
@@ -362,38 +380,22 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
 // ════════════════════════════════════════════════════════════
 //  redefinirSenha
 //  POST /api/auth/redefinir-senha/:token
-//
-//  Valida o token de recuperação, verifica a expiração,
-//  guarda o hash da nova senha e apaga o token para
-//  impedir reutilização do mesmo link.
 // ════════════════════════════════════════════════════════════
 const redefinirSenha = async ({ token, senha }) => {
-
-  // A nova senha deve ter pelo menos 6 caracteres
   if (!senha || senha.length < 6)
     throw new Error('A senha deve ter pelo menos 6 caracteres.');
 
-  // Verifica se o token é válido e ainda não expirou
   const [rows] = await pool.query(
     `SELECT id_usuario FROM recuperacaosenha
-     WHERE token = ? AND expira_em > NOW()
-     LIMIT 1`,
+     WHERE token = ? AND expira_em > NOW() LIMIT 1`,
     [token]
   );
 
   if (!rows.length)
     throw new Error('Este link é inválido ou já expirou. Pede uma nova recuperação de senha.');
 
-  // Hash da nova senha antes de guardar — nunca texto claro
   const hashSenha = await _hash(senha, 10);
-
-  // Actualiza a senha na BD
-  await pool.query(
-    'UPDATE usuario SET senha = ? WHERE id_usuario = ?',
-    [hashSenha, rows[0].id_usuario]
-  );
-
-  // Apaga o token — não pode ser reutilizado para redefinir novamente
+  await pool.query('UPDATE usuario SET senha = ? WHERE id_usuario = ?', [hashSenha, rows[0].id_usuario]);
   await pool.query('DELETE FROM recuperacaosenha WHERE token = ?', [token]);
 
   return { mensagem: 'Senha redefinida com sucesso! Já podes fazer login.' };
