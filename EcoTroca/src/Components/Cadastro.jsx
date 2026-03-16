@@ -6,7 +6,7 @@ import { registar } from "../api.js";
 // ═══════════════════════════════════════════════════════════════
 // FUNÇÕES DE VALIDAÇÃO
 // Cada função recebe um valor e devolve:
-//   - null → campo válido
+//   - null   → campo válido
 //   - string → mensagem de erro a mostrar ao utilizador
 // ═══════════════════════════════════════════════════════════════
 
@@ -112,17 +112,13 @@ const Campo = ({ label, obrigatorio, type = "text", hint, value, onChange, erro 
 const Cadastro = () => {
   const navigate = useNavigate();
 
-  // Tipo de conta selecionado
+  // Tipo de conta seleccionado — comum por defeito
   const [tipo,       setTipo]       = useState("comum");
   const [erro,       setErro]       = useState("");
   const [erros,      setErros]      = useState({});
   const [carregando, setCarregando] = useState(false);
 
-  // Após registo com email — mostra ecrã de "verifica o teu email"
-  const [verificacaoPendente, setVerificacaoPendente] = useState(false);
-  const [emailRegistado,      setEmailRegistado]      = useState("");
-
-  // Estado do formulário
+  // Estado do formulário — todos os campos começam vazios
   const [form, setForm] = useState({
     nome: "", telefone: "", provincia: "", municipio: "",
     bairro: "", bi: "", data_nascimento: "",
@@ -130,13 +126,13 @@ const Cadastro = () => {
     email: "", senha: "", confirmar_senha: "",
   });
 
-  // Actualiza um campo e limpa o seu erro
+  // Actualiza um campo e limpa o seu erro individualmente
   const atualizar = (campo) => (e) => {
     setForm((prev) => ({ ...prev, [campo]: e.target.value }));
     setErros((prev) => ({ ...prev, [campo]: null }));
   };
 
-  // Valida todos os campos antes de enviar
+  // Valida todos os campos antes de enviar ao servidor
   const validarTudo = () => {
     const novosErros = {};
     novosErros.nome     = validarNome(form.nome);
@@ -151,14 +147,17 @@ const Cadastro = () => {
     } else if (form.senha !== form.confirmar_senha) {
       novosErros.confirmar_senha = "As senhas não coincidem.";
     }
+    // BI e data de nascimento só para utilizador e coletador
     if (tipo !== "empresa") {
       novosErros.bi              = validarBI(form.bi);
       novosErros.data_nascimento = validarDataNascimento(form.data_nascimento);
     }
+    // Horários só para empresa
     if (tipo === "empresa") {
       if (!form.horario_abertura)   novosErros.horario_abertura   = "Horário de abertura é obrigatório.";
       if (!form.horario_fechamento) novosErros.horario_fechamento = "Horário de fechamento é obrigatório.";
     }
+    // Remove erros nulos — só mantém os campos com problema
     const errosFiltrados = Object.fromEntries(
       Object.entries(novosErros).filter(([, v]) => v !== null && v !== undefined)
     );
@@ -166,7 +165,10 @@ const Cadastro = () => {
     return Object.keys(errosFiltrados).length === 0;
   };
 
-  // Envio do formulário ao backend
+  // ── Envio do formulário ───────────────────────────────────
+  // Cria a conta, guarda o token e redireciona directamente
+  // para a página do tipo de conta — sem confirmação de email obrigatória.
+  // Se tiver email, o backend envia uma mensagem de boas-vindas em segundo plano.
   const handleCriarConta = async () => {
     setErro("");
     if (!validarTudo()) {
@@ -177,14 +179,15 @@ const Cadastro = () => {
     try {
       setCarregando(true);
 
+      // Prepara os dados conforme o tipo de conta
       const dados = {
-        nome:        form.nome.trim(),
-        telefone:    form.telefone.replace(/\s/g, ""),
-        provincia:   form.provincia.trim(),
-        municipio:   form.municipio.trim(),
-        bairro:      form.bairro.trim(),
-        email:       form.email.trim() || null,
-        senha:       form.senha,
+        nome:         form.nome.trim(),
+        telefone:     form.telefone.replace(/\s/g, ""),
+        provincia:    form.provincia.trim(),
+        municipio:    form.municipio.trim(),
+        bairro:       form.bairro.trim(),
+        email:        form.email.trim() || null,
+        senha:        form.senha,
         tipo_usuario: tipo,
         ...(tipo !== "empresa" && {
           bi:              form.bi.toUpperCase() || null,
@@ -196,65 +199,27 @@ const Cadastro = () => {
         }),
       };
 
+      // Chama o backend — devolve token + tipo_usuario + id_usuario
+      // O api.js já guarda o token e dados no localStorage automaticamente
       const resultado = await registar(dados);
 
-      // ── Tratamento do resultado ───────────────────────────
-      // Se o utilizador tem email → backend envia email de confirmação
-      // e devolve verificacao_pendente=true — mostramos ecrã de aviso
-      if (resultado.verificacao_pendente) {
-        setEmailRegistado(form.email.trim());
-        setVerificacaoPendente(true);
-        return;
-      }
-
-      // Se não tem email (só telefone) → conta activa imediatamente
-      // Redireciona para a página correta conforme o tipo
-      if (tipo === "coletor")      navigate("/ColetadorDashboard");
-      else if (tipo === "empresa") navigate("/DashboardEmpresa");
-      else                         navigate("/PaginaInicial");
+      // Redireciona para a página correcta conforme o tipo de conta
+      // A conta está activa imediatamente — não precisa de confirmar email
+      if (resultado.tipo_usuario === "coletor")      navigate("/ColetadorDashboard");
+      else if (resultado.tipo_usuario === "empresa") navigate("/DashboardEmpresa");
+      else                                           navigate("/PaginaInicial");
 
     } catch (err) {
+      // Mostra o erro devolvido pelo servidor — ex: "Email ou telefone já registado"
       setErro(err.message);
     } finally {
       setCarregando(false);
     }
   };
 
-  // ─────────────────────────────────────────────
-  // ECRÃ DE VERIFICAÇÃO PENDENTE
-  // Aparece após registo com email — pede ao utilizador para verificar a caixa de entrada
-  // ─────────────────────────────────────────────
-  if (verificacaoPendente) {
-    return (
-      <div className="w-full min-h-screen flex justify-center items-center py-12 bg-green-900 px-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="text-5xl mb-4">📬</div>
-          <h2 className="text-2xl font-bold text-green-900 mb-2">Verifica o teu email</h2>
-          <p className="text-gray-600 text-sm mb-4">
-            Enviámos um link de confirmação para:
-          </p>
-          <p className="text-green-700 font-semibold text-base mb-6">
-            {emailRegistado}
-          </p>
-          <p className="text-gray-500 text-sm mb-6">
-            Clica no link do email para activar a tua conta.<br />
-            Verifica também a pasta de <strong>spam</strong>.
-          </p>
-          {/* Link para o login após confirmar */}
-          <Link
-            to="/Login"
-            className="inline-block bg-green-800 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition"
-          >
-            Já confirmei — Ir para o login
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // RENDER PRINCIPAL — Formulário de registo
-  // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────
+  // RENDER — Formulário de registo
+  // ─────────────────────────────────────────────────────────
   return (
     <div id="Cadastro" className="w-full flex justify-center py-12 bg-green-900">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 sm:p-8">
@@ -305,9 +270,9 @@ const Cadastro = () => {
             </div>
           )}
 
-          {/* Email — opcional mas recomendado para confirmação */}
+          {/* Email — opcional, mas se fornecido recebe email de boas-vindas */}
           <Campo
-            label="Email (opcional mas recomendado)" type="email"
+            label="Email (opcional)" type="email"
             value={form.email} onChange={atualizar("email")}
             hint="Ex: nome@email.com" erro={erros.email}
           />
@@ -315,7 +280,7 @@ const Cadastro = () => {
           <Campo label="Confirmar senha" type="password" obrigatorio value={form.confirmar_senha} onChange={atualizar("confirmar_senha")} erro={erros.confirmar_senha} />
         </div>
 
-        {/* Erro geral */}
+        {/* Mensagem de erro geral */}
         {erro && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
             {erro}
