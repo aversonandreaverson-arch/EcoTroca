@@ -1,7 +1,9 @@
+// ============================================================
+//  api.js — Ficheiro central de comunicação com o backend
 
 const BASE_URL = 'http://localhost:3000/api';
 
-// ── Função base para todas as chamadas
+// ── Função base para todas as chamadas 
 // Adiciona o token JWT automaticamente em cada pedido.
 // Se o servidor devolver 401 (token expirado/inválido),
 // limpa o localStorage e redireciona para o login.
@@ -53,15 +55,22 @@ export const login = async (emailOuTelefone, senha) => {
   return dados;
 };
 
-// Regista um novo utilizador.
-// O backend devolve { mensagem, confirmar_email } — não devolve token
-// porque a conta ainda não está activa (ativo=0 até confirmar email).
+// Regista um novo utilizador e entra directamente na plataforma.
+// O backend devolve token JWT — conta activa imediatamente (ativo=1).
+// Se tiver email, recebe mensagem de boas-vindas em segundo plano.
 export const registar = async (dadosFormulario) => {
   const dados = await pedido('/auth/registar', {
     method: 'POST',
     body: JSON.stringify(dadosFormulario),
   });
-  // Não guarda token — utilizador precisa de confirmar email antes de entrar
+  // Guarda token e dados — utilizador entra directamente após o registo
+  localStorage.setItem('token', dados.token);
+  localStorage.setItem('usuario', JSON.stringify({
+    id:           dados.id_usuario,
+    nome:         dados.nome,
+    tipo:         dados.tipo_usuario,
+    tipo_usuario: dados.tipo_usuario,
+  }));
   return dados;
 };
 
