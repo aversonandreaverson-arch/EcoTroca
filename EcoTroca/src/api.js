@@ -1,9 +1,12 @@
 // ============================================================
 //  api.js — Ficheiro central de comunicação com o backend
+//  Todas as chamadas ao servidor passam por aqui.
+//  Guardar em: src/api.js
+// ============================================================
 
 const BASE_URL = 'http://localhost:3000/api';
 
-// ── Função base para todas as chamadas 
+// ── Função base para todas as chamadas ───────────────────────
 // Adiciona o token JWT automaticamente em cada pedido.
 // Se o servidor devolver 401 (token expirado/inválido),
 // limpa o localStorage e redireciona para o login.
@@ -387,3 +390,71 @@ export const apagarEducacao = (id) =>
 // Relatórios financeiros por período: hoje | semana | mes | total
 export const getRelatoriosAdmin = (periodo = 'mes') =>
   pedido(`/admin/relatorios?periodo=${periodo}`);
+
+// ============================================================
+//  RECOLHAS AGENDADAS
+// ============================================================
+
+// Lista todas as recolhas agendadas da empresa com coletadores e entregas
+export const getRecolhasEmpresa = () => pedido('/empresas/minhas/recolhas');
+
+// Acordos aceites ainda não associados a nenhuma recolha
+// Devolve também se o limiar foi atingido
+export const getAcordosPendentes = () => pedido('/empresas/minhas/acordos-pendentes');
+
+// Cria uma nova recolha agendada com coletadores e entregas seleccionadas
+// id_coletadores: array de ids, id_entregas: array de ids
+export const criarRecolha = (dados) =>
+  pedido('/empresas/minhas/recolhas', { method: 'POST', body: JSON.stringify(dados) });
+
+// Actualiza o status de uma recolha: agendada → em_curso → concluida
+export const actualizarStatusRecolha = (id, status) =>
+  pedido(`/empresas/minhas/recolhas/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+
+// Verifica se a empresa atingiu o limiar de acordos pendentes
+export const verificarLimiar = () => pedido('/empresas/minhas/limiar');
+
+// Actualiza o limiar de recolha da empresa
+export const actualizarLimiar = (limiar_recolha) =>
+  pedido('/empresas/minhas/limiar', { method: 'PUT', body: JSON.stringify({ limiar_recolha }) });
+
+// ============================================================
+//  RECOLHAS AGENDADAS
+// ============================================================
+
+// Lista todas as recolhas agendadas da empresa
+export const getRecolhasEmpresa = () =>
+  pedido('/empresas/minhas/recolhas');
+
+// Detalhe de uma recolha — coletadores + entregas associadas
+export const getRecolha = (id) =>
+  pedido(`/empresas/minhas/recolhas/${id}`);
+
+// Cria uma nova recolha agendada com coletadores e entregas
+// ids_coletadores: array de ids, ids_entregas: array de ids
+// Notifica automaticamente todos os utilizadores envolvidos
+export const criarRecolha = (dados) =>
+  pedido('/empresas/minhas/recolhas', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  });
+
+// Actualiza o status de uma recolha: agendada | em_curso | concluida | cancelada
+// Quando concluída ou cancelada, notifica os utilizadores
+export const actualizarStatusRecolha = (id, status) =>
+  pedido(`/empresas/minhas/recolhas/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
+// Lista entregas com acordo mas ainda sem recolha agendada
+// Também devolve { atingiu_limiar, sugestao } para alertar a empresa
+export const getAcordosPendentes = () =>
+  pedido('/empresas/minhas/acordos-pendentes');
+
+// Actualiza o limiar de acordos que dispara a sugestão de recolha em lote
+export const actualizarLimiar = (limiar_recolha) =>
+  pedido('/empresas/minhas/limiar', {
+    method: 'PUT',
+    body: JSON.stringify({ limiar_recolha }),
+  });
