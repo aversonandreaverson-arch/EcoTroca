@@ -1,7 +1,3 @@
-// ============================================================
-//  DashboardEmpresa.jsx
-//  Guardar em: src/Components/EmpresaProfile/DashboardEmpresa.jsx
-// ============================================================
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +8,8 @@ import {
   FileText, Wrench, Wine,
   ThumbsDown, Smile, ThumbsUp, Star,
   ImagePlus, AlertCircle, UserCheck, ToggleLeft, ToggleRight,
-  Scale, Hash, Target
+  Scale, Hash, Target, Info, ChevronDown, ChevronUp,
+  Bell, Package2
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
 import {
@@ -23,8 +20,14 @@ import {
   getFeed,
   criarPublicacao,
   getResiduos,
+  getConversoes,
+  getAcordosPendentes,
+  getRecolhasEmpresa,
+  criarRecolha,
+  actualizarStatusRecolha,
 } from '../../api.js';
 
+// ── Ícones por tipo de resíduo ────────────────────────────────
 const ICONE_TIPO = {
   Plastico: <Recycle  size={20} className="mx-auto mb-1 text-green-600"  />,
   Papel:    <FileText size={20} className="mx-auto mb-1 text-yellow-600" />,
@@ -54,66 +57,126 @@ const COR_RESIDUO = {
   'Cobre':        'bg-amber-100 text-amber-700',
 };
 
+// ── Status de recolha ─────────────────────────────────────────
+const STATUS_CONFIG = {
+  agendada:  { label: 'Agendada',  cor: 'bg-blue-100 text-blue-700'     },
+  em_curso:  { label: 'Em Curso',  cor: 'bg-yellow-100 text-yellow-700'  },
+  concluida: { label: 'Concluída', cor: 'bg-green-100 text-green-700'    },
+  cancelada: { label: 'Cancelada', cor: 'bg-red-100 text-red-700'        },
+};
+
+// ── Formulário vazio do pedido ────────────────────────────────
 const FORM_VAZIO = {
-  tipo_publicacao:      'pedido_residuo',
-  titulo:               '',
-  descricao:            '',
-  id_residuo:           '',
-  quantidade_unidades:  '', // unidades (garrafas, sacos, etc.)
-  quantidade_kg:        '', // kg — opcional se souber o peso
-  minimo_para_agendar:  '', // limiar — quantidade mínima acumulada para agendar recolha
-  minimo_tipo:          'kg', // 'kg' ou 'unidades' — unidade do limiar
-  valor_proposto:       '',
-  imagem:               '',
-  observacoes:          '',
-  com_coletador:        false,
-  id_coletadores:       [], // selecção múltipla de coletadores dependentes
+  tipo_publicacao:       'pedido_residuo',
+  titulo:                '',
+  descricao:             '',
+  id_residuo:            '',
+  valor_proposto:        '',
+  imagem:                '',
+  observacoes:           '',
+  // Conversão de unidades
+  nome_unidade:          '', // ex: garrafa, saco, peça
+  kg_por_unidade:        '', // ex: 0.03 — 1 garrafa = 0,03 kg
+  // Mínimo por pessoa
+  minimo_por_pessoa_kg:  '', // mínimo em kg que cada pessoa deve ter
+  // Total para agendar recolha
+  minimo_para_agendar:   '', // total em kg acumulado para agendar
+  // Coletador
+  com_coletador:         false,
+  id_coletadores:        [],
 };
 
 export default function DashboardEmpresa() {
   const navigate = useNavigate();
 
-  const [perfil,      setPerfil]      = useState(null);
-  const [entregas,    setEntregas]    = useState([]);
-  const [eventos,     setEventos]     = useState([]);
-  const [coletadores, setColetadores] = useState([]);
-  const [pedidos,     setPedidos]     = useState([]);
-  const [carregando,  setCarregando]  = useState(true);
-  const [erro,        setErro]        = useState('');
+  // ── Dados da API ──────────────────────────────────────────
+  const [perfil,       setPerfil]       = useState(null);
+  const [entregas,     setEntregas]     = useState([]);
+  const [eventos,      setEventos]      = useState([]);
+  const [coletadores,  setColetadores]  = useState([]);
+  const [pedidos,      setPedidos]      = useState([]);
+  const [carregando,   setCarregando]   = useState(true);
+  const [erro,         setErro]         = useState('');
 
-  const [modalAberto, setModalAberto] = useState(false);
-  const [formulario,  setFormulario]  = useState(FORM_VAZIO);
-  const [publicando,  setPublicando]  = useState(false);
-  const [erroForm,    setErroForm]    = useState('');
+  // ── Modal de novo pedido ──────────────────────────────────
+  const [modalPedido,  setModalPedido]  = useState(false);
+  const [formulario,   setFormulario]   = useState(FORM_VAZIO);
+  const [publicando,   setPublicando]   = useState(false);
+  const [erroForm,     setErroForm]     = useState('');
 
+  // ── Selector de resíduo ───────────────────────────────────
   const [todosResiduos,         setTodosResiduos]         = useState([]);
+  const [conversoesPorTipo,     setConversoesPorTipo]     = useState({}); // { Plastico: { nome_unidade, kg_por_unidade } }
   const [tiposUnicos,           setTiposUnicos]           = useState([]);
   const [tipoSelecionado,       setTipoSelecionado]       = useState('');
   const [qualidadesDisponiveis, setQualidadesDisponiveis] = useState([]);
 
-  // Só coletadores dependentes podem ser enviados para recolha
-  const coletadoresDependentes = coletadores.filter(c => c.tipo === 'dependente');
+  // ── Modal de recolhas ─────────────────────────────────────
+  const [modalRecolhas,    setModalRecolhas]    = useState(false);
+  const [acordos,          setAcordos]          = useState([]);
+  const [recolhas,         setRecolhas]         = useState([]);
+  const [totalAcordos,     setTotalAcordos]     = useState(0);
+  const [limiar,           setLimiar]           = useState(0);
+  const [atingiuLimiar,    setAtingiuLimiar]    = useState(false);
+  const [sugestao,         setSugestao]         = useState('');
+  const [recolhaExpandida, setRecolhaExpandida] = useState(null);
+  const [carregandoRecolhas, setCarregandoRecolhas] = useState(false);
 
-  const [imagemPreview,  setImagemPreview]  = useState('');
-  const [erroImagem,     setErroImagem]     = useState('');
+  // ── Modal de agendamento (dentro do modal de recolhas) ────
+  const [modalAgendar,   setModalAgendar]   = useState(false);
+  const [dataRecolha,    setDataRecolha]    = useState('');
+  const [horaRecolha,    setHoraRecolha]    = useState('');
+  const [idsColetadores, setIdsColetadores] = useState([]);
+  const [idsEntregas,    setIdsEntregas]    = useState([]);
+  const [agendando,      setAgendando]      = useState(false);
+  const [erroAgendar,    setErroAgendar]    = useState('');
+
+  // ── Imagem ────────────────────────────────────────────────
+  const [imagemPreview, setImagemPreview] = useState('');
+  const [erroImagem,    setErroImagem]    = useState('');
   const inputFicheiroRef = useRef(null);
 
+  // Coletadores dependentes — únicos que podem ser enviados para recolha
+  const coletadoresDependentes = coletadores.filter(c => c.tipo === 'dependente');
+
+  // Resíduo seleccionado — para mostrar intervalo de preço e conversão
   const residuoSeleccionado = qualidadesDisponiveis.find(
     r => String(r.id_residuo) === String(formulario.id_residuo)
   );
 
-  // Estimativa total — só calcula se tiver kg e valor
+  // ── Cálculos de conversão ─────────────────────────────────
+
+  // Equivalente em unidades do mínimo por pessoa
+  // Ex: 20 kg ÷ 0,03 kg/garrafa = 667 garrafas
+  const minimoUnidades = (() => {
+    const kg  = parseFloat(formulario.minimo_por_pessoa_kg);
+    const kpu = parseFloat(formulario.kg_por_unidade);
+    if (!kg || !kpu || kg <= 0 || kpu <= 0) return null;
+    return Math.ceil(kg / kpu); // arredonda para cima — melhor ter a mais
+  })();
+
+  // Equivalente em unidades do total para agendar
+  // Ex: 500 kg ÷ 0,03 kg/garrafa = 16.667 garrafas
+  const totalUnidades = (() => {
+    const kg  = parseFloat(formulario.minimo_para_agendar);
+    const kpu = parseFloat(formulario.kg_por_unidade);
+    if (!kg || !kpu || kg <= 0 || kpu <= 0) return null;
+    return Math.ceil(kg / kpu);
+  })();
+
+  // Estimativa total do pedido: mínimo por pessoa × valor
   const estimativaTotal = (() => {
-    const kg  = parseFloat(formulario.quantidade_kg);
+    const kg  = parseFloat(formulario.minimo_por_pessoa_kg);
     const val = parseFloat(formulario.valor_proposto);
     if (!kg || !val || kg <= 0 || val <= 0) return null;
     return kg * val;
   })();
 
+  // ── Carrega dados ao montar ───────────────────────────────
   useEffect(() => {
     const carregar = async () => {
       try {
-        const [dadosPerfil, dadosEntregas, dadosEventos, dadosColetadores, dadosFeed, dadosResiduos] =
+        const [dadosPerfil, dadosEntregas, dadosEventos, dadosColetadores, dadosFeed, dadosResiduos, dadosConversoes] =
           await Promise.all([
             getPerfilEmpresa(),
             getEntregasEmpresa(),
@@ -121,14 +184,24 @@ export default function DashboardEmpresa() {
             getColetadoresEmpresa(),
             getFeed(),
             getResiduos(),
+            getConversoes(),
           ]);
+
         setPerfil(dadosPerfil);
         setEntregas(dadosEntregas);
         setEventos(dadosEventos);
         setColetadores(dadosColetadores);
         setTodosResiduos(dadosResiduos);
         setTiposUnicos([...new Set(dadosResiduos.map(r => r.tipo))]);
-        setPedidos(dadosFeed.filter(p => p.tipo_publicacao === 'pedido_residuo' && p.tipo_autor === 'empresa'));
+        setPedidos(dadosFeed.filter(p =>
+          p.tipo_publicacao === 'pedido_residuo' && p.tipo_autor === 'empresa'
+        ));
+
+        // Organiza conversões por tipo para acesso rápido
+        // { Plastico: { nome_unidade: 'garrafa', kg_por_unidade: 0.03 }, ... }
+        const conv = {};
+        dadosConversoes.forEach(c => { conv[c.tipo] = c; });
+        setConversoesPorTipo(conv);
       } catch (err) {
         setErro(err.message);
       } finally {
@@ -138,6 +211,7 @@ export default function DashboardEmpresa() {
     carregar();
   }, []);
 
+  // ── Estatísticas ──────────────────────────────────────────
   const pendentes      = entregas.filter(e => e.status === 'pendente').length;
   const aceites        = entregas.filter(e => e.status === 'coletada').length;
   const rejeitadas     = entregas.filter(e => e.status === 'cancelada').length;
@@ -146,9 +220,20 @@ export default function DashboardEmpresa() {
   const totalDecididas = aceites + rejeitadas;
   const taxaAceite     = totalDecididas > 0 ? Math.round((aceites / totalDecididas) * 100) : 0;
 
+  // ── Handlers do selector de resíduo ──────────────────────
   const handleTipo = (tipo) => {
     setTipoSelecionado(tipo);
-    setFormulario(prev => ({ ...prev, id_residuo: '', valor_proposto: '' }));
+
+    // Aplica automaticamente a conversão sugerida para este tipo
+    const conv = conversoesPorTipo[tipo];
+    setFormulario(prev => ({
+      ...prev,
+      id_residuo:     '',
+      valor_proposto: '',
+      // Pré-preenche a conversão com os valores padrão da BD
+      nome_unidade:   conv?.nome_unidade   || '',
+      kg_por_unidade: conv?.kg_por_unidade || '',
+    }));
     setQualidadesDisponiveis(todosResiduos.filter(r => r.tipo === tipo));
   };
 
@@ -167,7 +252,6 @@ export default function DashboardEmpresa() {
     }));
   };
 
-  // Selecção múltipla de coletadores — clica para adicionar/remover
   const handleToggleColetadorItem = (id) => {
     setFormulario(prev => {
       const jaEsta = prev.id_coletadores.includes(id);
@@ -180,6 +264,7 @@ export default function DashboardEmpresa() {
     });
   };
 
+  // ── Upload de imagem ──────────────────────────────────────
   const handleImagem = (e) => {
     const ficheiro = e.target.files[0];
     if (!ficheiro) return;
@@ -201,24 +286,21 @@ export default function DashboardEmpresa() {
     if (inputFicheiroRef.current) inputFicheiroRef.current.value = '';
   };
 
-  const abrirModal = () => {
+  // ── Abre o modal de pedido ────────────────────────────────
+  const abrirModalPedido = () => {
     setFormulario(FORM_VAZIO);
     setTipoSelecionado('');
     setQualidadesDisponiveis([]);
     setImagemPreview('');
     setErroImagem('');
     setErroForm('');
-    setModalAberto(true);
+    setModalPedido(true);
   };
 
+  // ── Publica o pedido ──────────────────────────────────────
   const handlePublicarPedido = async () => {
-    if (!formulario.id_residuo) { setErroForm('Selecciona o tipo e a qualidade do resíduo.'); return; }
-    if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
-
-    const temUnidades = formulario.quantidade_unidades && parseFloat(formulario.quantidade_unidades) > 0;
-    const temKg       = formulario.quantidade_kg       && parseFloat(formulario.quantidade_kg) > 0;
-    if (!temUnidades && !temKg) { setErroForm('Indica pelo menos a quantidade (unidades) ou o peso (kg).'); return; }
-
+    if (!formulario.id_residuo)     { setErroForm('Selecciona o tipo e a qualidade do resíduo.'); return; }
+    if (!formulario.titulo.trim())  { setErroForm('O título é obrigatório.'); return; }
     if (!formulario.valor_proposto || parseFloat(formulario.valor_proposto) <= 0) {
       setErroForm('O valor é obrigatório.'); return;
     }
@@ -228,9 +310,14 @@ export default function DashboardEmpresa() {
         setErroForm(`O valor deve estar entre ${residuoSeleccionado.preco_min} e ${residuoSeleccionado.preco_max} Kz/kg.`); return;
       }
     }
-    // Mínimo para agendar obrigatório
+    if (!formulario.minimo_por_pessoa_kg || parseFloat(formulario.minimo_por_pessoa_kg) <= 0) {
+      setErroForm('Define o mínimo de kg que cada pessoa deve trazer.'); return;
+    }
     if (!formulario.minimo_para_agendar || parseFloat(formulario.minimo_para_agendar) <= 0) {
-      setErroForm('Define o mínimo necessário para agendar a recolha.'); return;
+      setErroForm('Define o total mínimo para agendar a recolha.'); return;
+    }
+    if (parseFloat(formulario.minimo_por_pessoa_kg) > parseFloat(formulario.minimo_para_agendar)) {
+      setErroForm('O mínimo por pessoa não pode ser maior que o total para agendar.'); return;
     }
     if (formulario.com_coletador && formulario.id_coletadores.length === 0) {
       setErroForm('Selecciona pelo menos um coletador.'); return;
@@ -240,7 +327,7 @@ export default function DashboardEmpresa() {
       setPublicando(true);
       setErroForm('');
       await criarPublicacao(formulario);
-      setModalAberto(false);
+      setModalPedido(false);
       setFormulario(FORM_VAZIO);
       const feed = await getFeed();
       setPedidos(feed.filter(p => p.tipo_publicacao === 'pedido_residuo' && p.tipo_autor === 'empresa'));
@@ -248,6 +335,86 @@ export default function DashboardEmpresa() {
       setErroForm(err.message);
     } finally {
       setPublicando(false);
+    }
+  };
+
+  // ── Abre o modal de recolhas ──────────────────────────────
+  const abrirModalRecolhas = async () => {
+    setModalRecolhas(true);
+    setCarregandoRecolhas(true);
+    try {
+      const [dadosAcordos, dadosRecolhas] = await Promise.all([
+        getAcordosPendentes(),
+        getRecolhasEmpresa(),
+      ]);
+      setAcordos(dadosAcordos.acordos       || []);
+      setTotalAcordos(dadosAcordos.total    || 0);
+      setLimiar(dadosAcordos.limiar_recolha || 0);
+      setAtingiuLimiar(dadosAcordos.atingiu_limiar || false);
+      setSugestao(dadosAcordos.sugestao     || '');
+      setRecolhas(dadosRecolhas);
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setCarregandoRecolhas(false);
+    }
+  };
+
+  // ── Abre o modal de agendamento ───────────────────────────
+  const abrirModalAgendar = () => {
+    setDataRecolha('');
+    setHoraRecolha('');
+    setIdsColetadores([]);
+    setIdsEntregas(acordos.map(a => a.id_entrega));
+    setErroAgendar('');
+    setModalAgendar(true);
+  };
+
+  // ── Confirma o agendamento ────────────────────────────────
+  const handleAgendar = async () => {
+    if (!dataRecolha || !horaRecolha) { setErroAgendar('Define a data e hora da recolha.'); return; }
+    if (idsColetadores.length === 0)  { setErroAgendar('Selecciona pelo menos um coletador.'); return; }
+    if (idsEntregas.length === 0)     { setErroAgendar('Selecciona pelo menos uma entrega.'); return; }
+
+    try {
+      setAgendando(true);
+      setErroAgendar('');
+      await criarRecolha({
+        data_recolha:    `${dataRecolha}T${horaRecolha}`,
+        ids_coletadores: idsColetadores,
+        ids_entregas:    idsEntregas,
+      });
+      setModalAgendar(false);
+      // Recarrega os dados de recolhas
+      const [dadosAcordos, dadosRecolhas] = await Promise.all([
+        getAcordosPendentes(),
+        getRecolhasEmpresa(),
+      ]);
+      setAcordos(dadosAcordos.acordos || []);
+      setTotalAcordos(dadosAcordos.total || 0);
+      setAtingiuLimiar(dadosAcordos.atingiu_limiar || false);
+      setRecolhas(dadosRecolhas);
+    } catch (err) {
+      setErroAgendar(err.message);
+    } finally {
+      setAgendando(false);
+    }
+  };
+
+  // ── Actualiza status de recolha ───────────────────────────
+  const handleStatusRecolha = async (id, status) => {
+    const msgs = {
+      em_curso:  'Marcar esta recolha como em curso?',
+      concluida: 'Confirmar que esta recolha foi concluída?',
+      cancelada: 'Cancelar esta recolha? Os utilizadores serão notificados.',
+    };
+    if (!window.confirm(msgs[status])) return;
+    try {
+      await actualizarStatusRecolha(id, status);
+      const dadosRecolhas = await getRecolhasEmpresa();
+      setRecolhas(dadosRecolhas);
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -336,10 +503,11 @@ export default function DashboardEmpresa() {
           <p className="text-3xl font-bold text-orange-600">{coletadores.length}</p>
           <p className="text-xs text-gray-400 mt-1">na minha equipa</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm p-5 border border-green-100 cursor-pointer hover:border-green-300 transition" onClick={() => navigate('/PaginaInicialEmpresa')}>
+        {/* KPI de Pedidos — clicável para abrir o modal de recolhas */}
+        <div className="bg-white rounded-2xl shadow-sm p-5 border border-green-100 cursor-pointer hover:border-green-300 transition" onClick={abrirModalRecolhas}>
           <div className="flex justify-between items-center mb-3"><span className="text-gray-500 text-sm font-medium">Pedidos Activos</span><div className="w-9 h-9 bg-cyan-50 rounded-xl flex items-center justify-center"><Megaphone size={18} className="text-cyan-500" /></div></div>
           <p className="text-3xl font-bold text-cyan-600">{pedidos.length}</p>
-          <p className="text-xs text-gray-400 mt-1">pedidos de resíduo</p>
+          <p className="text-xs text-gray-400 mt-1">ver recolhas →</p>
         </div>
       </div>
 
@@ -406,10 +574,10 @@ export default function DashboardEmpresa() {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-green-100">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-semibold text-green-800 flex items-center gap-2"><Megaphone size={18} /> Pedidos de Resíduo</h3>
-            <button onClick={abrirModal} className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"><Plus size={13} /> Novo Pedido</button>
+            <button onClick={abrirModalPedido} className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"><Plus size={13} /> Novo Pedido</button>
           </div>
           {pedidos.length === 0 ? (
-            <div className="text-center py-10"><Recycle size={36} className="mx-auto mb-3 text-gray-200" /><p className="text-gray-400 text-sm mb-3">Ainda não publicaste nenhum pedido.</p><button onClick={abrirModal} className="text-green-600 text-xs border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-50 transition">+ Publicar primeiro pedido</button></div>
+            <div className="text-center py-10"><Recycle size={36} className="mx-auto mb-3 text-gray-200" /><p className="text-gray-400 text-sm mb-3">Ainda não publicaste nenhum pedido.</p><button onClick={abrirModalPedido} className="text-green-600 text-xs border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-50 transition">+ Publicar primeiro pedido</button></div>
           ) : (
             <div className="space-y-3">
               {pedidos.slice(0, 4).map(p => (
@@ -425,7 +593,7 @@ export default function DashboardEmpresa() {
                   <span className="text-xs text-gray-400 shrink-0">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
                 </div>
               ))}
-              {pedidos.length > 4 && <button onClick={() => navigate('/PaginaInicialEmpresa')} className="w-full text-green-600 text-xs text-center py-2 hover:text-green-800 transition">Ver todos ({pedidos.length}) →</button>}
+              {pedidos.length > 4 && <button onClick={abrirModalRecolhas} className="w-full text-green-600 text-xs text-center py-2 hover:text-green-800 transition">Ver recolhas ({pedidos.length}) →</button>}
             </div>
           )}
         </div>
@@ -455,35 +623,26 @@ export default function DashboardEmpresa() {
       </div>
 
       {/* ════════════════════════════════════════════════════
-          MODAL: Novo Pedido de Resíduo
+          MODAL 1: Novo Pedido de Resíduo
       ════════════════════════════════════════════════════ */}
-      {modalAberto && (
+      {modalPedido && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
 
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
-                <Megaphone size={20} /> Novo Pedido de Resíduo
-              </h3>
-              <button onClick={() => setModalAberto(false)}>
-                <X size={20} className="text-gray-400 hover:text-gray-600" />
-              </button>
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><Megaphone size={20} /> Novo Pedido de Resíduo</h3>
+              <button onClick={() => setModalPedido(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
             </div>
 
             <div className="space-y-5">
 
               {/* 1. Tipo */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-2">
-                  Tipo de Resíduo <span className="text-red-500">*</span>
-                </label>
+                <label className="text-gray-700 text-sm font-semibold block mb-2">Tipo de Resíduo <span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-2 gap-2">
                   {tiposUnicos.map(tipo => (
                     <div key={tipo} onClick={() => handleTipo(tipo)}
-                      className={`border rounded-xl p-3 cursor-pointer transition text-center text-sm font-medium ${
-                        tipoSelecionado === tipo ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                      }`}
-                    >
+                      className={`border rounded-xl p-3 cursor-pointer transition text-center text-sm font-medium ${tipoSelecionado === tipo ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                       {ICONE_TIPO[tipo] || <Recycle size={20} className="mx-auto mb-1 text-gray-400" />}
                       {LABEL_TIPO[tipo] || tipo}
                     </div>
@@ -494,24 +653,17 @@ export default function DashboardEmpresa() {
               {/* 2. Qualidade */}
               {tipoSelecionado && qualidadesDisponiveis.length > 0 && (
                 <div>
-                  <label className="text-gray-700 text-sm font-semibold block mb-2">
-                    Qualidade <span className="text-red-500">*</span>
-                  </label>
+                  <label className="text-gray-700 text-sm font-semibold block mb-2">Qualidade <span className="text-red-500">*</span></label>
                   <div className="space-y-2">
                     {qualidadesDisponiveis.map(r => {
                       const cfg = QUALIDADE_CONFIG[r.qualidade] || { icone: null, label: r.qualidade };
                       return (
                         <div key={r.id_residuo} onClick={() => handleQualidade(r.id_residuo)}
-                          className={`border rounded-xl p-3 cursor-pointer transition ${
-                            String(formulario.id_residuo) === String(r.id_residuo) ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-                          }`}
-                        >
+                          className={`border rounded-xl p-3 cursor-pointer transition ${String(formulario.id_residuo) === String(r.id_residuo) ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">{cfg.icone} {cfg.label}</span>
                             {r.preco_min && r.preco_max && (
-                              <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-lg border border-green-200">
-                                {r.preco_min} – {r.preco_max} Kz
-                              </span>
+                              <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-lg border border-green-200">{r.preco_min} – {r.preco_max} Kz</span>
                             )}
                           </div>
                           {r.descricao && <p className="text-xs text-gray-400 mt-0.5">{r.descricao}</p>}
@@ -524,132 +676,165 @@ export default function DashboardEmpresa() {
 
               {/* 3. Título */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Título <span className="text-red-500">*</span>
-                </label>
+                <label className="text-gray-700 text-sm font-semibold block mb-1">Título <span className="text-red-500">*</span></label>
                 <input type="text" value={formulario.titulo} onChange={e => handleCampo('titulo', e.target.value)}
                   placeholder="Ex: Procuramos papel boa qualidade — Luanda"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
 
               {/* 4. Descrição */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Descrição <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
+                <label className="text-gray-700 text-sm font-semibold block mb-1">Descrição <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <textarea value={formulario.descricao} onChange={e => handleCampo('descricao', e.target.value)}
                   placeholder="Condições do resíduo, forma de entrega, urgência..."
-                  rows={3} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                />
+                  rows={3} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
               </div>
 
-              {/* 5. Quantidade + Peso */}
+              {/* 5. Valor */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Quantidade <span className="text-red-500">*</span>
-                  <span className="text-gray-400 font-normal ml-1">(preenche pelo menos um)</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <div className="absolute left-3 top-3 text-gray-400"><Hash size={15} /></div>
-                    <input type="number" min="1" value={formulario.quantidade_unidades}
-                      onChange={e => handleCampo('quantidade_unidades', e.target.value)}
-                      placeholder="Ex: 50"
-                      className="w-full border border-gray-200 rounded-xl pl-9 pr-14 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                    />
-                    <span className="absolute right-3 top-3 text-gray-400 text-xs">unid.</span>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute left-3 top-3 text-gray-400"><Scale size={15} /></div>
-                    <input type="number" min="0.1" step="0.1" value={formulario.quantidade_kg}
-                      onChange={e => handleCampo('quantidade_kg', e.target.value)}
-                      placeholder="Ex: 10"
-                      className="w-full border border-gray-200 rounded-xl pl-9 pr-8 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                    />
-                    <span className="absolute right-3 top-3 text-gray-400 text-xs">kg</span>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs mt-1.5 flex items-center gap-1">
-                  <Scale size={11} /> Se souberes o peso, indica os kg — ajuda a calcular o valor total
-                </p>
-              </div>
-
-              {/* 6. Valor */}
-              <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Valor (Kz/kg) <span className="text-red-500">*</span>
-                </label>
-                <input type="number" min="1" value={formulario.valor_proposto}
-                  onChange={e => handleCampo('valor_proposto', e.target.value)}
+                <label className="text-gray-700 text-sm font-semibold block mb-1">Valor (Kz/kg) <span className="text-red-500">*</span></label>
+                <input type="number" min="1" value={formulario.valor_proposto} onChange={e => handleCampo('valor_proposto', e.target.value)}
                   placeholder={residuoSeleccionado ? `Entre ${residuoSeleccionado.preco_min} e ${residuoSeleccionado.preco_max}` : 'Ex: 300'}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 {residuoSeleccionado && (
-                  <p className="text-green-600 text-xs mt-1">
-                    Intervalo para esta qualidade: {residuoSeleccionado.preco_min} – {residuoSeleccionado.preco_max} Kz/kg
-                  </p>
+                  <p className="text-green-600 text-xs mt-1">Intervalo: {residuoSeleccionado.preco_min} – {residuoSeleccionado.preco_max} Kz/kg</p>
                 )}
               </div>
 
-              {/* Estimativa total */}
-              {estimativaTotal !== null && (
-                <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-green-700 text-sm font-medium">Estimativa total</p>
-                    <p className="text-green-600 text-xs">{formulario.quantidade_kg} kg × {formulario.valor_proposto} Kz/kg</p>
+              {/* 6. Conversão de unidades */}
+              {tipoSelecionado && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info size={15} className="text-blue-600 shrink-0" />
+                    <p className="text-blue-800 text-sm font-semibold">Conversão de unidades</p>
                   </div>
-                  <span className="text-green-800 font-bold text-lg">
-                    {estimativaTotal >= 1000 ? `${(estimativaTotal / 1000).toFixed(1)}k` : estimativaTotal.toFixed(0)} Kz
-                  </span>
+                  {/* Explicação simples para qualquer pessoa */}
+                  <p className="text-blue-600 text-xs mb-3">
+                    Algumas pessoas não têm balança em casa. Ao definires quantas {formulario.nome_unidade || 'unidades'} equivalem a 1 kg,
+                    o sistema converte automaticamente para que toda a gente consiga participar.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Nome da unidade */}
+                    <div>
+                      <label className="text-blue-700 text-xs font-medium block mb-1">Nome da unidade</label>
+                      <input type="text" value={formulario.nome_unidade} onChange={e => handleCampo('nome_unidade', e.target.value)}
+                        placeholder="Ex: garrafa, saco, peça"
+                        className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                    </div>
+                    {/* Kg por unidade */}
+                    <div>
+                      <label className="text-blue-700 text-xs font-medium block mb-1">1 {formulario.nome_unidade || 'unidade'} pesa</label>
+                      <div className="relative">
+                        <input type="number" min="0.001" step="0.001" value={formulario.kg_por_unidade} onChange={e => handleCampo('kg_por_unidade', e.target.value)}
+                          placeholder="Ex: 0.03"
+                          className="w-full border border-blue-200 rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                        <span className="absolute right-3 top-2 text-blue-400 text-xs">kg</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Confirmação visual da conversão */}
+                  {formulario.nome_unidade && formulario.kg_por_unidade && (
+                    <div className="mt-3 bg-white rounded-xl p-3 border border-blue-200">
+                      <p className="text-blue-700 text-xs font-medium">Como vai aparecer para os utilizadores:</p>
+                      <p className="text-gray-700 text-sm mt-1">
+                        "1 {formulario.nome_unidade} = {formulario.kg_por_unidade} kg"
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 7. Mínimo para agendar recolha */}
+              {/* 7. Mínimo por pessoa */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target size={16} className="text-green-600" />
+                <div className="flex items-center gap-2 mb-2">
+                  <Users size={15} className="text-green-600 shrink-0" />
                   <label className="text-gray-700 text-sm font-semibold">
-                    Mínimo para agendar recolha <span className="text-red-500">*</span>
+                    Quanto deve cada pessoa trazer no mínimo? <span className="text-red-500">*</span>
                   </label>
                 </div>
                 <p className="text-gray-400 text-xs mb-3">
-                  Quando os acordos atingirem este valor, serás notificado para agendar a data e hora da recolha.
+                  Só as pessoas que tiverem esta quantidade ou mais podem responder ao teu pedido.
                 </p>
-                <div className="flex gap-2">
-                  <input type="number" min="1" value={formulario.minimo_para_agendar}
-                    onChange={e => handleCampo('minimo_para_agendar', e.target.value)}
-                    placeholder="Ex: 500"
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white"
-                  />
-                  {/* Selector da unidade do limiar */}
-                  <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-white">
-                    <button
-                      onClick={() => handleCampo('minimo_tipo', 'kg')}
-                      className={`px-3 py-2 text-xs font-medium transition ${formulario.minimo_tipo === 'kg' ? 'bg-green-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                      kg
-                    </button>
-                    <button
-                      onClick={() => handleCampo('minimo_tipo', 'unidades')}
-                      className={`px-3 py-2 text-xs font-medium transition ${formulario.minimo_tipo === 'unidades' ? 'bg-green-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                      unid.
-                    </button>
-                  </div>
+                <div className="relative">
+                  <input type="number" min="1" step="0.1" value={formulario.minimo_por_pessoa_kg}
+                    onChange={e => handleCampo('minimo_por_pessoa_kg', e.target.value)}
+                    placeholder="Ex: 20"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white" />
+                  <span className="absolute right-4 top-3 text-gray-400 text-sm">kg</span>
                 </div>
-                {formulario.minimo_para_agendar && (
-                  <p className="text-green-600 text-xs mt-2">
-                    A recolha será agendada quando atingires {formulario.minimo_para_agendar} {formulario.minimo_tipo === 'kg' ? 'kg' : 'unidades'} em acordos.
-                  </p>
+                {/* Mostra o equivalente em unidades se a conversão estiver definida */}
+                {minimoUnidades !== null && formulario.nome_unidade && (
+                  <div className="mt-2 flex items-center gap-2 bg-white rounded-xl p-3 border border-gray-200">
+                    <Scale size={13} className="text-green-600 shrink-0" />
+                    <p className="text-gray-600 text-xs">
+                      Quem não tiver balança: precisam de pelo menos{' '}
+                      <strong className="text-green-700">{minimoUnidades} {formulario.nome_unidade}s</strong>
+                    </p>
+                  </div>
+                )}
+                {/* Estimativa do valor que essa pessoa vai receber */}
+                {estimativaTotal !== null && (
+                  <div className="mt-2 flex items-center gap-2 bg-green-50 rounded-xl p-3 border border-green-200">
+                    <Leaf size={13} className="text-green-600 shrink-0" />
+                    <p className="text-gray-600 text-xs">
+                      Quem trouxer o mínimo pode receber até{' '}
+                      <strong className="text-green-700">
+                        {estimativaTotal >= 1000 ? `${(estimativaTotal / 1000).toFixed(1)}k` : estimativaTotal.toFixed(0)} Kz
+                      </strong>
+                    </p>
+                  </div>
                 )}
               </div>
 
-              {/* 8. Foto */}
+              {/* 8. Total para agendar recolha */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target size={15} className="text-green-600 shrink-0" />
+                  <label className="text-gray-700 text-sm font-semibold">
+                    Quantos kg no total para ir buscar? <span className="text-red-500">*</span>
+                  </label>
+                </div>
+                <p className="text-gray-400 text-xs mb-3">
+                  O sistema vai somar o lixo de todas as pessoas que aceitarem.
+                  Quando chegar a este valor, avisamos-te para marcares o dia de recolha.
+                </p>
+                <div className="relative">
+                  <input type="number" min="1" step="0.1" value={formulario.minimo_para_agendar}
+                    onChange={e => handleCampo('minimo_para_agendar', e.target.value)}
+                    placeholder="Ex: 500"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white" />
+                  <span className="absolute right-4 top-3 text-gray-400 text-sm">kg</span>
+                </div>
+                {/* Equivalente em unidades do total */}
+                {totalUnidades !== null && formulario.nome_unidade && (
+                  <div className="mt-2 flex items-center gap-2 bg-white rounded-xl p-3 border border-gray-200">
+                    <Scale size={13} className="text-green-600 shrink-0" />
+                    <p className="text-gray-600 text-xs">
+                      Equivale a aproximadamente{' '}
+                      <strong className="text-green-700">{totalUnidades.toLocaleString()} {formulario.nome_unidade}s</strong>{' '}
+                      no total de todas as pessoas
+                    </p>
+                  </div>
+                )}
+                {/* Estimativa de quantas pessoas são necessárias */}
+                {formulario.minimo_para_agendar && formulario.minimo_por_pessoa_kg &&
+                  parseFloat(formulario.minimo_por_pessoa_kg) > 0 && (
+                  <div className="mt-2 flex items-center gap-2 bg-white rounded-xl p-3 border border-gray-200">
+                    <Users size={13} className="text-green-600 shrink-0" />
+                    <p className="text-gray-600 text-xs">
+                      Precisas de pelo menos{' '}
+                      <strong className="text-green-700">
+                        {Math.ceil(parseFloat(formulario.minimo_para_agendar) / parseFloat(formulario.minimo_por_pessoa_kg))} pessoas
+                      </strong>{' '}
+                      para atingir o total
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 9. Foto */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Foto <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
+                <label className="text-gray-700 text-sm font-semibold block mb-1">Foto <span className="text-gray-400 font-normal">(opcional)</span></label>
                 {imagemPreview ? (
                   <div className="relative w-full h-40 rounded-xl overflow-hidden border border-green-200">
                     <img src={imagemPreview} alt="Preview" className="w-full h-full object-cover" />
@@ -666,18 +851,15 @@ export default function DashboardEmpresa() {
                 {erroImagem && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12} /> {erroImagem}</p>}
               </div>
 
-              {/* 9. Observações */}
+              {/* 10. Observações */}
               <div>
-                <label className="text-gray-700 text-sm font-semibold block mb-1">
-                  Observações <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
+                <label className="text-gray-700 text-sm font-semibold block mb-1">Observações <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <textarea value={formulario.observacoes} onChange={e => handleCampo('observacoes', e.target.value)}
                   placeholder="Estado esperado do resíduo, embalagem, outros detalhes..."
-                  rows={2} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                />
+                  rows={2} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
               </div>
 
-              {/* 10. Toggle coletador — sem data/hora (agendamento é feito depois) */}
+              {/* 11. Toggle coletador */}
               <div className={`border rounded-xl p-4 transition ${formulario.com_coletador ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between cursor-pointer" onClick={handleToggleColetador}>
                   <div className="flex items-center gap-3">
@@ -685,14 +867,11 @@ export default function DashboardEmpresa() {
                       <UserCheck size={18} className={formulario.com_coletador ? 'text-white' : 'text-gray-400'} />
                     </div>
                     <div>
-                      <p className="text-gray-800 text-sm font-semibold">Enviar coletador da equipa</p>
-                      <p className="text-gray-400 text-xs">A data e hora são definidas depois, quando o mínimo for atingido</p>
+                      <p className="text-gray-800 text-sm font-semibold">Vou enviar coletador a buscar</p>
+                      <p className="text-gray-400 text-xs">A data de recolha é marcada depois, quando atingires o total</p>
                     </div>
                   </div>
-                  {formulario.com_coletador
-                    ? <ToggleRight size={28} className="text-green-600 shrink-0" />
-                    : <ToggleLeft  size={28} className="text-gray-300 shrink-0"  />
-                  }
+                  {formulario.com_coletador ? <ToggleRight size={28} className="text-green-600 shrink-0" /> : <ToggleLeft size={28} className="text-gray-300 shrink-0" />}
                 </div>
 
                 {formulario.com_coletador && (
@@ -700,29 +879,19 @@ export default function DashboardEmpresa() {
                     {coletadoresDependentes.length === 0 ? (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
                         <p className="text-yellow-700 text-xs font-medium">Não tens coletadores dependentes na equipa.</p>
-                        <button onClick={() => { setModalAberto(false); navigate('/ColetadoresEmpresa'); }} className="text-yellow-700 text-xs underline mt-1">
-                          Adicionar coletador dependente
-                        </button>
+                        <button onClick={() => { setModalPedido(false); navigate('/ColetadoresEmpresa'); }} className="text-yellow-700 text-xs underline mt-1">Adicionar coletador dependente</button>
                       </div>
                     ) : (
                       <div>
-                        <p className="text-gray-600 text-xs font-medium mb-2">
-                          Escolhe os coletadores <span className="text-gray-400">(podes escolher mais de um)</span>
-                        </p>
+                        <p className="text-gray-600 text-xs font-medium mb-2">Escolhe quem vai buscar <span className="text-gray-400">(podes escolher mais de um)</span></p>
                         <div className="space-y-2">
                           {coletadoresDependentes.map(c => {
                             const sel = formulario.id_coletadores.includes(c.id_coletador);
                             return (
                               <div key={c.id_coletador} onClick={() => handleToggleColetadorItem(c.id_coletador)}
-                                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${sel ? 'border-green-500 bg-white' : 'border-gray-200 hover:bg-white'}`}
-                              >
-                                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                                  {c.nome?.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p>
-                                  <p className="text-gray-400 text-xs">{c.telefone}</p>
-                                </div>
+                                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${sel ? 'border-green-500 bg-white' : 'border-gray-200 hover:bg-white'}`}>
+                                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">{c.nome?.charAt(0).toUpperCase()}</div>
+                                <div className="min-w-0 flex-1"><p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p><p className="text-gray-400 text-xs">{c.telefone}</p></div>
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${sel ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
                                   {sel && <CheckCircle size={12} className="text-white" />}
                                 </div>
@@ -744,11 +913,272 @@ export default function DashboardEmpresa() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setModalAberto(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">
-                Cancelar
-              </button>
+              <button onClick={() => setModalPedido(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">Cancelar</button>
               <button onClick={handlePublicarPedido} disabled={publicando} className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
                 {publicando ? 'A publicar...' : <><Megaphone size={16} /> Publicar Pedido</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          MODAL 2: Recolhas
+          Mostra progresso, acordos pendentes e recolhas agendadas
+      ════════════════════════════════════════════════════ */}
+      {modalRecolhas && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
+
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><Package2 size={20} /> Recolhas</h3>
+              <button onClick={() => setModalRecolhas(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+
+            {carregandoRecolhas ? (
+              <div className="text-center py-12">
+                <Recycle size={32} className="mx-auto mb-3 text-green-400 animate-spin" />
+                <p className="text-gray-400 text-sm">A carregar...</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+
+                {/* Barra de progresso do limiar */}
+                <div className={`rounded-xl p-4 border ${atingiuLimiar ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Target size={16} className={atingiuLimiar ? 'text-green-600' : 'text-gray-400'} />
+                      <p className="text-gray-800 text-sm font-semibold">
+                        {atingiuLimiar ? 'Podes agendar a recolha!' : 'Total acumulado'}
+                      </p>
+                    </div>
+                    <span className={`text-lg font-bold ${atingiuLimiar ? 'text-green-700' : 'text-gray-600'}`}>
+                      {limiar > 0 ? Math.min(Math.round((totalAcordos / limiar) * 100), 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
+                    <div className={`h-full rounded-full transition-all duration-500 ${atingiuLimiar ? 'bg-green-500' : 'bg-green-400'}`}
+                      style={{ width: `${limiar > 0 ? Math.min((totalAcordos / limiar) * 100, 100) : 0}%` }} />
+                  </div>
+                  <p className="text-gray-500 text-xs">{totalAcordos} de {limiar} kg acumulados</p>
+                  {sugestao && <p className="text-green-700 text-xs mt-1 flex items-center gap-1"><Bell size={11} /> {sugestao}</p>}
+                  {!atingiuLimiar && limiar > 0 && (
+                    <p className="text-gray-400 text-xs mt-1">Faltam {limiar - totalAcordos} kg para agendar.</p>
+                  )}
+                </div>
+
+                {/* Botão de agendar — só activo quando atingiu o limiar */}
+                <button onClick={abrirModalAgendar} disabled={!atingiuLimiar}
+                  className={`w-full flex items-center justify-center gap-2 font-semibold py-3 rounded-xl text-sm transition ${
+                    atingiuLimiar ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}>
+                  <CalendarCheck size={16} />
+                  {atingiuLimiar ? 'Agendar Recolha' : `Aguarda mais ${limiar - totalAcordos} kg`}
+                </button>
+
+                {/* Acordos pendentes */}
+                {acordos.length > 0 && (
+                  <div>
+                    <p className="text-gray-700 text-sm font-semibold mb-2 flex items-center gap-2">
+                      <Package size={15} className="text-green-600" /> Acordos por Recolher
+                      <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{acordos.length}</span>
+                    </p>
+                    <div className="space-y-2">
+                      {acordos.map(a => (
+                        <div key={a.id_entrega} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center shrink-0"><CheckCircle size={13} className="text-green-600" /></div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-gray-800 text-sm font-medium">{a.nome_usuario}</p>
+                            <p className="text-gray-400 text-xs">{a.tipos_residuos}</p>
+                            {a.endereco_domicilio && <p className="text-gray-400 text-xs">📍 {a.endereco_domicilio}</p>}
+                          </div>
+                          {a.peso_total && <span className="text-green-600 text-xs font-medium shrink-0">{a.peso_total} kg</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recolhas agendadas */}
+                {recolhas.length > 0 && (
+                  <div>
+                    <p className="text-gray-700 text-sm font-semibold mb-2 flex items-center gap-2">
+                      <CalendarCheck size={15} className="text-green-600" /> Recolhas Agendadas
+                    </p>
+                    <div className="space-y-2">
+                      {recolhas.map(r => {
+                        const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.agendada;
+                        const expandida = recolhaExpandida === r.id_recolha;
+                        return (
+                          <div key={r.id_recolha} className="border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition"
+                              onClick={() => setRecolhaExpandida(expandida ? null : r.id_recolha)}>
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-green-600 text-white rounded-xl flex flex-col items-center justify-center shrink-0">
+                                  <span className="text-xs leading-none">{new Date(r.data_recolha).toLocaleDateString('pt-AO', { month: 'short' }).toUpperCase()}</span>
+                                  <span className="text-sm font-bold leading-none">{new Date(r.data_recolha).getDate()}</span>
+                                </div>
+                                <div>
+                                  <p className="text-gray-800 text-sm font-medium">{new Date(r.data_recolha).toLocaleTimeString('pt-AO', { hour: '2-digit', minute: '2-digit' })}</p>
+                                  <p className="text-gray-400 text-xs">{r.total_entregas} entregas · {r.coletadores}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${cfg.cor}`}>{cfg.label}</span>
+                                {expandida ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                              </div>
+                            </div>
+                            {expandida && (
+                              <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-2">
+                                {r.observacoes && <p className="text-gray-500 text-xs">{r.observacoes}</p>}
+                                <div className="flex gap-2 flex-wrap">
+                                  {r.status === 'agendada' && (
+                                    <>
+                                      <button onClick={() => handleStatusRecolha(r.id_recolha, 'em_curso')}
+                                        className="flex items-center gap-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                                        <Truck size={12} /> Iniciar Recolha
+                                      </button>
+                                      <button onClick={() => handleStatusRecolha(r.id_recolha, 'cancelada')}
+                                        className="flex items-center gap-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                                        <XCircle size={12} /> Cancelar
+                                      </button>
+                                    </>
+                                  )}
+                                  {r.status === 'em_curso' && (
+                                    <button onClick={() => handleStatusRecolha(r.id_recolha, 'concluida')}
+                                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                                      <CheckCircle size={12} /> Marcar como Concluída
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {acordos.length === 0 && recolhas.length === 0 && (
+                  <div className="text-center py-8">
+                    <Package2 size={36} className="mx-auto mb-3 text-gray-200" />
+                    <p className="text-gray-400 text-sm">Ainda não há acordos nem recolhas.</p>
+                    <p className="text-gray-300 text-xs mt-1">Publica um pedido de resíduo para começar.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          MODAL 3: Agendar Recolha (dentro do modal de recolhas)
+      ════════════════════════════════════════════════════ */}
+      {modalAgendar && (
+        <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-[60] px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><CalendarCheck size={20} /> Agendar Recolha</h3>
+              <button onClick={() => setModalAgendar(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+
+            <div className="space-y-5">
+
+              {/* Data e hora */}
+              <div>
+                <label className="text-gray-700 text-sm font-semibold block mb-2">Quando vais buscar? <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-400 text-xs mb-1">Dia</p>
+                    <input type="date" value={dataRecolha} onChange={e => setDataRecolha(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs mb-1">Hora</p>
+                    <input type="time" value={horaRecolha} onChange={e => setHoraRecolha(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Coletadores */}
+              <div>
+                <label className="text-gray-700 text-sm font-semibold block mb-2">Quem vai buscar? <span className="text-red-500">*</span></label>
+                {coletadoresDependentes.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
+                    <p className="text-yellow-700 text-xs">Não tens coletadores dependentes.</p>
+                    <button onClick={() => { setModalAgendar(false); setModalRecolhas(false); navigate('/ColetadoresEmpresa'); }} className="text-yellow-700 text-xs underline mt-1">Adicionar coletador</button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {coletadoresDependentes.map(c => {
+                      const sel = idsColetadores.includes(c.id_coletador);
+                      return (
+                        <div key={c.id_coletador} onClick={() => setIdsColetadores(prev => sel ? prev.filter(x => x !== c.id_coletador) : [...prev, c.id_coletador])}
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${sel ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                          <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">{c.nome?.charAt(0).toUpperCase()}</div>
+                          <div className="min-w-0 flex-1"><p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p><p className="text-gray-400 text-xs">{c.telefone}</p></div>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${sel ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
+                            {sel && <CheckCircle size={12} className="text-white" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Acordos incluídos */}
+              <div>
+                <label className="text-gray-700 text-sm font-semibold block mb-2">
+                  Quem está incluído nesta recolha?
+                  <span className="text-gray-400 font-normal ml-1">({idsEntregas.length} de {acordos.length})</span>
+                </label>
+                <div className="space-y-2 max-h-44 overflow-y-auto">
+                  {acordos.map(a => {
+                    const sel = idsEntregas.includes(a.id_entrega);
+                    return (
+                      <div key={a.id_entrega} onClick={() => setIdsEntregas(prev => sel ? prev.filter(x => x !== a.id_entrega) : [...prev, a.id_entrega])}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${sel ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-gray-800 text-sm font-medium">{a.nome_usuario}</p>
+                          <p className="text-gray-400 text-xs">{a.tipos_residuos}{a.peso_total ? ` · ${a.peso_total} kg` : ''}</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${sel ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
+                          {sel && <CheckCircle size={12} className="text-white" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Aviso de notificação */}
+              {idsEntregas.length > 0 && dataRecolha && horaRecolha && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+                  <Bell size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                  <p className="text-blue-700 text-xs">
+                    <strong>{idsEntregas.length} pessoas</strong> vão receber uma notificação na plataforma e por email a informar que a recolha está marcada para{' '}
+                    <strong>{new Date(`${dataRecolha}T${horaRecolha}`).toLocaleString('pt-AO', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}</strong>.
+                  </p>
+                </div>
+              )}
+
+              {erroAgendar && (
+                <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                  <AlertCircle size={14} /> {erroAgendar}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setModalAgendar(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">Voltar</button>
+              <button onClick={handleAgendar} disabled={agendando} className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                {agendando ? 'A agendar...' : <><CalendarCheck size={16} /> Confirmar</>}
               </button>
             </div>
           </div>
