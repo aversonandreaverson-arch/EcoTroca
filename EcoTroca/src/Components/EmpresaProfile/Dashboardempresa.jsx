@@ -13,7 +13,7 @@ import {
   Leaf, BarChart3, CalendarCheck, Truck, X,
   FileText, Wrench, Wine,
   ThumbsDown, Smile, ThumbsUp, Star,
-  ImagePlus, AlertCircle, UserCheck, ToggleLeft, ToggleRight,
+  ImagePlus, AlertCircle, UserCheck, ToggleLeft, ToggleRight, Pencil,
   Scale, Hash, Target, Info, ChevronDown, ChevronUp,
   Bell, Package2
 } from 'lucide-react';
@@ -33,7 +33,7 @@ import {
   actualizarStatusRecolha, // muda o status de uma recolha (em_curso, concluida...)
 } from '../../api.js';
 
-// ── Ícones Lucide por tipo de resíduo 
+// ── Ícones Lucide por tipo de resíduo ─────────────────────────
 // Usados na grelha de selecção do modal — um ícone por tipo
 const ICONE_TIPO = {
   Plastico: <Recycle  size={20} className="mx-auto mb-1 text-green-600"  />,
@@ -42,7 +42,7 @@ const ICONE_TIPO = {
   Vidro:    <Wine     size={20} className="mx-auto mb-1 text-blue-500"   />,
 };
 
-// ── Labels legíveis por tipo 
+// ── Labels legíveis por tipo ──────────────────────────────────
 // Converte o nome interno da BD para texto visível ao utilizador
 const LABEL_TIPO = {
   Plastico: 'Plástico',
@@ -51,7 +51,7 @@ const LABEL_TIPO = {
   Vidro:    'Vidro',
 };
 
-// ── Ícone e label por nível de qualidade 
+// ── Ícone e label por nível de qualidade ─────────────────────
 // Cada qualidade tem ícone colorido para facilitar a identificação
 const QUALIDADE_CONFIG = {
   ruim:      { icone: <ThumbsDown size={14} className="text-red-500"    />, label: 'Ruim'      },
@@ -60,7 +60,7 @@ const QUALIDADE_CONFIG = {
   excelente: { icone: <Star       size={14} className="text-orange-400" />, label: 'Excelente' },
 };
 
-// ── Cores dos badges por tipo de resíduo 
+// ── Cores dos badges por tipo de resíduo ─────────────────────
 // Aplicadas nos cartões de pedidos no feed
 const COR_RESIDUO = {
   'Plástico PET': 'bg-blue-100 text-blue-700',
@@ -70,7 +70,7 @@ const COR_RESIDUO = {
   'Cobre':        'bg-amber-100 text-amber-700',
 };
 
-// ── Configuração visual por status de recolha 
+// ── Configuração visual por status de recolha ─────────────────
 // Cada status tem label legível e cor de badge
 const STATUS_CONFIG = {
   agendada:  { label: 'Agendada',  cor: 'bg-blue-100 text-blue-700'     },
@@ -79,7 +79,7 @@ const STATUS_CONFIG = {
   cancelada: { label: 'Cancelada', cor: 'bg-red-100 text-red-700'        },
 };
 
-// ── Estado inicial vazio do formulário do pedido 
+// ── Estado inicial vazio do formulário do pedido ─────────────
 // Reutilizado para limpar o modal ao abrir
 const FORM_VAZIO = {
   tipo_publicacao:       'pedido_residuo', // fixo — empresa só publica pedidos de resíduo
@@ -89,14 +89,14 @@ const FORM_VAZIO = {
   valor_proposto:        '',              // valor em Kz/kg — validado contra preco_min/preco_max
   imagem:                '',              // base64 da foto (máx 5MB)
   observacoes:           '',              // observações opcionais
-  // ── Conversão de unidades 
+  // ── Conversão de unidades ────────────────────────────────
   nome_unidade:          '',              // ex: garrafa, saco, peça
   kg_por_unidade:        '',              // ex: 0.03 — 1 garrafa = 0,03 kg
-  // ── Mínimo por pessoa 
+  // ── Mínimo por pessoa ────────────────────────────────────
   minimo_por_pessoa_kg:  '',              // mínimo em kg que cada pessoa deve trazer
-  // ── Total para agendar recolha 
+  // ── Total para agendar recolha ───────────────────────────
   minimo_para_agendar:   '',              // total em kg acumulado para desbloquear o agendamento
-  // ── Coletador dependente 
+  // ── Coletador dependente ─────────────────────────────────
   com_coletador:         false,           // toggle — indica se a empresa envia coletador
   id_coletadores:        [],              // array de ids dos coletadores dependentes escolhidos
 };
@@ -105,7 +105,7 @@ export default function DashboardEmpresa() {
   // Hook de navegação para redirecionar entre páginas
   const navigate = useNavigate();
 
-  // ── Estado dos dados carregados da API 
+  // ── Estado dos dados carregados da API ───────────────────
   const [perfil,       setPerfil]       = useState(null);  // perfil da empresa
   const [entregas,     setEntregas]     = useState([]);     // histórico de entregas
   const [eventos,      setEventos]      = useState([]);     // eventos da empresa
@@ -114,7 +114,7 @@ export default function DashboardEmpresa() {
   const [carregando,   setCarregando]   = useState(true);   // controla o spinner inicial
   const [erro,         setErro]         = useState('');     // erro geral da página
 
-  // ── Estado do Modal 1: Novo Pedido 
+  // ── Estado do Modal 1: Novo Pedido ───────────────────────
   const [modalPedido,  setModalPedido]  = useState(false);      // visibilidade do modal
   const [formulario,   setFormulario]   = useState(FORM_VAZIO); // dados do formulário
   const [publicando,   setPublicando]   = useState(false);      // estado de submissão
@@ -127,7 +127,7 @@ export default function DashboardEmpresa() {
   const [tipoSelecionado,       setTipoSelecionado]       = useState(''); // tipo escolhido na grelha
   const [qualidadesDisponiveis, setQualidadesDisponiveis] = useState([]); // qualidades do tipo escolhido
 
-  // ── Estado do Modal 2: Recolhas 
+  // ── Estado do Modal 2: Recolhas ───────────────────────────
   const [modalRecolhas,      setModalRecolhas]      = useState(false); // visibilidade do modal
   const [acordos,            setAcordos]            = useState([]);    // acordos pendentes de recolha
   const [recolhas,           setRecolhas]           = useState([]);    // recolhas já criadas
@@ -138,7 +138,7 @@ export default function DashboardEmpresa() {
   const [recolhaExpandida,   setRecolhaExpandida]   = useState(null);  // id da recolha com detalhes visíveis
   const [carregandoRecolhas, setCarregandoRecolhas] = useState(false); // spinner dentro do modal
 
-  // ── Estado do Modal 3: Agendar Recolha 
+  // ── Estado do Modal 3: Agendar Recolha ───────────────────
   const [modalAgendar,   setModalAgendar]   = useState(false); // visibilidade do modal
   const [dataRecolha,    setDataRecolha]    = useState('');    // data escolhida (YYYY-MM-DD)
   const [horaRecolha,    setHoraRecolha]    = useState('');    // hora escolhida (HH:MM)
@@ -147,12 +147,12 @@ export default function DashboardEmpresa() {
   const [agendando,      setAgendando]      = useState(false); // estado de submissão
   const [erroAgendar,    setErroAgendar]    = useState('');    // erro de validação
 
-  // ── Upload de imagem 
+  // ── Upload de imagem ──────────────────────────────────────
   const [imagemPreview, setImagemPreview] = useState(''); // URL base64 para pré-visualização
   const [erroImagem,    setErroImagem]    = useState(''); // erro de validação do ficheiro
   const inputFicheiroRef = useRef(null);                  // ref para activar o input file escondido
 
-  // ── Derivados calculados a partir do estado 
+  // ── Derivados calculados a partir do estado ───────────────
 
   // Só coletadores dependentes podem ser enviados para recolha
   const coletadoresDependentes = coletadores.filter(c => c.tipo === 'dependente');
@@ -194,7 +194,7 @@ export default function DashboardEmpresa() {
     return kg * val;
   })();
 
-  // ── Carrega todos os dados ao montar o componente 
+  // ── Carrega todos os dados ao montar o componente ─────────
   // Promise.all faz todas as chamadas em simultâneo para reduzir o tempo de espera
   useEffect(() => {
     const carregar = async () => {
@@ -241,7 +241,7 @@ export default function DashboardEmpresa() {
     carregar();
   }, []); // array vazio = só executa ao montar o componente
 
-  // ── Estatísticas calculadas a partir das entregas 
+  // ── Estatísticas calculadas a partir das entregas ─────────
 
   // Entregas sem decisão ainda
   const pendentes = entregas.filter(e => e.status === 'pendente').length;
@@ -562,7 +562,7 @@ export default function DashboardEmpresa() {
     <div className="min-h-screen bg-green-100 pt-24 pb-16 px-6">
       <HeaderEmpresa />
 
-      {/* ── Banner de boas-vindas  */}
+      {/* ── Banner de boas-vindas ─────────────────────────── */}
       <div className="bg-green-600 text-white rounded-2xl p-6 shadow-lg mb-8 relative overflow-hidden">
         {/* Círculos decorativos de fundo */}
         <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />
@@ -598,7 +598,7 @@ export default function DashboardEmpresa() {
       {/* Erro geral — só aparece se a API falhar ao carregar */}
       {erro && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 mb-6 text-sm">{erro}</div>}
 
-      {/* ── KPIs linha 1: entregas  */}
+      {/* ── KPIs linha 1: entregas ───────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
 
         {/* Pendentes — entregas sem decisão */}
@@ -630,7 +630,7 @@ export default function DashboardEmpresa() {
         </div>
       </div>
 
-      {/* ── KPIs linha 2: desempenho  */}
+      {/* ── KPIs linha 2: desempenho ─────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
 
         {/* Taxa de aceitação com barra de progresso */}
@@ -663,7 +663,7 @@ export default function DashboardEmpresa() {
         </div>
       </div>
 
-      {/* ── Últimas Entregas + Equipa  */}
+      {/* ── Últimas Entregas + Equipa ─────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
         {/* Últimas entregas — 2 colunas em desktop */}
@@ -729,7 +729,7 @@ export default function DashboardEmpresa() {
         </div>
       </div>
 
-      {/* ── Pedidos + Eventos  */}
+      {/* ── Pedidos + Eventos ─────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Pedidos de resíduo */}
@@ -744,19 +744,67 @@ export default function DashboardEmpresa() {
           ) : (
             <div className="space-y-3">
               {/* Só os 4 mais recentes */}
-              {pedidos.slice(0, 4).map(p => (
-                <div key={p.id_publicacao} className="flex items-start gap-3 p-3 bg-purple-50 rounded-xl">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center shrink-0"><Recycle size={15} className="text-purple-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-gray-800 text-sm font-medium truncate">{p.titulo}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {p.tipo_residuo && <span className={`text-xs px-2 py-0.5 rounded-lg ${COR_RESIDUO[p.tipo_residuo] || 'bg-gray-100 text-gray-600'}`}>{p.tipo_residuo}</span>}
-                      {p.valor_proposto && <span className="text-green-600 text-xs font-medium">{parseFloat(p.valor_proposto).toFixed(0)} Kz/kg</span>}
+              {pedidos.slice(0, 4).map(p => {
+                // Verifica se já há acordos — bloqueia o eliminar
+                const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
+                return (
+                  <div key={p.id_publicacao} className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                    {/* Linha principal: ícone + info + data */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center shrink-0"><Recycle size={15} className="text-purple-600" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-gray-800 text-sm font-medium truncate">{p.titulo}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {p.tipo_residuo && <span className={`text-xs px-2 py-0.5 rounded-lg ${COR_RESIDUO[p.tipo_residuo] || 'bg-gray-100 text-gray-600'}`}>{p.tipo_residuo}</span>}
+                          {p.valor_proposto && <span className="text-green-600 text-xs font-medium">{parseFloat(p.valor_proposto).toFixed(0)} Kz/kg</span>}
+                          {/* Progresso da meta */}
+                          {p.minimo_para_agendar && (
+                            <span className="text-purple-600 text-xs">
+                              {parseFloat(p.total_acumulado || 0).toFixed(0)}/{parseFloat(p.minimo_para_agendar).toFixed(0)} kg
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
+                    </div>
+                    {/* Botões de gestão */}
+                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-purple-100">
+                      {/* Editar — sempre disponível */}
+                      <button
+                        onClick={() => { abrirModalPedido(); }}
+                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs transition">
+                        <Pencil size={12} /> Editar
+                      </button>
+                      {/* Eliminar — bloqueado se há acordos */}
+                      {temAcordos ? (
+                        <span title="Já existem acordos activos" className="flex items-center gap-1 text-gray-300 text-xs cursor-not-allowed">
+                          <Trash2 size={12} /> Eliminar
+                        </span>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('Remover este pedido?')) return;
+                            try {
+                              const { apagarPublicacao: ap } = await import('../../api.js');
+                              await ap(p.id_publicacao);
+                              const feed = await getFeed();
+                              setPedidos(feed.filter(x => x.tipo_publicacao === 'pedido_residuo' && x.tipo_autor === 'empresa'));
+                            } catch (err) { alert(err.message); }
+                          }}
+                          className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs transition">
+                          <Trash2 size={12} /> Eliminar
+                        </button>
+                      )}
+                      {/* Indicador de acordos activos */}
+                      {temAcordos && (
+                        <span className="ml-auto text-yellow-600 text-xs flex items-center gap-1">
+                          <AlertCircle size={11} /> {parseFloat(p.total_acumulado).toFixed(0)} kg em acordos
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
-                </div>
-              ))}
+                );
+              })}
               {/* Link para abrir o Modal 2 de recolhas */}
               {pedidos.length > 4 && <button onClick={abrirModalRecolhas} className="w-full text-green-600 text-xs text-center py-2 hover:text-green-800 transition">Ver recolhas ({pedidos.length}) →</button>}
             </div>
@@ -789,7 +837,7 @@ export default function DashboardEmpresa() {
         </div>
       </div>
 
-      {/* 
+      {/* ════════════════════════════════════════════════════
           MODAL 1: Novo Pedido de Resíduo
           Fluxo de 11 passos:
           1. Tipo de resíduo (grelha com ícones)
@@ -803,7 +851,7 @@ export default function DashboardEmpresa() {
           9. Foto (opcional)
           10. Observações (opcional)
           11. Toggle coletador dependente (sem data/hora)
-       */}
+      ════════════════════════════════════════════════════ */}
       {modalPedido && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
@@ -1119,13 +1167,13 @@ export default function DashboardEmpresa() {
         </div>
       )}
 
-      {/* 
+      {/* ════════════════════════════════════════════════════
           MODAL 2: Recolhas
           Mostra o progresso em relação ao limiar,
           a lista de acordos pendentes e as recolhas já criadas.
           O botão "Agendar Recolha" só fica activo quando
           o limiar de kg acumulados é atingido.
-       */}
+      ════════════════════════════════════════════════════ */}
       {modalRecolhas && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
@@ -1291,7 +1339,7 @@ export default function DashboardEmpresa() {
         </div>
       )}
 
-      {/* 
+      {/* ════════════════════════════════════════════════════
           MODAL 3: Agendar Recolha
           Abre por cima do Modal 2 (z-index maior).
           A empresa define:
@@ -1300,7 +1348,7 @@ export default function DashboardEmpresa() {
           - Acordos incluídos (pode desseleccionar individualmente)
           Ao confirmar, todos os utilizadores são notificados
           na plataforma e por email.
-       */}
+      ════════════════════════════════════════════════════ */}
       {modalAgendar && (
         <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-60 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
