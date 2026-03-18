@@ -1,3 +1,17 @@
+// ============================================================
+//  PaginaInicialEmpresa.jsx
+//  Guardar em: src/Components/EmpresaProfile/PaginaInicialEmpresa.jsx
+//
+//  Feed principal da empresa recicladora.
+//  Cartões diferentes por tipo:
+//    - pedido_residuo → CartaoPedidoEmpresa (rico, com editar/eliminar)
+//    - outros         → CartaoGeral (com editar/eliminar)
+//
+//  Regra de eliminação:
+//    - pedido_residuo só pode ser eliminado se total_acumulado === 0
+//      (ninguém aceitou ainda)
+//    - outros tipos podem ser eliminados livremente pelo autor
+// ============================================================
 
 import { useState, useEffect } from 'react';
 import {
