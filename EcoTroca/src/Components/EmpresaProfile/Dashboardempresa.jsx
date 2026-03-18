@@ -1,10 +1,4 @@
 
-//  Painel principal da empresa recicladora.
-//  Contém 3 modais encadeados:
-//    Modal 1 — Novo Pedido de Resíduo (com conversão de unidades)
-//    Modal 2 — Recolhas (progresso do limiar + acordos + recolhas)
-//    Modal 3 — Agendar Recolha (data/hora/coletadores)
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -729,90 +723,200 @@ export default function DashboardEmpresa() {
         </div>
       </div>
 
-      {/* ── Pedidos + Eventos ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Pedidos de resíduo */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-green-100">
+
+      {/* ── Pedidos de resíduo (largura total) ─────────── */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 border border-green-100 mt-6">
           <div className="flex justify-between items-center mb-5">
-            <h3 className="font-semibold text-green-800 flex items-center gap-2"><Megaphone size={18} /> Pedidos de Resíduo</h3>
-            {/* Botão que abre o Modal 1 de novo pedido */}
-            <button onClick={abrirModalPedido} className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"><Plus size={13} /> Novo Pedido</button>
+            <h3 className="font-semibold text-green-800 flex items-center gap-2">
+              <Megaphone size={18} /> Pedidos de Resíduo
+            </h3>
+            <button onClick={abrirModalPedido} className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+              <Plus size={13} /> Novo Pedido
+            </button>
           </div>
+
           {pedidos.length === 0 ? (
-            <div className="text-center py-10"><Recycle size={36} className="mx-auto mb-3 text-gray-200" /><p className="text-gray-400 text-sm mb-3">Ainda não publicaste nenhum pedido.</p><button onClick={abrirModalPedido} className="text-green-600 text-xs border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-50 transition">+ Publicar primeiro pedido</button></div>
+            <div className="text-center py-10">
+              <Recycle size={36} className="mx-auto mb-3 text-gray-200" />
+              <p className="text-gray-400 text-sm mb-3">Ainda não publicaste nenhum pedido.</p>
+              <button onClick={abrirModalPedido} className="text-green-600 text-xs border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-50 transition">
+                + Publicar primeiro pedido
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {/* Só os 4 mais recentes */}
-              {pedidos.slice(0, 4).map(p => {
-                // Verifica se já há acordos — bloqueia o eliminar
-                const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
-                return (
-                  <div key={p.id_publicacao} className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                    {/* Linha principal: ícone + info + data */}
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center shrink-0"><Recycle size={15} className="text-purple-600" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-gray-800 text-sm font-medium truncate">{p.titulo}</p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {p.tipo_residuo && <span className={`text-xs px-2 py-0.5 rounded-lg ${COR_RESIDUO[p.tipo_residuo] || 'bg-gray-100 text-gray-600'}`}>{p.tipo_residuo}</span>}
-                          {p.valor_proposto && <span className="text-green-600 text-xs font-medium">{parseFloat(p.valor_proposto).toFixed(0)} Kz/kg</span>}
-                          {/* Progresso da meta */}
-                          {p.minimo_para_agendar && (
-                            <span className="text-purple-600 text-xs">
-                              {parseFloat(p.total_acumulado || 0).toFixed(0)}/{parseFloat(p.minimo_para_agendar).toFixed(0)} kg
+            <>
+              {/* Grelha 2 colunas em desktop, 1 em mobile */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pedidos.slice(0, 4).map(p => {
+                  const temAcordos  = parseFloat(p.total_acumulado || 0) > 0;
+                  const qualCfg     = { ruim: { icone: '👎', label: 'Ruim', cor: 'bg-red-50 text-red-600 border-red-200' }, moderada: { icone: '🙂', label: 'Moderada', cor: 'bg-yellow-50 text-yellow-600 border-yellow-200' }, boa: { icone: '👍', label: 'Boa', cor: 'bg-green-50 text-green-600 border-green-200' }, excelente: { icone: '⭐', label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' } }[p.qualidade] || null;
+                  const progresso   = (() => { const a = parseFloat(p.total_acumulado || 0); const m = parseFloat(p.minimo_para_agendar || 0); if (!m) return null; return Math.min(Math.round((a / m) * 100), 100); })();
+                  const minimoUnid  = (() => { const kg = parseFloat(p.minimo_por_pessoa_kg || 0); const kpu = parseFloat(p.kg_por_unidade || 0); if (!kg || !kpu) return null; return Math.ceil(kg / kpu); })();
+
+                  return (
+                    <div key={p.id_publicacao} className="border border-purple-200 rounded-2xl overflow-hidden hover:shadow-md transition bg-white">
+
+                      {/* Imagem se existir */}
+                      {p.imagem && (
+                        <img src={p.imagem} alt={p.titulo} className="w-full h-36 object-cover"
+                          onError={(e) => { e.target.style.display = 'none'; }} />
+                      )}
+
+                      <div className="p-4">
+
+                        {/* Topo: badge + data */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                            Pedido de Empresa
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}
+                          </span>
+                        </div>
+
+                        {/* Título */}
+                        <h4 className="text-gray-900 font-bold text-sm mb-1 line-clamp-1">{p.titulo}</h4>
+
+                        {/* Tipo + qualidade */}
+                        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                          {p.tipo_residuo && (
+                            <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                              <Recycle size={10} /> {p.tipo_residuo}
+                            </span>
+                          )}
+                          {qualCfg && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${qualCfg.cor}`}>
+                              {qualCfg.label}
+                            </span>
+                          )}
+                          {p.provincia && (
+                            <span className="text-gray-400 text-xs flex items-center gap-0.5">
+                              <MapPin size={10} /> {p.provincia}
                             </span>
                           )}
                         </div>
+
+                        {/* Valor */}
+                        {p.valor_proposto && (
+                          <div className="bg-green-50 rounded-xl px-3 py-2 mb-3 flex items-center justify-between border border-green-100">
+                            <div>
+                              <p className="text-green-700 text-xs">Paga</p>
+                              <p className="text-green-800 font-bold text-base">
+                                {parseFloat(p.valor_proposto).toFixed(0)} Kz
+                                <span className="text-xs font-normal text-green-600"> /kg</span>
+                              </p>
+                            </div>
+                            <Leaf size={18} className="text-green-400" />
+                          </div>
+                        )}
+
+                        {/* Mínimo por pessoa */}
+                        {p.minimo_por_pessoa_kg && (
+                          <div className="bg-blue-50 rounded-xl px-3 py-2 mb-3 border border-blue-100">
+                            <p className="text-blue-700 text-xs font-medium mb-1">Mínimo por pessoa</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-gray-800 text-sm font-bold">
+                                {parseFloat(p.minimo_por_pessoa_kg).toFixed(0)} kg
+                              </span>
+                              {minimoUnid !== null && p.nome_unidade && (
+                                <span className="text-gray-400 text-xs">
+                                  ou {minimoUnid.toLocaleString()} {p.nome_unidade}s
+                                </span>
+                              )}
+                              {p.valor_proposto && (
+                                <span className="text-green-600 text-xs font-medium ml-auto">
+                                  ≈ {(parseFloat(p.minimo_por_pessoa_kg) * parseFloat(p.valor_proposto)).toFixed(0)} Kz
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Progresso */}
+                        {progresso !== null && (
+                          <div className="mb-3">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-400 text-xs flex items-center gap-1"><Target size={10} /> Meta</span>
+                              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-500'}`}>
+                                {parseFloat(p.total_acumulado || 0).toFixed(0)}/{parseFloat(p.minimo_para_agendar).toFixed(0)} kg
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`}
+                                style={{ width: `${progresso}%` }} />
+                            </div>
+                            {progresso >= 100 && (
+                              <p className="text-green-600 text-xs mt-0.5 font-medium">Meta atingida!</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Badge coletador */}
+                        {p.com_coletador && (
+                          <div className="mb-3">
+                            <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200 w-fit">
+                              <Truck size={10} /> A empresa vem buscar
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Aviso de acordos */}
+                        {temAcordos && (
+                          <div className="flex items-start gap-1.5 bg-yellow-50 border border-yellow-200 rounded-xl p-2.5 mb-3">
+                            <AlertCircle size={13} className="text-yellow-600 mt-0.5 shrink-0" />
+                            <p className="text-yellow-700 text-xs">
+                              <strong>{parseFloat(p.total_acumulado).toFixed(0)} kg</strong> em acordos — não podes eliminar
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Botões Editar / Eliminar */}
+                        <div className="flex gap-2 pt-3 border-t border-gray-100">
+                          <button
+                            onClick={() => abrirModalPedido()}
+                            className="flex-1 flex items-center justify-center gap-1 border border-blue-200 text-blue-600 hover:bg-blue-50 text-xs font-medium py-2 rounded-xl transition">
+                            <Pencil size={13} /> Editar
+                          </button>
+                          {temAcordos ? (
+                            <span title="Já existem acordos activos"
+                              className="flex-1 flex items-center justify-center gap-1 border border-gray-100 text-gray-300 text-xs font-medium py-2 rounded-xl cursor-not-allowed">
+                              <Trash2 size={13} /> Eliminar
+                            </span>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm('Remover este pedido?')) return;
+                                try {
+                                  const { apagarPublicacao: ap } = await import('../../api.js');
+                                  await ap(p.id_publicacao);
+                                  const feed = await getFeed();
+                                  setPedidos(feed.filter(x => x.tipo_publicacao === 'pedido_residuo' && x.tipo_autor === 'empresa'));
+                                } catch (err) { alert(err.message); }
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 border border-red-200 text-red-500 hover:bg-red-50 text-xs font-medium py-2 rounded-xl transition">
+                              <Trash2 size={13} /> Eliminar
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-400 shrink-0">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
                     </div>
-                    {/* Botões de gestão */}
-                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-purple-100">
-                      {/* Editar — sempre disponível */}
-                      <button
-                        onClick={() => { abrirModalPedido(); }}
-                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs transition">
-                        <Pencil size={12} /> Editar
-                      </button>
-                      {/* Eliminar — bloqueado se há acordos */}
-                      {temAcordos ? (
-                        <span title="Já existem acordos activos" className="flex items-center gap-1 text-gray-300 text-xs cursor-not-allowed">
-                          <Trash2 size={12} /> Eliminar
-                        </span>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            if (!window.confirm('Remover este pedido?')) return;
-                            try {
-                              const { apagarPublicacao: ap } = await import('../../api.js');
-                              await ap(p.id_publicacao);
-                              const feed = await getFeed();
-                              setPedidos(feed.filter(x => x.tipo_publicacao === 'pedido_residuo' && x.tipo_autor === 'empresa'));
-                            } catch (err) { alert(err.message); }
-                          }}
-                          className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs transition">
-                          <Trash2 size={12} /> Eliminar
-                        </button>
-                      )}
-                      {/* Indicador de acordos activos */}
-                      {temAcordos && (
-                        <span className="ml-auto text-yellow-600 text-xs flex items-center gap-1">
-                          <AlertCircle size={11} /> {parseFloat(p.total_acumulado).toFixed(0)} kg em acordos
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {/* Link para abrir o Modal 2 de recolhas */}
-              {pedidos.length > 4 && <button onClick={abrirModalRecolhas} className="w-full text-green-600 text-xs text-center py-2 hover:text-green-800 transition">Ver recolhas ({pedidos.length}) →</button>}
-            </div>
+                  );
+                })}
+              </div>
+
+              {/* Ver mais */}
+              {pedidos.length > 4 && (
+                <button onClick={abrirModalRecolhas} className="w-full mt-4 text-green-600 text-xs text-center py-2 hover:text-green-800 transition">
+                  Ver todos os pedidos ({pedidos.length}) →
+                </button>
+              )}
+            </>
           )}
         </div>
 
         {/* Próximos eventos */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-green-100">
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-green-100 mt-6">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-semibold text-green-800 flex items-center gap-2"><CalendarCheck size={18} /> Próximos Eventos</h3>
             <button onClick={() => navigate('/EventosEmpresa')} className="text-green-600 text-sm flex items-center gap-1 hover:text-green-800 transition">Gerir <ArrowRight size={14} /></button>
@@ -1350,7 +1454,7 @@ export default function DashboardEmpresa() {
           na plataforma e por email.
       ════════════════════════════════════════════════════ */}
       {modalAgendar && (
-        <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-60 px-0 md:px-4">
+        <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-[60] px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
 
             <div className="flex justify-between items-center mb-5">
