@@ -278,6 +278,9 @@ export const recusarProposta = (id) =>
 
 export const getResiduos = () => pedido('/residuos');
 
+// Conversoes padrao por tipo — sugeridas automaticamente no modal
+export const getConversoes = () => pedido('/residuos/conversoes');
+
 // ============================================================
 //  PUBLICAÇÕES — feed da Página Inicial
 // ============================================================
