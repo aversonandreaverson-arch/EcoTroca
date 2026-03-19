@@ -1,18 +1,18 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Recycle, Building2, MapPin, Plus, Search, Trash2,
   X, HandshakeIcon, Bell, Target, Scale, Users,
   ChevronRight, Truck, CheckCircle, Star, ThumbsUp,
-  ThumbsDown, Smile, Leaf, Info
+  ThumbsDown, Smile, Leaf, Info, User
 } from 'lucide-react';
 import Header from './Header';
 import {
   getFeed, criarPublicacao, apagarPublicacao,
-  getResiduos, getUtilizadorLocal, criarNotificacao, getEmpresas
+  getResiduos, getUtilizadorLocal, criarNotificacao,
+  getEmpresas, pesquisar
 } from '../../api.js';
 
-// ── Tipos de publicação por perfil ────────────────────────────
 const TIPOS_POR_PERFIL = {
   admin:   [
     { valor: 'evento',         label: 'Evento'    },
@@ -30,7 +30,6 @@ const TIPOS_POR_PERFIL = {
   coletor: [],
 };
 
-// ── Filtros do feed ───────────────────────────────────────────
 const FILTROS = [
   { valor: 'todos',          label: 'Tudo'      },
   { valor: 'oferta_residuo', label: 'Ofertas'   },
@@ -41,7 +40,6 @@ const FILTROS = [
   { valor: 'aviso',          label: 'Avisos'    },
 ];
 
-// ── Estilos por tipo de publicação ───────────────────────────
 const ESTILOS = {
   oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-200',  label: 'Oferta de Resíduo' },
   pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-200', label: 'Pedido de Empresa' },
@@ -51,7 +49,6 @@ const ESTILOS = {
   aviso:          { badge: 'bg-red-100 text-red-700',       borda: 'border-red-200',    label: 'Aviso'             },
 };
 
-// ── Ícone e label por qualidade ───────────────────────────────
 const QUALIDADE_CONFIG = {
   ruim:      { icone: <ThumbsDown size={12} className="text-red-500"    />, label: 'Ruim',      cor: 'bg-red-50 text-red-600 border-red-200'         },
   moderada:  { icone: <Smile      size={12} className="text-yellow-500" />, label: 'Moderada',  cor: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
@@ -59,7 +56,6 @@ const QUALIDADE_CONFIG = {
   excelente: { icone: <Star       size={12} className="text-orange-400" />, label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' },
 };
 
-// ── Formulário vazio ──────────────────────────────────────────
 const FORM_VAZIO = {
   tipo_publicacao: 'oferta_residuo',
   titulo: '', descricao: '', id_residuo: '',
@@ -67,24 +63,29 @@ const FORM_VAZIO = {
 };
 
 export default function PaginaInicial() {
+  const navigate   = useNavigate();
   const utilizador = getUtilizadorLocal();
   const tipo       = utilizador?.tipo || 'comum';
 
-  // Estados do feed
   const [feed,       setFeed]       = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState('');
   const [filtro,     setFiltro]     = useState('todos');
   const [pesquisa,   setPesquisa]   = useState('');
 
-  // Estados do modal de nova publicação
+  // ── Pesquisa de pessoas/empresas ─────────────────────────
+  const [resultadosPesquisa, setResultadosPesquisa] = useState(null); // null = não pesquisou ainda
+  const [pesquisando,        setPesquisando]        = useState(false);
+  const [mostrarDropdown,    setMostrarDropdown]    = useState(false);
+  const pesquisaRef = useRef(null);
+  const timeoutRef  = useRef(null);
+
   const [modalAberto, setModalAberto] = useState(false);
   const [residuos,    setResiduos]    = useState([]);
   const [formulario,  setFormulario]  = useState(FORM_VAZIO);
   const [publicando,  setPublicando]  = useState(false);
   const [erroForm,    setErroForm]    = useState('');
 
-  // Estados do modal de interesse (empresa)
   const [modalInteresse,    setModalInteresse]    = useState(false);
   const [publicacaoAlvo,    setPublicacaoAlvo]    = useState(null);
   const [valorProposto,     setValorProposto]     = useState('');
@@ -93,7 +94,6 @@ export default function PaginaInicial() {
   const [erroInteresse,     setErroInteresse]     = useState('');
   const [interesseEnviado,  setInteresseEnviado]  = useState({});
 
-  // Dados da sidebar
   const [empresas, setEmpresas] = useState([]);
 
   const tiposDisponiveis     = TIPOS_POR_PERFIL[tipo] || [];
@@ -104,6 +104,17 @@ export default function PaginaInicial() {
     carregarFeed();
     carregarResiduos();
     getEmpresas().then(setEmpresas).catch(console.error);
+  }, []);
+
+  // Fecha o dropdown ao clicar fora
+  useEffect(() => {
+    const fechar = (e) => {
+      if (pesquisaRef.current && !pesquisaRef.current.contains(e.target)) {
+        setMostrarDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', fechar);
+    return () => document.removeEventListener('mousedown', fechar);
   }, []);
 
   const carregarFeed = async () => {
@@ -122,19 +133,56 @@ export default function PaginaInicial() {
     catch (err) { console.error(err); }
   };
 
-  // Feed filtrado por tipo e pesquisa
+  // ── Pesquisa com debounce de 400ms ───────────────────────
+  const handlePesquisa = (valor) => {
+    setPesquisa(valor);
+    clearTimeout(timeoutRef.current);
+
+    if (!valor.trim() || valor.trim().length < 2) {
+      setResultadosPesquisa(null);
+      setMostrarDropdown(false);
+      return;
+    }
+
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        setPesquisando(true);
+        const dados = await pesquisar(valor.trim());
+        setResultadosPesquisa(dados);
+        setMostrarDropdown(true);
+      } catch (err) {
+        console.error('Erro na pesquisa:', err);
+      } finally {
+        setPesquisando(false);
+      }
+    }, 400);
+  };
+
+  // Navega para o perfil correcto conforme o tipo
+  const irParaPerfil = (tipo_resultado, item) => {
+    setMostrarDropdown(false);
+    setPesquisa('');
+    setResultadosPesquisa(null);
+
+    if (tipo_resultado === 'empresa') {
+      navigate(`/PerfilEmpresa/${item.id_empresa}`);
+    } else if (tipo_resultado === 'comum') {
+      navigate(`/Perfil/utilizador/${item.id_usuario}`);
+    } else if (tipo_resultado === 'coletor') {
+      navigate(`/Perfil/coletor/${item.id_coletador}`);
+    }
+  };
+
+  // Total de resultados encontrados
+  const totalResultados = resultadosPesquisa
+    ? (resultadosPesquisa.empresas?.length || 0) +
+      (resultadosPesquisa.utilizadores?.length || 0) +
+      (resultadosPesquisa.coletadores?.length || 0)
+    : 0;
+
+  // Feed filtrado — só por tipo (a pesquisa de texto agora é só para pessoas)
   const feedFiltrado = feed
-    .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro)
-    .filter(p => {
-      if (!pesquisa) return true;
-      const t = pesquisa.toLowerCase();
-      return (
-        p.titulo?.toLowerCase().includes(t)     ||
-        p.descricao?.toLowerCase().includes(t)  ||
-        p.nome_autor?.toLowerCase().includes(t) ||
-        p.provincia?.toLowerCase().includes(t)
-      );
-    });
+    .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
 
   const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
 
@@ -230,15 +278,128 @@ export default function PaginaInicial() {
           {/* Coluna do feed */}
           <div className="flex-1 min-w-0">
 
-            {/* Pesquisa */}
-            <div className="relative mb-4">
-              <Search size={15} className="absolute left-3 top-3.5 text-gray-400" />
-              <input type="text" placeholder="Pesquisar..." value={pesquisa}
-                onChange={(e) => setPesquisa(e.target.value)}
+            {/* ── Barra de pesquisa com dropdown ── */}
+            <div className="relative mb-4" ref={pesquisaRef}>
+              <Search size={15} className="absolute left-3 top-3.5 text-gray-400 z-10" />
+              <input
+                type="text"
+                placeholder="Pesquisar empresas, utilizadores, coletadores..."
+                value={pesquisa}
+                onChange={(e) => handlePesquisa(e.target.value)}
+                onFocus={() => { if (resultadosPesquisa && totalResultados > 0) setMostrarDropdown(true); }}
                 className="w-full bg-white border border-green-200 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 shadow-sm"
               />
               {pesquisa && (
-                <X size={15} className="absolute right-3 top-3.5 text-gray-400 cursor-pointer" onClick={() => setPesquisa('')} />
+                <button onClick={() => { setPesquisa(''); setResultadosPesquisa(null); setMostrarDropdown(false); }}
+                  className="absolute right-3 top-3.5">
+                  <X size={15} className="text-gray-400" />
+                </button>
+              )}
+
+              {/* Spinner de pesquisa */}
+              {pesquisando && (
+                <div className="absolute right-3 top-3.5">
+                  <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* ── Dropdown de resultados ── */}
+              {mostrarDropdown && resultadosPesquisa && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+
+                  {totalResultados === 0 ? (
+                    <div className="p-4 text-center text-gray-400 text-sm">
+                      Nenhum resultado para "{pesquisa}"
+                    </div>
+                  ) : (
+                    <>
+                      {/* Empresas */}
+                      {resultadosPesquisa.empresas?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">
+                            Empresas
+                          </p>
+                          {resultadosPesquisa.empresas.map(e => (
+                            <button key={e.id_empresa}
+                              onClick={() => irParaPerfil('empresa', e)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {e.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{e.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <Building2 size={10} /> Empresa Recicladora
+                                  {e.provincia && <><MapPin size={10} className="ml-1" /> {e.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Utilizadores */}
+                      {resultadosPesquisa.utilizadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">
+                            Utilizadores
+                          </p>
+                          {resultadosPesquisa.utilizadores.map(u => (
+                            <button key={u.id_usuario}
+                              onClick={() => irParaPerfil('comum', u)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {u.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{u.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <User size={10} /> Utilizador
+                                  {u.provincia && <><MapPin size={10} className="ml-1" /> {u.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Coletadores */}
+                      {resultadosPesquisa.coletadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">
+                            Coletadores
+                          </p>
+                          {resultadosPesquisa.coletadores.map(c => (
+                            <button key={c.id_coletador}
+                              onClick={() => irParaPerfil('coletor', c)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {c.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <Recycle size={10} /> Coletador
+                                  {c.provincia && <><MapPin size={10} className="ml-1" /> {c.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Rodapé do dropdown */}
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-gray-300 text-xs text-center">
+                          {totalResultados} resultado{totalResultados !== 1 ? 's' : ''} encontrado{totalResultados !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -271,9 +432,7 @@ export default function PaginaInicial() {
                 </div>
               )}
 
-              {/* Renderiza cartão diferente conforme o tipo de publicação */}
               {feedFiltrado.map(p => {
-                // Pedido de empresa — cartão rico com todos os detalhes
                 if (p.tipo_publicacao === 'pedido_residuo') {
                   return (
                     <CartaoPedidoEmpresa
@@ -285,7 +444,6 @@ export default function PaginaInicial() {
                     />
                   );
                 }
-                // Outros tipos — cartão geral
                 return (
                   <CartaoGeral
                     key={p.id_publicacao}
@@ -301,10 +459,10 @@ export default function PaginaInicial() {
             </div>
           </div>
 
-          {/* Sidebar — só no desktop */}
+          {/* Sidebar */}
           <div className="hidden lg:flex flex-col gap-4 w-68 shrink-0">
 
-            {/* Empresas Parceiras */}
+            {/* Empresas Parceiras — clicáveis */}
             <div className="bg-white border border-green-100 rounded-2xl shadow-sm p-5">
               <h3 className="text-green-800 font-semibold text-sm mb-4 flex items-center gap-2">
                 <Building2 size={15} className="text-purple-600" /> Empresas Parceiras
@@ -312,13 +470,17 @@ export default function PaginaInicial() {
               {empresas.length === 0 ? (
                 <p className="text-gray-400 text-xs">Nenhuma empresa registada.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {empresas.slice(0, 5).map(e => (
-                    <div key={e.id_empresa} className="flex items-center gap-3">
+                    <button
+                      key={e.id_empresa}
+                      onClick={() => navigate(`/PerfilEmpresa/${e.id_empresa}`)}
+                      className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-green-50 transition text-left"
+                    >
                       <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                         {e.nome?.charAt(0).toUpperCase()}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-gray-700 text-xs font-medium truncate">{e.nome}</p>
                         {e.provincia && (
                           <p className="text-gray-400 text-xs flex items-center gap-1">
@@ -326,10 +488,13 @@ export default function PaginaInicial() {
                           </p>
                         )}
                       </div>
-                    </div>
+                      <ChevronRight size={13} className="text-gray-300 shrink-0" />
+                    </button>
                   ))}
                   {empresas.length > 5 && (
-                    <p className="text-green-600 text-xs text-center mt-1">+{empresas.length - 5} empresas</p>
+                    <p className="text-green-600 text-xs text-center mt-1 pt-1">
+                      +{empresas.length - 5} empresas
+                    </p>
                   )}
                 </div>
               )}
@@ -481,37 +646,16 @@ export default function PaginaInicial() {
   );
 }
 
-// ════════════════════════════════════════════════════════════
-//  CartaoPedidoEmpresa
-//  Cartão rico para publicações do tipo pedido_residuo.
-//  Mostra todos os detalhes relevantes para o utilizador:
-//  - Empresa + localização
-//  - Tipo e qualidade do resíduo
-//  - Valor que a empresa paga por kg
-//  - Mínimo que o utilizador deve trazer (em kg e unidades)
-//  - Progresso do total acumulado vs meta da empresa
-//  - Badge "A empresa vem buscar" se tiver coletador designado
-//  - Botão "Quero Participar"
-// ════════════════════════════════════════════════════════════
+// CartaoPedidoEmpresa — sem alterações
 function CartaoPedidoEmpresa({ publicacao: p, utilizador, tipoUtilizador, onApagar }) {
-
-  // Admin ou autor pode apagar
   const podeApagar = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
-
-  // Qualidade — ícone e cor
   const qualCfg = QUALIDADE_CONFIG[p.qualidade] || null;
-
-  // Progresso da meta — quanto já foi acumulado vs o total para agendar
-  // Vem do backend como p.total_acumulado e p.minimo_para_agendar
   const progresso = (() => {
     const acumulado = parseFloat(p.total_acumulado || 0);
     const meta      = parseFloat(p.minimo_para_agendar || 0);
     if (!meta || meta <= 0) return null;
     return Math.min(Math.round((acumulado / meta) * 100), 100);
   })();
-
-  // Equivalente em unidades do mínimo por pessoa
-  // Ex: 20 kg ÷ 0,03 kg/garrafa = 667 garrafas
   const minimoUnidades = (() => {
     const kg  = parseFloat(p.minimo_por_pessoa_kg || 0);
     const kpu = parseFloat(p.kg_por_unidade || 0);
@@ -521,40 +665,24 @@ function CartaoPedidoEmpresa({ publicacao: p, utilizador, tipoUtilizador, onApag
 
   return (
     <div className="bg-white border border-purple-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
-
-      {/* Imagem se existir */}
       {p.imagem && (
         <img src={p.imagem} alt={p.titulo} className="w-full h-44 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }} />
       )}
-
       <div className="p-5">
-
-        {/* Linha topo: badge + data + apagar */}
         <div className="flex items-center justify-between mb-3">
-          <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">
-            Pedido de Empresa
-          </span>
+          <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">Pedido de Empresa</span>
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
             {podeApagar && (
-              <button onClick={() => onApagar(p.id_publicacao)}
-                className="text-red-400 hover:text-red-500 transition">
+              <button onClick={() => onApagar(p.id_publicacao)} className="text-red-400 hover:text-red-500 transition">
                 <Trash2 size={14} />
               </button>
             )}
           </div>
         </div>
-
-        {/* Título */}
         <h3 className="text-gray-900 font-bold text-base mb-1">{p.titulo}</h3>
-
-        {/* Descrição */}
-        {p.descricao && (
-          <p className="text-gray-500 text-sm mb-3 line-clamp-2">{p.descricao}</p>
-        )}
-
-        {/* Tipo de resíduo + qualidade */}
+        {p.descricao && <p className="text-gray-500 text-sm mb-3 line-clamp-2">{p.descricao}</p>}
         {(p.tipo_residuo || p.qualidade) && (
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             {p.tipo_residuo && (
@@ -568,94 +696,62 @@ function CartaoPedidoEmpresa({ publicacao: p, utilizador, tipoUtilizador, onApag
               </span>
             )}
             {p.provincia && (
-              <span className="flex items-center gap-1 text-gray-400 text-xs">
-                <MapPin size={11} /> {p.provincia}
-              </span>
+              <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>
             )}
           </div>
         )}
-
-        {/* Valor que a empresa paga */}
         {p.valor_proposto && (
           <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center justify-between">
             <div>
               <p className="text-green-700 text-xs font-medium">A empresa paga</p>
               <p className="text-green-800 font-bold text-xl">
-                {parseFloat(p.valor_proposto).toFixed(0)} Kz
-                <span className="text-sm font-normal text-green-600"> /kg</span>
+                {parseFloat(p.valor_proposto).toFixed(0)} Kz<span className="text-sm font-normal text-green-600"> /kg</span>
               </p>
             </div>
             <Leaf size={24} className="text-green-400" />
           </div>
         )}
-
-        {/* Mínimo por pessoa */}
         {p.minimo_por_pessoa_kg && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3">
-            <p className="text-blue-700 text-xs font-semibold mb-1 flex items-center gap-1">
-              <Info size={12} /> O que tens de trazer no mínimo
-            </p>
+            <p className="text-blue-700 text-xs font-semibold mb-1 flex items-center gap-1"><Info size={12} /> O que tens de trazer no mínimo</p>
             <div className="flex items-center gap-4 flex-wrap">
-              {/* Mínimo em kg */}
               <div className="flex items-center gap-1.5">
                 <Scale size={14} className="text-blue-500" />
                 <span className="text-gray-800 text-sm font-bold">{parseFloat(p.minimo_por_pessoa_kg).toFixed(0)} kg</span>
                 <span className="text-gray-400 text-xs">em peso</span>
               </div>
-              {/* Equivalente em unidades — para quem não tem balança */}
               {minimoUnidades !== null && p.nome_unidade && (
                 <>
                   <span className="text-gray-300 text-xs">ou</span>
                   <div className="flex items-center gap-1.5">
                     <Recycle size={14} className="text-blue-500" />
-                    <span className="text-gray-800 text-sm font-bold">
-                      {minimoUnidades.toLocaleString()} {p.nome_unidade}s
-                    </span>
+                    <span className="text-gray-800 text-sm font-bold">{minimoUnidades.toLocaleString()} {p.nome_unidade}s</span>
                     <span className="text-gray-400 text-xs">sem balança</span>
                   </div>
                 </>
               )}
             </div>
-            {/* Estimativa do valor que o utilizador vai receber */}
             {p.valor_proposto && (
               <p className="text-green-600 text-xs mt-2 font-medium">
-                Vais receber cerca de{' '}
-                <strong>
-                  {(parseFloat(p.minimo_por_pessoa_kg) * parseFloat(p.valor_proposto)).toFixed(0)} Kz
-                </strong>{' '}
-                se trouxeres o mínimo
+                Vais receber cerca de <strong>{(parseFloat(p.minimo_por_pessoa_kg) * parseFloat(p.valor_proposto)).toFixed(0)} Kz</strong> se trouxeres o mínimo
               </p>
             )}
           </div>
         )}
-
-        {/* Progresso da meta */}
         {progresso !== null && (
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-gray-500 text-xs flex items-center gap-1">
-                <Target size={11} /> Progresso para a recolha
-              </span>
-              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-600'}`}>
-                {progresso}%
-              </span>
+              <span className="text-gray-500 text-xs flex items-center gap-1"><Target size={11} /> Progresso para a recolha</span>
+              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-600'}`}>{progresso}%</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`}
-                style={{ width: `${progresso}%` }}
-              />
+              <div className={`h-full rounded-full transition-all ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`} style={{ width: `${progresso}%` }} />
             </div>
-            {progresso >= 100 && (
-              <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida — recolha a ser agendada</p>
-            )}
+            {progresso >= 100 && <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida — recolha a ser agendada</p>}
           </div>
         )}
-
-        {/* Empresa + coletador */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <div className="flex items-center gap-2">
-            {/* Avatar com inicial da empresa */}
             <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
               {p.nome_autor?.charAt(0).toUpperCase()}
             </div>
@@ -664,16 +760,12 @@ function CartaoPedidoEmpresa({ publicacao: p, utilizador, tipoUtilizador, onApag
               <p className="text-purple-600 text-xs flex items-center gap-1"><Building2 size={9} /> Empresa</p>
             </div>
           </div>
-
-          {/* Badge se a empresa envia coletador */}
           {p.com_coletador && (
             <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200">
               <Truck size={11} /> A empresa vem buscar
             </span>
           )}
         </div>
-
-        {/* Botão de participar — só para utilizadores comuns e coletadores */}
         {tipoUtilizador !== 'empresa' && tipoUtilizador !== 'admin' && p.id_autor !== utilizador?.id && (
           <button className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
             <CheckCircle size={16} /> Quero Participar
@@ -684,18 +776,10 @@ function CartaoPedidoEmpresa({ publicacao: p, utilizador, tipoUtilizador, onApag
   );
 }
 
-// ════════════════════════════════════════════════════════════
-//  CartaoGeral
-//  Cartão para todos os outros tipos de publicação:
-//  oferta_residuo, evento, educacao, noticia, aviso
-// ════════════════════════════════════════════════════════════
+// CartaoGeral — sem alterações
 function CartaoGeral({ publicacao: p, utilizador, tipoUtilizador, onApagar, onInteresse, interesseJaEnviado }) {
   const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
-
-  // Admin ou autor pode apagar
   const podeApagar = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
-
-  // Só empresas podem mostrar interesse em ofertas de resíduo de outros
   const podeInteresse =
     tipoUtilizador === 'empresa' &&
     p.tipo_publicacao === 'oferta_residuo' &&
@@ -703,40 +787,24 @@ function CartaoGeral({ publicacao: p, utilizador, tipoUtilizador, onApagar, onIn
 
   return (
     <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm`}>
-
       {p.imagem && (
         <img src={p.imagem} alt={p.titulo} className="w-full h-48 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }} />
       )}
-
       <div className="p-4">
-
-        {/* Badge e data */}
         <div className="flex items-center justify-between mb-2">
           <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${estilo.badge}`}>{estilo.label}</span>
           <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
         </div>
-
-        {/* Título e descrição */}
         <h3 className="text-gray-800 font-semibold text-sm mb-1">{p.titulo}</h3>
         {p.descricao && <p className="text-gray-500 text-xs mb-2 line-clamp-2">{p.descricao}</p>}
-
-        {/* Detalhes de resíduo */}
         {p.tipo_publicacao === 'oferta_residuo' && (
           <div className="flex flex-wrap gap-3 mb-2">
-            {p.tipo_residuo && (
-              <span className="flex items-center gap-1 text-gray-500 text-xs"><Recycle size={11} /> {p.tipo_residuo}</span>
-            )}
-            {p.provincia && (
-              <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>
-            )}
-            {p.preco_min && p.preco_max && (
-              <span className="text-green-600 text-xs font-medium">{p.preco_min}–{p.preco_max} Kz/kg</span>
-            )}
+            {p.tipo_residuo && <span className="flex items-center gap-1 text-gray-500 text-xs"><Recycle size={11} /> {p.tipo_residuo}</span>}
+            {p.provincia && <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>}
+            {p.preco_min && p.preco_max && <span className="text-green-600 text-xs font-medium">{p.preco_min}–{p.preco_max} Kz/kg</span>}
           </div>
         )}
-
-        {/* Rodapé: autor e acções */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold">
