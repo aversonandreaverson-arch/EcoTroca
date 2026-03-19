@@ -133,12 +133,12 @@ export default function PaginaInicial() {
     catch (err) { console.error(err); }
   };
 
-  // ── Pesquisa com debounce de 400ms ───────────────────────
+  // ── Pesquisa com debounce de 400ms 
   const handlePesquisa = (valor) => {
     setPesquisa(valor);
     clearTimeout(timeoutRef.current);
 
-    if (!valor.trim() || valor.trim().length < 2) {
+    if (!valor.trim() || valor.trim().length < 1) {
       setResultadosPesquisa(null);
       setMostrarDropdown(false);
       return;
