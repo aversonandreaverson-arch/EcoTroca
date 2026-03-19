@@ -4,7 +4,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/perfilpublico/:tipo/:id ──────────────────────────
+// ── GET /api/perfilpublico/:tipo/:id 
 router.get('/:tipo/:id', auth, async (req, res) => {
   try {
     const { tipo, id } = req.params;
