@@ -161,7 +161,7 @@ export const rejeitarEntrega = async (id_entrega, id_empresa, motivo, pede_foto,
   // Notifica o utilizador sobre a rejeição
   await pool.query(
     'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-    [id_usuario, '❌ Entrega rejeitada', mensagem]
+    [id_usuario, ' Entrega rejeitada', mensagem]
   );
 
   return { mensagem: 'Entrega rejeitada com sucesso.' };
