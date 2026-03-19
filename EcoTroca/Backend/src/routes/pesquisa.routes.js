@@ -1,3 +1,10 @@
+// ============================================================
+//  pesquisa.routes.js
+//  Guardar em: src/routes/pesquisa.routes.js
+//
+//  GET /api/pesquisa?q=texto
+//  Devolve utilizadores, empresas e coletadores correspondentes
+// ============================================================
 
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
@@ -9,14 +16,14 @@ router.get('/', auth, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
 
-    if (!q || q.length < 2)
+    if (!q || q.length < 1)
       return res.json({ utilizadores: [], empresas: [], coletadores: [] });
 
     const like = `%${q}%`;
 
-    // ── Utilizadores comuns ──
+    // Utilizadores comuns
     const [utilizadores] = await pool.query(
-      `SELECT u.id_usuario, u.nome, u.provincia, u.municipio, u.foto_perfil,
+      `SELECT u.id_usuario, u.nome, u.provincia, u.municipio,
               'comum' AS tipo
        FROM usuario u
        WHERE u.tipo_usuario = 'comum'
@@ -27,11 +34,10 @@ router.get('/', auth, async (req, res) => {
       [like, like, like]
     );
 
-    // ── Empresas recicladoras ──
+    // Empresas recicladoras
     const [empresas] = await pool.query(
       `SELECT e.id_empresa, e.nome, e.provincia, e.municipio,
-              e.foto_perfil, e.residuos_aceites,
-              'empresa' AS tipo
+              e.residuos_aceites, 'empresa' AS tipo
        FROM empresarecicladora e
        INNER JOIN usuario u ON u.id_usuario = e.id_usuario
        WHERE u.ativo = TRUE
@@ -41,11 +47,10 @@ router.get('/', auth, async (req, res) => {
       [like, like, like]
     );
 
-    // ── Coletadores ──
+    // Coletadores
     const [coletadores] = await pool.query(
       `SELECT c.id_coletador, u.nome, u.provincia, u.municipio,
-              u.foto_perfil, c.tipo AS subtipo,
-              'coletor' AS tipo
+              c.tipo AS subtipo, 'coletor' AS tipo
        FROM coletador c
        INNER JOIN usuario u ON u.id_usuario = c.id_usuario
        WHERE u.ativo = TRUE
