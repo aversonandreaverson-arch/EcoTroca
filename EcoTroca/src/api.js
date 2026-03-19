@@ -1,8 +1,12 @@
+// ============================================================
 //  api.js — Ficheiro central de comunicação com o backend
+//  Todas as chamadas ao servidor passam por aqui.
+//  Guardar em: src/api.js
+// ============================================================
 
 const BASE_URL = 'http://localhost:3000/api';
 
-//  Função base para todas as chamadas 
+// ── Função base para todas as chamadas ───────────────────────
 // Adiciona o token JWT automaticamente em cada pedido.
 // Se o servidor devolver 401 (token expirado/inválido),
 // limpa o localStorage e redireciona para o login.
@@ -308,6 +312,7 @@ export const getPerfilPublico = (tipo, id) => pedido(`/perfilpublico/${tipo}/${i
 // ============================================================
 
 export const getEmpresas = () => pedido('/empresas');
+export const pesquisar   = (q) => pedido(`/pesquisa?q=${encodeURIComponent(q)}`);
 export const getEmpresaPorId = (id) => pedido(`/empresas/${id}`);
 
 export const getEmpresa = (id) => pedido(`/empresas/${id}`);
