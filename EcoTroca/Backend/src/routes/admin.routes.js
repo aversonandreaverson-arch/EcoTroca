@@ -6,7 +6,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/admin/utilizadores ──────────────────────────────
+//  GET /api/admin/utilizadores 
 // Devolvo todos os utilizadores registados na plataforma
 // O frontend filtra por tipo_usuario para separar utilizadores, coletadores e empresas
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
@@ -28,7 +28,7 @@ router.get('/utilizadores', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── PATCH /api/admin/utilizadores/:id/status ─────────────────
+// ── PATCH /api/admin/utilizadores/:id/status 
 // Activa ou desactiva um utilizador (ativo = 1 ou 0)
 router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) => {
   try {
@@ -43,7 +43,7 @@ router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) =
   }
 });
 
-// ── PATCH /api/admin/utilizadores/:id/advertencia ────────────
+// ── PATCH /api/admin/utilizadores/:id/advertencia 
 // Aplica uma advertência — incrementa o contador de advertencias
 // Funciona para utilizadores, coletadores e empresas
 // Regra 13 — 1ª ocorrência por peso errado
@@ -71,7 +71,7 @@ router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, r
   }
 });
 
-// ── PATCH /api/admin/utilizadores/:id/suspender ──────────────
+//  PATCH /api/admin/utilizadores/:id/suspender 
 // Suspende a conta por 1 semana — Regra 13 (2ª ocorrência)
 // Define suspenso_ate para a data de hoje + 7 dias
 router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res) => {
@@ -100,7 +100,7 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
   }
 });
 
-// ── PATCH /api/admin/utilizadores/:id/bloquear ───────────────
+//  PATCH /api/admin/utilizadores/:id/bloquear 
 // Bloqueia a conta permanentemente
 // Regra 14 — coletador que desviou material
 // Empresa — 3ª ocorrência de não pagamento
@@ -204,7 +204,7 @@ router.get('/estatisticas', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── GET /api/admin/dashboard ──────────────────────────────────
+// ── GET /api/admin/dashboard 
 // Rota principal do painel — usada pelo DashboardAdmin.jsx
 // Devolvo todas as estatísticas numa só chamada para evitar
 // múltiplos pedidos ao servidor quando a página abre

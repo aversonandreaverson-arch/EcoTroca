@@ -1,12 +1,7 @@
-// ============================================================
-//  api.js — Ficheiro central de comunicação com o backend
-//  Todas as chamadas ao servidor passam por aqui.
-//  Guardar em: src/api.js
-// ============================================================
 
 const BASE_URL = 'http://localhost:3000/api';
 
-// ── Função base para todas as chamadas ───────────────────────
+// ── Função base para todas as chamadas 
 // Adiciona o token JWT automaticamente em cada pedido.
 // Se o servidor devolver 401 (token expirado/inválido),
 // limpa o localStorage e redireciona para o login.
