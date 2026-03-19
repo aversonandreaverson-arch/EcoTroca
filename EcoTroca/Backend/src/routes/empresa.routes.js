@@ -34,6 +34,8 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+
+
 // ── GET /api/empresas/perfil ──────────────────────────────────
 // Devolve o perfil completo da empresa autenticada
 router.get('/perfil', auth, async (req, res) => {
@@ -490,6 +492,94 @@ router.put('/perfil', auth, async (req, res) => {
     );
     res.json({ mensagem: 'Perfil actualizado com sucesso.' });
   } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── POST /api/empresas/minhas/entregas/:id/aceitar 
+// A empresa aceita uma entrega pendente
+// Chama processarPagamento que:
+//   1. Calcula valor total (peso × valor_por_kg)
+//   2. Retém 10% de comissão da plataforma
+//   3. Distribui o restante: 70% utilizador + 30% coletador 
+//   4. Credita na carteira do utilizador (dinheiro ou saldo)
+//   5. Marca a entrega como 'coletada'
+//   6. Notifica o utilizador e o coletador
+router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
+  try {
+    const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
+    const id_entrega = parseInt(req.params.id);
+ 
+    // Verifica que a entrega pertence a esta empresa e está pendente
+    const [entregas] = await pool.query(
+      `SELECT id_entrega, status, id_usuario, id_coletador, peso_total
+       FROM entrega
+       WHERE id_entrega = ? AND id_empresa = ?`,
+      [id_entrega, id_empresa]
+    );
+ 
+    if (entregas.length === 0)
+      return res.status(404).json({ erro: 'Entrega não encontrada.' });
+ 
+    if (entregas[0].status !== 'pendente')
+      return res.status(400).json({ erro: `Esta entrega já foi ${entregas[0].status === 'coletada' ? 'aceite' : 'rejeitada'}.` });
+ 
+    // Chama o serviço de pagamento
+    const { processarPagamento } = await import('../services/empresa.service.js');
+    const resultado = await processarPagamento(id_entrega, id_empresa);
+ 
+    res.json({
+      mensagem:            'Entrega aceite e pagamento processado com sucesso.',
+      valor_bruto:         resultado.valor_bruto,
+      comissao_plataforma: resultado.comissao_plataforma,
+      valor_liquido:       resultado.valor_liquido,
+    });
+  } catch (err) {
+    console.error('Erro ao aceitar entrega:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+ 
+// ── POST /api/empresas/minhas/entregas/:id/rejeitar ───────────
+// A empresa rejeita uma entrega pendente
+// Pode indicar motivo, pedir fotos e/ou pedir limpeza ao utilizador
+// Notifica o utilizador com o motivo e os pedidos adicionais
+router.post('/minhas/entregas/:id/rejeitar', auth, async (req, res) => {
+  try {
+    const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
+    const id_entrega = parseInt(req.params.id);
+    const { motivo, pede_foto, pede_limpeza } = req.body;
+ 
+    if (!motivo || !motivo.trim())
+      return res.status(400).json({ erro: 'O motivo da rejeição é obrigatório.' });
+ 
+    // Verifica que a entrega pertence a esta empresa e está pendente
+    const [entregas] = await pool.query(
+      `SELECT id_entrega, status, id_usuario
+       FROM entrega
+       WHERE id_entrega = ? AND id_empresa = ?`,
+      [id_entrega, id_empresa]
+    );
+ 
+    if (entregas.length === 0)
+      return res.status(404).json({ erro: 'Entrega não encontrada.' });
+ 
+    if (entregas[0].status !== 'pendente')
+      return res.status(400).json({ erro: `Esta entrega já foi ${entregas[0].status === 'coletada' ? 'aceite' : 'rejeitada'}.` });
+ 
+    // Chama o serviço de rejeição
+    const { rejeitarEntrega } = await import('../services/empresa.service.js');
+    const resultado = await rejeitarEntrega(id_entrega, id_empresa, motivo, pede_foto, pede_limpeza);
+ 
+    // Marca a entrega como cancelada
+    await pool.query(
+      `UPDATE entrega SET status = 'cancelada' WHERE id_entrega = ?`,
+      [id_entrega]
+    );
+ 
+    res.json(resultado);
+  } catch (err) {
+    console.error('Erro ao rejeitar entrega:', err);
     res.status(500).json({ erro: err.message });
   }
 });
