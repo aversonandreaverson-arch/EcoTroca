@@ -287,7 +287,7 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
 // (Esta rota já deve existir no educacao.routes.js)
 // Adicionar no admin.routes.js apenas as rotas de gestão:
 
-// ── POST /api/admin/educacao ──────────────────────────────────
+// ── POST /api/admin/educacao 
 // Crio um novo conteúdo educativo
 router.post('/educacao', auth, role('admin'), async (req, res) => {
   try {
@@ -310,7 +310,7 @@ router.post('/educacao', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── PUT /api/admin/educacao/:id ───────────────────────────────
+// ── PUT /api/admin/educacao/:id 
 // Actualizo um conteúdo educativo existente pelo ID
 router.put('/educacao/:id', auth, role('admin'), async (req, res) => {
   try {
@@ -333,7 +333,7 @@ router.put('/educacao/:id', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── DELETE /api/admin/educacao/:id ────────────────────────────
+// ── DELETE /api/admin/educacao/:id 
 // Faço soft delete — marco como eliminado sem apagar da base de dados
 // Assim o conteúdo desaparece para os utilizadores mas fica no histórico
 router.delete('/educacao/:id', auth, role('admin'), async (req, res) => {
@@ -348,7 +348,7 @@ router.delete('/educacao/:id', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── GET /api/admin/relatorios ─────────────────────────────────
+// ── GET /api/admin/relatorios 
 // Devolvo os dados financeiros filtrados pelo período escolhido
 // Parâmetro de query: ?periodo=hoje|semana|mes|total
 // Regra 15 — cada transacção contém todos os campos obrigatórios
