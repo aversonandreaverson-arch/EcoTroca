@@ -1,32 +1,18 @@
-// ============================================================
-//  PaginaInicialEmpresa.jsx
-//  Guardar em: src/Components/EmpresaProfile/PaginaInicialEmpresa.jsx
-//
-//  Feed principal da empresa recicladora.
-//  Cartões diferentes por tipo:
-//    - pedido_residuo → CartaoPedidoEmpresa (rico, com editar/eliminar)
-//    - outros         → CartaoGeral (com editar/eliminar)
-//
-//  Regra de eliminação:
-//    - pedido_residuo só pode ser eliminado se total_acumulado === 0
-//      (ninguém aceitou ainda)
-//    - outros tipos podem ser eliminados livremente pelo autor
-// ============================================================
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Recycle, Building2, MapPin, Plus, Search, Trash2,
-  X, HandshakeIcon, Bell, Pencil, Check,
-  Target, Scale, Leaf, Info, Truck, CheckCircle,
-  ThumbsDown, Smile, ThumbsUp, Star, AlertCircle
+  X, Bell, Pencil, Check, Target, Scale, Leaf, Info,
+  Truck, AlertCircle, ChevronRight, User, FileText,
+  Wrench, Wine, Calendar, Newspaper, BookOpen, Megaphone,
+  ThumbsDown, Smile, ThumbsUp, Star, HandshakeIcon
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa';
 import {
   getFeed, criarPublicacao, apagarPublicacao, editarPublicacao,
-  getResiduos, getUtilizadorLocal, criarNotificacao, getEmpresas
+  getResiduos, getUtilizadorLocal, getEmpresas, pesquisar
 } from '../../api.js';
 
-// ── Tipos de publicação disponíveis para a empresa ───────────
 const TIPOS_EMPRESA = [
   { valor: 'pedido_residuo', label: 'Pedido de Resíduo' },
   { valor: 'evento',         label: 'Evento'            },
@@ -34,7 +20,6 @@ const TIPOS_EMPRESA = [
   { valor: 'noticia',        label: 'Notícia'           },
 ];
 
-// ── Filtros do feed ───────────────────────────────────────────
 const FILTROS = [
   { valor: 'todos',          label: 'Tudo'      },
   { valor: 'oferta_residuo', label: 'Ofertas'   },
@@ -45,25 +30,22 @@ const FILTROS = [
   { valor: 'aviso',          label: 'Avisos'    },
 ];
 
-// ── Estilos por tipo de publicação ───────────────────────────
 const ESTILOS = {
-  oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-200',  label: 'Oferta de Resíduo' },
-  pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-200', label: 'Pedido de Empresa' },
-  evento:         { badge: 'bg-blue-100 text-blue-700',     borda: 'border-blue-200',   label: 'Evento'            },
-  educacao:       { badge: 'bg-yellow-100 text-yellow-700', borda: 'border-yellow-200', label: 'Educação'          },
-  noticia:        { badge: 'bg-cyan-100 text-cyan-700',     borda: 'border-cyan-200',   label: 'Notícia'           },
-  aviso:          { badge: 'bg-red-100 text-red-700',       borda: 'border-red-200',    label: 'Aviso'             },
+  oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-200',  label: 'Oferta',   icone: <Recycle size={28} className="text-green-500" />,    fundo: 'bg-green-50'  },
+  pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-200', label: 'Pedido',   icone: <Megaphone size={28} className="text-purple-500" />,  fundo: 'bg-purple-50' },
+  evento:         { badge: 'bg-blue-100 text-blue-700',     borda: 'border-blue-200',   label: 'Evento',   icone: <Calendar size={28} className="text-blue-500" />,     fundo: 'bg-blue-50'   },
+  educacao:       { badge: 'bg-yellow-100 text-yellow-700', borda: 'border-yellow-200', label: 'Educação', icone: <BookOpen size={28} className="text-yellow-500" />,   fundo: 'bg-yellow-50' },
+  noticia:        { badge: 'bg-cyan-100 text-cyan-700',     borda: 'border-cyan-200',   label: 'Notícia',  icone: <Newspaper size={28} className="text-cyan-500" />,    fundo: 'bg-cyan-50'   },
+  aviso:          { badge: 'bg-red-100 text-red-700',       borda: 'border-red-200',    label: 'Aviso',    icone: <Bell size={28} className="text-red-500" />,          fundo: 'bg-red-50'    },
 };
 
-// ── Ícone e cor por qualidade ─────────────────────────────────
 const QUALIDADE_CONFIG = {
-  ruim:      { icone: <ThumbsDown size={12} className="text-red-500"    />, label: 'Ruim',      cor: 'bg-red-50 text-red-600 border-red-200'         },
-  moderada:  { icone: <Smile      size={12} className="text-yellow-500" />, label: 'Moderada',  cor: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
-  boa:       { icone: <ThumbsUp   size={12} className="text-green-500"  />, label: 'Boa',       cor: 'bg-green-50 text-green-600 border-green-200'    },
-  excelente: { icone: <Star       size={12} className="text-orange-400" />, label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' },
+  ruim:      { icone: <ThumbsDown size={11} className="text-red-500"    />, label: 'Ruim',      cor: 'bg-red-50 text-red-600 border-red-200'         },
+  moderada:  { icone: <Smile      size={11} className="text-yellow-500" />, label: 'Moderada',  cor: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
+  boa:       { icone: <ThumbsUp   size={11} className="text-green-500"  />, label: 'Boa',       cor: 'bg-green-50 text-green-600 border-green-200'    },
+  excelente: { icone: <Star       size={11} className="text-orange-400" />, label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' },
 };
 
-// ── Formulário vazio ──────────────────────────────────────────
 const FORM_VAZIO = {
   tipo_publicacao: 'pedido_residuo',
   titulo: '', descricao: '', id_residuo: '',
@@ -71,33 +53,28 @@ const FORM_VAZIO = {
 };
 
 export default function PaginaInicialEmpresa() {
+  const navigate   = useNavigate();
   const utilizador = getUtilizadorLocal();
 
-  // ── Estado do feed ────────────────────────────────────────
   const [feed,       setFeed]       = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState('');
   const [filtro,     setFiltro]     = useState('todos');
   const [pesquisa,   setPesquisa]   = useState('');
 
-  // ── Modal de criar/editar ─────────────────────────────────
+  const [resultadosPesquisa, setResultadosPesquisa] = useState(null);
+  const [pesquisando,        setPesquisando]        = useState(false);
+  const [mostrarDropdown,    setMostrarDropdown]    = useState(false);
+  const pesquisaRef = useRef(null);
+  const timeoutRef  = useRef(null);
+
   const [modalAberto,      setModalAberto]      = useState(false);
   const [residuos,         setResiduos]         = useState([]);
   const [formulario,       setFormulario]       = useState(FORM_VAZIO);
   const [publicando,       setPublicando]       = useState(false);
   const [erroForm,         setErroForm]         = useState('');
-  const [publicacaoEditId, setPublicacaoEditId] = useState(null); // null=criar, id=editar
+  const [publicacaoEditId, setPublicacaoEditId] = useState(null);
 
-  // ── Modal de proposta de interesse ───────────────────────
-  const [modalInteresse,    setModalInteresse]    = useState(false);
-  const [publicacaoAlvo,    setPublicacaoAlvo]    = useState(null);
-  const [valorProposto,     setValorProposto]     = useState('');
-  const [mensagemInteresse, setMensagemInteresse] = useState('');
-  const [enviandoInteresse, setEnviandoInteresse] = useState(false);
-  const [erroInteresse,     setErroInteresse]     = useState('');
-  const [interesseEnviado,  setInteresseEnviado]  = useState({});
-
-  // ── Sidebar ───────────────────────────────────────────────
   const [empresas, setEmpresas] = useState([]);
 
   const mostrarCamposResiduo = ['oferta_residuo', 'pedido_residuo'].includes(formulario.tipo_publicacao);
@@ -108,15 +85,19 @@ export default function PaginaInicialEmpresa() {
     getEmpresas().then(setEmpresas).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    const fechar = (e) => {
+      if (pesquisaRef.current && !pesquisaRef.current.contains(e.target))
+        setMostrarDropdown(false);
+    };
+    document.addEventListener('mousedown', fechar);
+    return () => document.removeEventListener('mousedown', fechar);
+  }, []);
+
   const carregarFeed = async () => {
-    try {
-      setCarregando(true);
-      setFeed(await getFeed());
-    } catch (err) {
-      setErro(err.message);
-    } finally {
-      setCarregando(false);
-    }
+    try { setCarregando(true); setFeed(await getFeed()); }
+    catch (err) { setErro(err.message); }
+    finally { setCarregando(false); }
   };
 
   const carregarResiduos = async () => {
@@ -124,121 +105,72 @@ export default function PaginaInicialEmpresa() {
     catch (err) { console.error(err); }
   };
 
-  // Feed filtrado por tipo e pesquisa
-  const feedFiltrado = feed
-    .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro)
-    .filter(p => {
-      if (!pesquisa) return true;
-      const t = pesquisa.toLowerCase();
-      return (
-        p.titulo?.toLowerCase().includes(t)    ||
-        p.descricao?.toLowerCase().includes(t) ||
-        p.nome_autor?.toLowerCase().includes(t)||
-        p.provincia?.toLowerCase().includes(t)
-      );
-    });
+  const handlePesquisa = (valor) => {
+    setPesquisa(valor);
+    clearTimeout(timeoutRef.current);
+    if (!valor.trim()) { setResultadosPesquisa(null); setMostrarDropdown(false); return; }
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        setPesquisando(true);
+        const dados = await pesquisar(valor.trim());
+        setResultadosPesquisa(dados);
+        setMostrarDropdown(true);
+      } catch (err) { console.error(err); }
+      finally { setPesquisando(false); }
+    }, 400);
+  };
 
-  const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
+  const irParaPerfil = (tipo_resultado, item) => {
+    setMostrarDropdown(false); setPesquisa(''); setResultadosPesquisa(null);
+    if (tipo_resultado === 'empresa')       navigate(`/PerfilEmpresa/${item.id_empresa}`);
+    else if (tipo_resultado === 'comum')   navigate(`/Perfil/${item.id_usuario}`);
+    else if (tipo_resultado === 'coletor') navigate(`/PerfilColetador/${item.id_coletador}`);
+  };
 
-  const handleCampo = (campo, valor) =>
-    setFormulario(prev => ({ ...prev, [campo]: valor }));
+  const totalResultados = resultadosPesquisa
+    ? (resultadosPesquisa.empresas?.length || 0) + (resultadosPesquisa.utilizadores?.length || 0) + (resultadosPesquisa.coletadores?.length || 0)
+    : 0;
 
-  const handleTipo = (novoTipo) =>
-    setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
+  const feedFiltrado = feed.filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
+  const avisos       = feed.filter(p => p.tipo_publicacao === 'aviso');
 
-  // Abre o modal para criar nova publicação
+  const handleCampo = (campo, valor) => setFormulario(prev => ({ ...prev, [campo]: valor }));
+  const handleTipo  = (novoTipo)     => setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
+
   const abrirModalCriar = () => {
     setFormulario({ ...FORM_VAZIO, tipo_publicacao: TIPOS_EMPRESA[0].valor });
-    setPublicacaoEditId(null);
-    setErroForm('');
-    setModalAberto(true);
+    setPublicacaoEditId(null); setErroForm(''); setModalAberto(true);
   };
 
-  // Abre o modal para editar publicação existente
   const abrirModalEditar = (p) => {
     setFormulario({
-      tipo_publicacao: p.tipo_publicacao,
-      titulo:          p.titulo         || '',
-      descricao:       p.descricao      || '',
-      id_residuo:      p.id_residuo     || '',
-      quantidade_kg:   p.quantidade_kg  || '',
-      valor_proposto:  p.valor_proposto || '',
-      provincia:       p.provincia      || '',
-      imagem:          p.imagem         || '',
+      tipo_publicacao: p.tipo_publicacao, titulo: p.titulo || '',
+      descricao: p.descricao || '', id_residuo: p.id_residuo || '',
+      quantidade_kg: p.quantidade_kg || '', valor_proposto: p.valor_proposto || '',
+      provincia: p.provincia || '', imagem: p.imagem || '',
     });
-    setPublicacaoEditId(p.id_publicacao);
-    setErroForm('');
-    setModalAberto(true);
+    setPublicacaoEditId(p.id_publicacao); setErroForm(''); setModalAberto(true);
   };
 
-  // Publica ou actualiza consoante o modo
   const handlePublicar = async () => {
     if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
     try {
       setPublicando(true); setErroForm('');
-      if (publicacaoEditId) {
-        await editarPublicacao(publicacaoEditId, formulario);
-      } else {
-        await criarPublicacao(formulario);
-      }
-      setModalAberto(false);
-      setFormulario(FORM_VAZIO);
-      setPublicacaoEditId(null);
+      if (publicacaoEditId) await editarPublicacao(publicacaoEditId, formulario);
+      else await criarPublicacao(formulario);
+      setModalAberto(false); setFormulario(FORM_VAZIO); setPublicacaoEditId(null);
       await carregarFeed();
     } catch (err) { setErroForm(err.message); }
     finally { setPublicando(false); }
   };
 
-  // Elimina uma publicação
-  // Para pedido_residuo, só elimina se total_acumulado === 0
   const handleApagar = async (p) => {
-    // Verificação de interesse — se alguém já aceitou, não pode eliminar
     if (p.tipo_publicacao === 'pedido_residuo' && parseFloat(p.total_acumulado || 0) > 0) {
-      alert('Não podes eliminar este pedido porque já existem acordos activos.');
-      return;
+      alert('Não podes eliminar este pedido porque já existem acordos activos.'); return;
     }
     if (!window.confirm('Remover esta publicação?')) return;
-    try {
-      await apagarPublicacao(p.id_publicacao);
-      await carregarFeed();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const abrirModalInteresse = (publicacao) => {
-    setPublicacaoAlvo(publicacao);
-    setValorProposto('');
-    setMensagemInteresse('');
-    setErroInteresse('');
-    setModalInteresse(true);
-  };
-
-  const handleEnviarInteresse = async () => {
-    const vMin      = publicacaoAlvo?.preco_min ? parseFloat(publicacaoAlvo.preco_min) : null;
-    const vMax      = publicacaoAlvo?.preco_max ? parseFloat(publicacaoAlvo.preco_max) : null;
-    const vProposto = parseFloat(valorProposto);
-
-    if (!valorProposto || vProposto <= 0) { setErroInteresse('Indica um valor proposto em Kz.'); return; }
-    if (vMin && vProposto < vMin) { setErroInteresse(`O valor mínimo é ${vMin} Kz/kg.`); return; }
-    if (vMax && vProposto > vMax) { setErroInteresse(`O valor máximo é ${vMax} Kz/kg.`); return; }
-
-    try {
-      setEnviandoInteresse(true); setErroInteresse('');
-      await criarNotificacao({
-        id_usuario_destino: publicacaoAlvo.id_autor,
-        titulo:             'Nova proposta de compra',
-        mensagem:           `${utilizador?.nome || 'Uma empresa'} quer comprar o teu resíduo "${publicacaoAlvo?.titulo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
-        id_publicacao:      publicacaoAlvo.id_publicacao,
-        tipo:               'proposta',
-      });
-      setInteresseEnviado(prev => ({ ...prev, [publicacaoAlvo.id_publicacao]: true }));
-      setModalInteresse(false);
-    } catch (err) {
-      setErroInteresse(err.message);
-    } finally {
-      setEnviandoInteresse(false);
-    }
+    try { await apagarPublicacao(p.id_publicacao); await carregarFeed(); }
+    catch (err) { alert(err.message); }
   };
 
   return (
@@ -247,13 +179,10 @@ export default function PaginaInicialEmpresa() {
 
       <div className="px-6">
 
-        {/* Cabeçalho */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-green-800">Página Inicial</h1>
-            <p className="text-green-600 text-sm mt-0.5">
-              Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vinda'}
-            </p>
+            <p className="text-green-600 text-sm mt-0.5">Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vinda'}</p>
           </div>
           <button onClick={abrirModalCriar}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition">
@@ -262,17 +191,85 @@ export default function PaginaInicialEmpresa() {
         </div>
 
         <div className="flex gap-6 items-start">
-
-          {/* Feed */}
           <div className="flex-1 min-w-0">
 
-            {/* Pesquisa */}
-            <div className="relative mb-4">
-              <Search size={15} className="absolute left-3 top-3.5 text-gray-400" />
-              <input type="text" placeholder="Pesquisar..." value={pesquisa}
-                onChange={(e) => setPesquisa(e.target.value)}
+            {/* Barra de pesquisa com dropdown */}
+            <div className="relative mb-4" ref={pesquisaRef}>
+              <Search size={15} className="absolute left-3 top-3.5 text-gray-400 z-10" />
+              <input type="text" placeholder="Pesquisar empresas, utilizadores, coletadores..."
+                value={pesquisa} onChange={(e) => handlePesquisa(e.target.value)}
+                onFocus={() => { if (resultadosPesquisa && totalResultados > 0) setMostrarDropdown(true); }}
                 className="w-full bg-white border border-green-200 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 shadow-sm" />
-              {pesquisa && <X size={15} className="absolute right-3 top-3.5 text-gray-400 cursor-pointer" onClick={() => setPesquisa('')} />}
+              {pesquisa && !pesquisando && (
+                <button onClick={() => { setPesquisa(''); setResultadosPesquisa(null); setMostrarDropdown(false); }}
+                  className="absolute right-3 top-3.5"><X size={15} className="text-gray-400" /></button>
+              )}
+              {pesquisando && (
+                <div className="absolute right-3 top-3.5">
+                  <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {mostrarDropdown && resultadosPesquisa && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                  {totalResultados === 0 ? (
+                    <div className="p-4 text-center text-gray-400 text-sm">Nenhum resultado para "{pesquisa}"</div>
+                  ) : (
+                    <>
+                      {resultadosPesquisa.empresas?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Empresas</p>
+                          {resultadosPesquisa.empresas.map(e => (
+                            <button key={e.id_empresa} onClick={() => irParaPerfil('empresa', e)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{e.nome?.charAt(0).toUpperCase()}</div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{e.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1"><Building2 size={10} /> Empresa{e.provincia && <><MapPin size={10} className="ml-1" />{e.provincia}</>}</p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {resultadosPesquisa.utilizadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Utilizadores</p>
+                          {resultadosPesquisa.utilizadores.map(u => (
+                            <button key={u.id_usuario} onClick={() => irParaPerfil('comum', u)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">{u.nome?.charAt(0).toUpperCase()}</div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{u.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1"><User size={10} /> Utilizador{u.provincia && <><MapPin size={10} className="ml-1" />{u.provincia}</>}</p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {resultadosPesquisa.coletadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Coletadores</p>
+                          {resultadosPesquisa.coletadores.map(c => (
+                            <button key={c.id_coletador} onClick={() => irParaPerfil('coletor', c)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{c.nome?.charAt(0).toUpperCase()}</div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1"><Recycle size={10} /> Coletador{c.provincia && <><MapPin size={10} className="ml-1" />{c.provincia}</>}</p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-gray-300 text-xs text-center">{totalResultados} resultado{totalResultados !== 1 ? 's' : ''} encontrado{totalResultados !== 1 ? 's' : ''}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Filtros */}
@@ -281,58 +278,29 @@ export default function PaginaInicialEmpresa() {
                 <button key={f.valor} onClick={() => setFiltro(f.valor)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition shrink-0 ${
                     filtro === f.valor ? 'bg-green-600 text-white' : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'
-                  }`}>
-                  {f.label}
-                </button>
+                  }`}>{f.label}</button>
               ))}
             </div>
 
-            {/* Lista de publicações */}
-            <div className="space-y-4">
-              {carregando && <p className="text-green-700 text-center py-12">A carregar...</p>}
-              {erro && <p className="text-red-500 text-center py-6">{erro}</p>}
-              {!carregando && !erro && feedFiltrado.length === 0 && (
-                <div className="text-center py-16 bg-white rounded-2xl border border-green-100">
-                  <p className="text-gray-400">Nenhuma publicação encontrada.</p>
-                  <button onClick={abrirModalCriar} className="mt-3 text-green-600 text-sm underline">
-                    Sê o primeiro a publicar
-                  </button>
-                </div>
-              )}
-
-              {/* Renderiza cartão diferente por tipo */}
-              {feedFiltrado.map(p => {
-                // Pedido de empresa — cartão rico
-                if (p.tipo_publicacao === 'pedido_residuo') {
-                  return (
-                    <CartaoPedidoEmpresa
-                      key={p.id_publicacao}
-                      publicacao={p}
-                      utilizador={utilizador}
-                      onEditar={abrirModalEditar}
-                      onApagar={handleApagar}
-                    />
-                  );
-                }
-                // Outros tipos — cartão geral com editar/eliminar
-                return (
-                  <CartaoGeral
-                    key={p.id_publicacao}
-                    publicacao={p}
-                    utilizador={utilizador}
-                    onEditar={abrirModalEditar}
-                    onApagar={handleApagar}
-                    onInteresse={abrirModalInteresse}
-                    interesseJaEnviado={!!interesseEnviado[p.id_publicacao]}
-                  />
-                );
-              })}
+            {/* Grid 2 colunas */}
+            {carregando && <p className="text-green-700 text-center py-12">A carregar...</p>}
+            {erro && <p className="text-red-500 text-center py-6">{erro}</p>}
+            {!carregando && !erro && feedFiltrado.length === 0 && (
+              <div className="text-center py-16 bg-white rounded-2xl border border-green-100">
+                <p className="text-gray-400">Nenhuma publicação encontrada.</p>
+                <button onClick={abrirModalCriar} className="mt-3 text-green-600 text-sm underline">Sê o primeiro a publicar</button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {feedFiltrado.map(p => (
+                <CardPublicacao key={p.id_publicacao} publicacao={p}
+                  utilizador={utilizador} onEditar={abrirModalEditar} onApagar={handleApagar} />
+              ))}
             </div>
           </div>
 
           {/* Sidebar */}
-          <div className="hidden lg:flex flex-col gap-4 w-68 shrink-0">
-
+          <div className="hidden lg:flex flex-col gap-4 w-64 shrink-0">
             <div className="bg-white border border-green-100 rounded-2xl shadow-sm p-5">
               <h3 className="text-green-800 font-semibold text-sm mb-4 flex items-center gap-2">
                 <Building2 size={15} className="text-purple-600" /> Empresas Parceiras
@@ -340,27 +308,24 @@ export default function PaginaInicialEmpresa() {
               {empresas.length === 0 ? (
                 <p className="text-gray-400 text-xs">Nenhuma empresa registada.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {empresas.slice(0, 5).map(e => (
-                    <div key={e.id_empresa} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {e.nome?.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
+                    <button key={e.id_empresa} onClick={() => navigate(`/PerfilEmpresa/${e.id_empresa}`)}
+                      className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-green-50 transition text-left">
+                      <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{e.nome?.charAt(0).toUpperCase()}</div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-gray-700 text-xs font-medium truncate">{e.nome}</p>
                         {e.provincia && <p className="text-gray-400 text-xs flex items-center gap-1"><MapPin size={10} /> {e.provincia}</p>}
                       </div>
-                    </div>
+                      <ChevronRight size={13} className="text-gray-300 shrink-0" />
+                    </button>
                   ))}
                   {empresas.length > 5 && <p className="text-green-600 text-xs text-center mt-1">+{empresas.length - 5} empresas</p>}
                 </div>
               )}
             </div>
-
             <div className="bg-white border border-red-100 rounded-2xl shadow-sm p-5">
-              <h3 className="text-red-600 font-semibold text-sm mb-4 flex items-center gap-2">
-                <Bell size={15} /> Avisos
-              </h3>
+              <h3 className="text-red-600 font-semibold text-sm mb-4 flex items-center gap-2"><Bell size={15} /> Avisos</h3>
               {avisos.length === 0 ? (
                 <p className="text-gray-400 text-xs">Sem avisos de momento.</p>
               ) : (
@@ -379,14 +344,12 @@ export default function PaginaInicialEmpresa() {
         </div>
       </div>
 
-      {/* ── Modal criar/editar ── */}
+      {/* Modal criar/editar */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg">
-                {publicacaoEditId ? 'Editar Publicação' : 'Nova Publicação'}
-              </h3>
+              <h3 className="text-green-800 font-bold text-lg">{publicacaoEditId ? 'Editar Publicação' : 'Nova Publicação'}</h3>
               <button onClick={() => setModalAberto(false)}><X size={20} className="text-gray-400" /></button>
             </div>
             <div className="space-y-4">
@@ -397,12 +360,8 @@ export default function PaginaInicialEmpresa() {
                     {TIPOS_EMPRESA.map(t => (
                       <button key={t.valor} onClick={() => handleTipo(t.valor)}
                         className={`py-2 px-3 rounded-xl text-sm font-medium transition border ${
-                          formulario.tipo_publicacao === t.valor
-                            ? 'bg-green-600 text-white border-green-600'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
-                        }`}>
-                        {t.label}
-                      </button>
+                          formulario.tipo_publicacao === t.valor ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
+                        }`}>{t.label}</button>
                     ))}
                   </div>
                 </div>
@@ -432,8 +391,7 @@ export default function PaginaInicialEmpresa() {
                   <div>
                     <label className="text-gray-600 text-sm block mb-1">Valor (Kz/kg)</label>
                     <input type="number" min="0" value={formulario.valor_proposto}
-                      onChange={(e) => handleCampo('valor_proposto', e.target.value)}
-                      placeholder="Ex: 200"
+                      onChange={(e) => handleCampo('valor_proposto', e.target.value)} placeholder="Ex: 200"
                       className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                   </div>
                 </div>
@@ -448,53 +406,7 @@ export default function PaginaInicialEmpresa() {
             </div>
             <button onClick={handlePublicar} disabled={publicando}
               className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-              {publicando ? 'A guardar...' : publicacaoEditId ? <><Check size={16} /> Guardar Alterações</> : <><Plus size={16} /> Publicar</>}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal de proposta ── */}
-      {modalInteresse && publicacaoAlvo && (
-        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-green-800 font-bold text-lg">Propor Compra</h3>
-              <button onClick={() => setModalInteresse(false)}><X size={20} className="text-gray-400" /></button>
-            </div>
-            <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
-              <p className="text-green-800 font-medium text-sm">{publicacaoAlvo.titulo}</p>
-              {publicacaoAlvo.tipo_residuo && (
-                <p className="text-green-600 text-xs mt-0.5 flex items-center gap-1">
-                  <Recycle size={11} /> {publicacaoAlvo.tipo_residuo}
-                  {publicacaoAlvo.provincia && <span className="ml-2 flex items-center gap-1"><MapPin size={11} />{publicacaoAlvo.provincia}</span>}
-                </p>
-              )}
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-gray-600 text-sm block mb-1">Valor que propões <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(Kz/kg)</span></label>
-                <div className="relative">
-                  <input type="number" min="1" step="1" value={valorProposto} onChange={(e) => setValorProposto(e.target.value)}
-                    placeholder="Ex: 750"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-                  <span className="absolute right-4 top-3 text-gray-400 text-sm">Kz</span>
-                </div>
-                {publicacaoAlvo.preco_min && publicacaoAlvo.preco_max && (
-                  <p className="text-xs text-gray-400 mt-1">Referência: {publicacaoAlvo.preco_min}–{publicacaoAlvo.preco_max} Kz/kg</p>
-                )}
-              </div>
-              <div>
-                <label className="text-gray-600 text-sm block mb-1">Nota (opcional)</label>
-                <textarea value={mensagemInteresse} onChange={(e) => setMensagemInteresse(e.target.value)}
-                  placeholder="Ex: Podemos recolher na próxima semana..." rows={2}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
-              </div>
-              {erroInteresse && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erroInteresse}</p>}
-            </div>
-            <button onClick={handleEnviarInteresse} disabled={enviandoInteresse}
-              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-              {enviandoInteresse ? 'A enviar...' : <><HandshakeIcon size={16} /> Enviar Proposta</>}
+              {publicando ? 'A guardar...' : publicacaoEditId ? <><Check size={16} /> Guardar</> : <><Plus size={16} /> Publicar</>}
             </button>
           </div>
         </div>
@@ -503,32 +415,20 @@ export default function PaginaInicialEmpresa() {
   );
 }
 
-// ════════════════════════════════════════════════════════════
-//  CartaoPedidoEmpresa
-//  Cartão rico para pedidos de resíduo da empresa.
-//  Mostra todos os detalhes + botões Editar e Eliminar.
-//  Eliminar bloqueado se já houver acordos (total_acumulado > 0).
-// ════════════════════════════════════════════════════════════
-function CartaoPedidoEmpresa({ publicacao: p, utilizador, onEditar, onApagar }) {
-
-  // A empresa só gere os seus próprios pedidos
+// ── Card unificado ────────────────────────────────────────────
+function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
+  const estilo    = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
+  const qualCfg   = QUALIDADE_CONFIG[p.qualidade] || null;
   const podeGerir = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
-
-  // Verifica se já há acordos — bloqueia o eliminar
   const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
 
-  // Qualidade
-  const qualCfg = QUALIDADE_CONFIG[p.qualidade] || null;
-
-  // Progresso da meta
   const progresso = (() => {
     const acumulado = parseFloat(p.total_acumulado || 0);
     const meta      = parseFloat(p.minimo_para_agendar || 0);
-    if (!meta || meta <= 0) return null;
+    if (!meta) return null;
     return Math.min(Math.round((acumulado / meta) * 100), 100);
   })();
 
-  // Equivalente em unidades do mínimo por pessoa
   const minimoUnidades = (() => {
     const kg  = parseFloat(p.minimo_por_pessoa_kg || 0);
     const kpu = parseFloat(p.kg_por_unidade || 0);
@@ -537,257 +437,119 @@ function CartaoPedidoEmpresa({ publicacao: p, utilizador, onEditar, onApagar }) 
   })();
 
   return (
-    <div className="bg-white border border-purple-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+    <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col`}>
 
-      {p.imagem && (
+      {/* Imagem ou fundo colorido */}
+      {p.imagem ? (
         <img src={p.imagem} alt={p.titulo} className="w-full h-44 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }} />
+      ) : (
+        <div className={`w-full h-36 ${estilo.fundo} flex items-center justify-center`}>
+          {estilo.icone}
+        </div>
       )}
 
-      <div className="p-5">
+      <div className="p-4 flex flex-col flex-1">
 
-        {/* Topo: badge + data + acções */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">
-            Pedido de Empresa
-          </span>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
-
-            {/* Botões de gestão — só para o autor */}
+        {/* Badge + data + acções */}
+        <div className="flex items-center justify-between mb-2">
+          <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${estilo.badge}`}>{estilo.label}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
             {podeGerir && (
-              <div className="flex items-center gap-2">
-                {/* Editar — sempre disponível */}
-                <button onClick={() => onEditar(p)}
-                  className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium transition">
-                  <Pencil size={13} /> Editar
-                </button>
-
-                {/* Eliminar — bloqueado se há acordos */}
-                {temAcordos ? (
-                  // Botão desactivado com tooltip explicativo
-                  <span
-                    title="Não podes eliminar — já existem acordos activos"
-                    className="flex items-center gap-1 text-gray-300 text-xs cursor-not-allowed">
-                    <Trash2 size={13} /> Eliminar
-                  </span>
-                ) : (
-                  <button onClick={() => onApagar(p)}
-                    className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs font-medium transition">
-                    <Trash2 size={13} /> Eliminar
-                  </button>
-                )}
-              </div>
+              <>
+                <button onClick={() => onEditar(p)} className="text-blue-400 hover:text-blue-600 transition"><Pencil size={13} /></button>
+                {temAcordos
+                  ? <span title="Já existem acordos activos" className="text-gray-300 cursor-not-allowed"><Trash2 size={13} /></span>
+                  : <button onClick={() => onApagar(p)} className="text-red-400 hover:text-red-600 transition"><Trash2 size={13} /></button>
+                }
+              </>
             )}
           </div>
         </div>
 
         {/* Título */}
-        <h3 className="text-gray-900 font-bold text-base mb-1">{p.titulo}</h3>
+        <h3 className="text-gray-900 font-bold text-sm mb-1 line-clamp-2">{p.titulo}</h3>
 
         {/* Descrição */}
-        {p.descricao && <p className="text-gray-500 text-sm mb-3 line-clamp-2">{p.descricao}</p>}
+        {p.descricao && <p className="text-gray-500 text-xs mb-2 line-clamp-2">{p.descricao}</p>}
 
-        {/* Tipo + qualidade + localização */}
-        {(p.tipo_residuo || p.qualidade) && (
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {/* Tags */}
+        {(p.tipo_residuo || p.qualidade || p.provincia) && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {p.tipo_residuo && (
-              <span className="flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                <Recycle size={11} /> {p.tipo_residuo}
+              <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                <Recycle size={10} /> {p.tipo_residuo}
               </span>
             )}
             {qualCfg && (
-              <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${qualCfg.cor}`}>
+              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${qualCfg.cor}`}>
                 {qualCfg.icone} {qualCfg.label}
               </span>
             )}
             {p.provincia && (
               <span className="flex items-center gap-1 text-gray-400 text-xs">
-                <MapPin size={11} /> {p.provincia}
+                <MapPin size={10} /> {p.provincia}
               </span>
             )}
           </div>
         )}
 
-        {/* Valor que a empresa paga */}
-        {p.valor_proposto && (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center justify-between">
+        {/* Valor */}
+        {p.tipo_publicacao === 'pedido_residuo' && p.valor_proposto && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 mb-2 flex items-center justify-between">
             <div>
-              <p className="text-green-700 text-xs font-medium">A empresa paga</p>
-              <p className="text-green-800 font-bold text-xl">
-                {parseFloat(p.valor_proposto).toFixed(0)} Kz
-                <span className="text-sm font-normal text-green-600"> /kg</span>
+              <p className="text-green-700 text-xs">A empresa paga</p>
+              <p className="text-green-800 font-bold text-base">
+                {parseFloat(p.valor_proposto).toFixed(0)} Kz<span className="text-xs font-normal text-green-600"> /kg</span>
               </p>
             </div>
-            <Leaf size={24} className="text-green-400" />
+            <Leaf size={18} className="text-green-400" />
           </div>
         )}
 
         {/* Mínimo por pessoa */}
         {p.minimo_por_pessoa_kg && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3">
-            <p className="text-blue-700 text-xs font-semibold mb-1 flex items-center gap-1">
-              <Info size={12} /> O que cada pessoa tem de trazer no mínimo
-            </p>
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Scale size={14} className="text-blue-500" />
-                <span className="text-gray-800 text-sm font-bold">{parseFloat(p.minimo_por_pessoa_kg).toFixed(0)} kg</span>
-                <span className="text-gray-400 text-xs">em peso</span>
-              </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-2">
+            <p className="text-blue-600 text-xs font-medium mb-0.5 flex items-center gap-1"><Info size={10} /> Mínimo por pessoa</p>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-800 text-xs font-bold">{parseFloat(p.minimo_por_pessoa_kg).toFixed(0)} kg</span>
               {minimoUnidades !== null && p.nome_unidade && (
-                <>
-                  <span className="text-gray-300 text-xs">ou</span>
-                  <div className="flex items-center gap-1.5">
-                    <Recycle size={14} className="text-blue-500" />
-                    <span className="text-gray-800 text-sm font-bold">{minimoUnidades.toLocaleString()} {p.nome_unidade}s</span>
-                    <span className="text-gray-400 text-xs">sem balança</span>
-                  </div>
-                </>
+                <span className="text-gray-500 text-xs">ou {minimoUnidades.toLocaleString()} {p.nome_unidade}s</span>
               )}
             </div>
-            {p.valor_proposto && (
-              <p className="text-green-600 text-xs mt-2 font-medium">
-                Quem trouxer o mínimo recebe cerca de{' '}
-                <strong>{(parseFloat(p.minimo_por_pessoa_kg) * parseFloat(p.valor_proposto)).toFixed(0)} Kz</strong>
-              </p>
-            )}
           </div>
         )}
 
-        {/* Progresso da meta */}
+        {/* Progresso */}
         {progresso !== null && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-gray-500 text-xs flex items-center gap-1">
-                <Target size={11} /> Progresso para a recolha
-              </span>
-              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-600'}`}>
-                {parseFloat(p.total_acumulado || 0).toFixed(0)} / {parseFloat(p.minimo_para_agendar || 0).toFixed(0)} kg ({progresso}%)
-              </span>
+          <div className="mb-2">
+            <div className="flex justify-between mb-1">
+              <span className="text-gray-400 text-xs flex items-center gap-1"><Target size={10} /> Progresso</span>
+              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-500'}`}>{progresso}%</span>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`}
-                style={{ width: `${progresso}%` }} />
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`} style={{ width: `${progresso}%` }} />
             </div>
-            {progresso >= 100 ? (
-              <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida — podes agendar a recolha</p>
-            ) : (
-              <p className="text-gray-400 text-xs mt-1">
-                Faltam {(parseFloat(p.minimo_para_agendar || 0) - parseFloat(p.total_acumulado || 0)).toFixed(0)} kg para agendar
-              </p>
-            )}
           </div>
         )}
 
-        {/* Aviso quando há acordos — explica porque não pode eliminar */}
+        {/* Aviso acordos */}
         {temAcordos && podeGerir && (
-          <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
-            <AlertCircle size={14} className="text-yellow-600 mt-0.5 shrink-0" />
-            <p className="text-yellow-700 text-xs">
-              Já existem <strong>{parseFloat(p.total_acumulado).toFixed(0)} kg</strong> em acordos activos.
-              Podes editar mas não eliminar este pedido.
-            </p>
+          <div className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 rounded-lg px-2 py-1.5 mb-2">
+            <AlertCircle size={12} className="text-yellow-600 shrink-0" />
+            <p className="text-yellow-700 text-xs">{parseFloat(p.total_acumulado).toFixed(0)} kg em acordos activos</p>
           </div>
         )}
 
-        {/* Rodapé: coletador badge */}
+        {/* Coletador badge */}
         {p.com_coletador && (
-          <div className="flex items-center justify-end pt-3 border-t border-gray-100">
-            <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200">
-              <Truck size={11} /> A empresa vem buscar
+          <div className="mt-auto pt-2 border-t border-gray-100 flex justify-end">
+            <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full border border-green-200">
+              <Truck size={10} /> A empresa vem buscar
             </span>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════
-//  CartaoGeral
-//  Para eventos, notícias, educação, avisos e ofertas de resíduo.
-//  Tem botões Editar e Eliminar para o autor.
-// ════════════════════════════════════════════════════════════
-function CartaoGeral({ publicacao: p, utilizador, onEditar, onApagar, onInteresse, interesseJaEnviado }) {
-  const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
-
-  // Autor ou admin pode gerir
-  const podeGerir = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
-
-  // Empresa vê "Tenho interesse" em ofertas de resíduo de outros
-  const podeInteresse =
-    p.tipo_publicacao === 'oferta_residuo' &&
-    p.id_autor !== utilizador?.id;
-
-  return (
-    <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm`}>
-
-      {p.imagem && (
-        <img src={p.imagem} alt={p.titulo} className="w-full h-48 object-cover"
-          onError={(e) => { e.target.style.display = 'none'; }} />
-      )}
-
-      <div className="p-4">
-
-        {/* Badge + data */}
-        <div className="flex items-center justify-between mb-2">
-          <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${estilo.badge}`}>{estilo.label}</span>
-          <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
-        </div>
-
-        {/* Título e descrição */}
-        <h3 className="text-gray-800 font-semibold text-sm mb-1">{p.titulo}</h3>
-        {p.descricao && <p className="text-gray-500 text-xs mb-2 line-clamp-2">{p.descricao}</p>}
-
-        {/* Detalhes de oferta */}
-        {p.tipo_publicacao === 'oferta_residuo' && (
-          <div className="flex flex-wrap gap-3 mb-2">
-            {p.tipo_residuo && <span className="flex items-center gap-1 text-gray-500 text-xs"><Recycle size={11} /> {p.tipo_residuo}</span>}
-            {p.provincia && <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>}
-            {p.preco_min && p.preco_max && <span className="text-green-600 text-xs font-medium">{p.preco_min}–{p.preco_max} Kz/kg</span>}
-          </div>
-        )}
-
-        {/* Rodapé */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold">
-              {p.nome_autor?.charAt(0).toUpperCase()}
-            </div>
-            <span className="text-gray-500 text-xs">{p.nome_autor}</span>
-            {p.tipo_autor === 'empresa' && (
-              <span className="text-purple-600 text-xs flex items-center gap-1"><Building2 size={10} /> Empresa</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Editar e eliminar para o autor */}
-            {podeGerir && (
-              <>
-                <button onClick={() => onEditar(p)}
-                  className="text-blue-400 hover:text-blue-600 text-xs flex items-center gap-1 transition">
-                  <Pencil size={12} /> Editar
-                </button>
-                <button onClick={() => onApagar(p)}
-                  className="text-red-400 hover:text-red-500 text-xs flex items-center gap-1 transition">
-                  <Trash2 size={12} /> Eliminar
-                </button>
-              </>
-            )}
-            {/* Tenho interesse — para ofertas de resíduo de outros */}
-            {podeInteresse && (
-              interesseJaEnviado
-                ? <span className="text-green-600 text-xs font-medium flex items-center gap-1"><Check size={11} /> Proposta enviada</span>
-                : (
-                  <button onClick={() => onInteresse(p)}
-                    className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
-                    <HandshakeIcon size={12} /> Tenho interesse
-                  </button>
-                )
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
