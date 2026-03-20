@@ -1,234 +1,819 @@
-// ============================================================
-//  PerfilEmpresa.jsx
-//  Guardar em: src/Components/EmpresaProfile/PerfilEmpresa.jsx
-//
-//  Comportamento por tipo de utilizador autenticado:
-//    - empresa (própria)  → Editar Perfil + Dashboard
-//    - comum              → Criar Oferta para esta Empresa
-//    - coletor / admin    → sem botões de acção
-//
-//  Rota pública:  /PerfilEmpresa/:id  (utilizador comum vê outra empresa)
-//  Rota privada:  /PerfilEmpresa      (empresa vê o próprio perfil)
-// ============================================================
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Building2, Phone, Mail, MapPin, Clock,
-  Recycle, Globe, TrendingUp, Package, CheckCircle, Plus
+  Recycle, Building2, MapPin, Plus, Search, Trash2,
+  X, HandshakeIcon, Bell, Pencil, Check,
+  Target, Scale, Leaf, Info, Truck, CheckCircle,
+  ThumbsDown, Smile, ThumbsUp, Star, AlertCircle,
+  ChevronRight, User
 } from 'lucide-react';
-import HeaderEmpresa from './HeaderEmpresa.jsx';
-import { getPerfilEmpresa, getEntregasEmpresa, getEmpresaPorId, getUtilizadorLocal } from '../../api.js';
+import HeaderEmpresa from './HeaderEmpresa';
+import {
+  getFeed, criarPublicacao, apagarPublicacao, editarPublicacao,
+  getResiduos, getUtilizadorLocal, criarNotificacao, getEmpresas,
+  pesquisar
+} from '../../api.js';
 
-export default function PerfilEmpresa() {
-  const navigate    = useNavigate();
-  const { id }      = useParams();          // presente quando é perfil público de outra empresa
-  const utilizador  = getUtilizadorLocal(); // utilizador autenticado
+const TIPOS_EMPRESA = [
+  { valor: 'pedido_residuo', label: 'Pedido de Resíduo' },
+  { valor: 'evento',         label: 'Evento'            },
+  { valor: 'educacao',       label: 'Educação'          },
+  { valor: 'noticia',        label: 'Notícia'           },
+];
 
-  const [perfil,     setPerfil]     = useState(null);
-  const [entregas,   setEntregas]   = useState([]);
+const FILTROS = [
+  { valor: 'todos',          label: 'Tudo'      },
+  { valor: 'oferta_residuo', label: 'Ofertas'   },
+  { valor: 'pedido_residuo', label: 'Pedidos'   },
+  { valor: 'evento',         label: 'Eventos'   },
+  { valor: 'educacao',       label: 'Educação'  },
+  { valor: 'noticia',        label: 'Notícias'  },
+  { valor: 'aviso',          label: 'Avisos'    },
+];
+
+const ESTILOS = {
+  oferta_residuo: { badge: 'bg-green-100 text-green-700',   borda: 'border-green-200',  label: 'Oferta de Resíduo' },
+  pedido_residuo: { badge: 'bg-purple-100 text-purple-700', borda: 'border-purple-200', label: 'Pedido de Empresa' },
+  evento:         { badge: 'bg-blue-100 text-blue-700',     borda: 'border-blue-200',   label: 'Evento'            },
+  educacao:       { badge: 'bg-yellow-100 text-yellow-700', borda: 'border-yellow-200', label: 'Educação'          },
+  noticia:        { badge: 'bg-cyan-100 text-cyan-700',     borda: 'border-cyan-200',   label: 'Notícia'           },
+  aviso:          { badge: 'bg-red-100 text-red-700',       borda: 'border-red-200',    label: 'Aviso'             },
+};
+
+const QUALIDADE_CONFIG = {
+  ruim:      { icone: <ThumbsDown size={12} className="text-red-500"    />, label: 'Ruim',      cor: 'bg-red-50 text-red-600 border-red-200'         },
+  moderada:  { icone: <Smile      size={12} className="text-yellow-500" />, label: 'Moderada',  cor: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
+  boa:       { icone: <ThumbsUp   size={12} className="text-green-500"  />, label: 'Boa',       cor: 'bg-green-50 text-green-600 border-green-200'    },
+  excelente: { icone: <Star       size={12} className="text-orange-400" />, label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' },
+};
+
+const FORM_VAZIO = {
+  tipo_publicacao: 'pedido_residuo',
+  titulo: '', descricao: '', id_residuo: '',
+  quantidade_kg: '', valor_proposto: '', provincia: '', imagem: '',
+};
+
+export default function PaginaInicialEmpresa() {
+  const navigate   = useNavigate();
+  const utilizador = getUtilizadorLocal();
+
+  const [feed,       setFeed]       = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState('');
+  const [filtro,     setFiltro]     = useState('todos');
+  const [pesquisa,   setPesquisa]   = useState('');
 
-  // É o próprio perfil da empresa autenticada?
-  const ehProprioPerfilEmpresa = utilizador?.tipo_usuario === 'empresa' && !id;
+  // ── Pesquisa com dropdown ─────────────────────────────────
+  const [resultadosPesquisa, setResultadosPesquisa] = useState(null);
+  const [pesquisando,        setPesquisando]        = useState(false);
+  const [mostrarDropdown,    setMostrarDropdown]    = useState(false);
+  const pesquisaRef = useRef(null);
+  const timeoutRef  = useRef(null);
 
-  // Utilizador comum a ver perfil de outra empresa → pode criar oferta
-  const podeCreiarOferta =
-    utilizador?.tipo_usuario === 'comum' && id;
+  const [modalAberto,      setModalAberto]      = useState(false);
+  const [residuos,         setResiduos]         = useState([]);
+  const [formulario,       setFormulario]       = useState(FORM_VAZIO);
+  const [publicando,       setPublicando]       = useState(false);
+  const [erroForm,         setErroForm]         = useState('');
+  const [publicacaoEditId, setPublicacaoEditId] = useState(null);
 
-  // ID da empresa a carregar — ou o da URL ou o da empresa autenticada
-  const idEmpresaAlvo = id || null;
+  const [modalInteresse,    setModalInteresse]    = useState(false);
+  const [publicacaoAlvo,    setPublicacaoAlvo]    = useState(null);
+  const [valorProposto,     setValorProposto]     = useState('');
+  const [mensagemInteresse, setMensagemInteresse] = useState('');
+  const [enviandoInteresse, setEnviandoInteresse] = useState(false);
+  const [erroInteresse,     setErroInteresse]     = useState('');
+  const [interesseEnviado,  setInteresseEnviado]  = useState({});
+
+  const [empresas, setEmpresas] = useState([]);
+
+  const mostrarCamposResiduo = ['oferta_residuo', 'pedido_residuo'].includes(formulario.tipo_publicacao);
 
   useEffect(() => {
-    const carregar = async () => {
-      try {
-        if (ehProprioPerfilEmpresa) {
-          // Empresa a ver o seu próprio perfil
-          const [dadosPerfil, dadosEntregas] = await Promise.all([
-            getPerfilEmpresa(),
-            getEntregasEmpresa(),
-          ]);
-          setPerfil(dadosPerfil);
-          setEntregas(dadosEntregas);
-        } else if (idEmpresaAlvo) {
-          // Utilizador comum a ver perfil público de outra empresa
-          const dadosPerfil = await getEmpresaPorId(idEmpresaAlvo);
-          setPerfil(dadosPerfil);
-          // Entregas não são visíveis publicamente
-        }
-      } catch (err) {
-        setErro(err.message);
-      } finally {
-        setCarregando(false);
+    carregarFeed();
+    carregarResiduos();
+    getEmpresas().then(setEmpresas).catch(console.error);
+  }, []);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const fechar = (e) => {
+      if (pesquisaRef.current && !pesquisaRef.current.contains(e.target)) {
+        setMostrarDropdown(false);
       }
     };
-    carregar();
-  }, [id]);
+    document.addEventListener('mousedown', fechar);
+    return () => document.removeEventListener('mousedown', fechar);
+  }, []);
 
-  const entregasAceites = entregas.filter(e => e.status === 'coletada');
-  const totalPago       = entregasAceites.reduce((acc, e) => acc + parseFloat(e.valor_total || 0), 0);
-  const totalKg         = entregasAceites.reduce((acc, e) => acc + parseFloat(e.peso_total  || 0), 0);
+  const carregarFeed = async () => {
+    try {
+      setCarregando(true);
+      setFeed(await getFeed());
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setCarregando(false);
+    }
+  };
 
-  if (carregando) return (
-    <div className="min-h-screen bg-green-100 pt-24 flex items-center justify-center">
+  const carregarResiduos = async () => {
+    try { setResiduos(await getResiduos()); }
+    catch (err) { console.error(err); }
+  };
+
+  // ── Pesquisa com debounce ─────────────────────────────────
+  const handlePesquisa = (valor) => {
+    setPesquisa(valor);
+    clearTimeout(timeoutRef.current);
+
+    if (!valor.trim() || valor.trim().length < 1) {
+      setResultadosPesquisa(null);
+      setMostrarDropdown(false);
+      return;
+    }
+
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        setPesquisando(true);
+        const dados = await pesquisar(valor.trim());
+        setResultadosPesquisa(dados);
+        setMostrarDropdown(true);
+      } catch (err) {
+        console.error('Erro na pesquisa:', err);
+      } finally {
+        setPesquisando(false);
+      }
+    }, 400);
+  };
+
+  const irParaPerfil = (tipo_resultado, item) => {
+    setMostrarDropdown(false);
+    setPesquisa('');
+    setResultadosPesquisa(null);
+
+    if (tipo_resultado === 'empresa') {
+      navigate(`/PerfilEmpresa/${item.id_empresa}`);
+    } else if (tipo_resultado === 'comum') {
+      navigate(`/Perfil/${item.id_usuario}`);
+    } else if (tipo_resultado === 'coletor') {
+      navigate(`/PerfilColetador/${item.id_coletador}`);
+    }
+  };
+
+  const totalResultados = resultadosPesquisa
+    ? (resultadosPesquisa.empresas?.length || 0) +
+      (resultadosPesquisa.utilizadores?.length || 0) +
+      (resultadosPesquisa.coletadores?.length || 0)
+    : 0;
+
+  const feedFiltrado = feed
+    .filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
+
+  const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
+
+  const handleCampo = (campo, valor) =>
+    setFormulario(prev => ({ ...prev, [campo]: valor }));
+
+  const handleTipo = (novoTipo) =>
+    setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
+
+  const abrirModalCriar = () => {
+    setFormulario({ ...FORM_VAZIO, tipo_publicacao: TIPOS_EMPRESA[0].valor });
+    setPublicacaoEditId(null);
+    setErroForm('');
+    setModalAberto(true);
+  };
+
+  const abrirModalEditar = (p) => {
+    setFormulario({
+      tipo_publicacao: p.tipo_publicacao,
+      titulo:          p.titulo         || '',
+      descricao:       p.descricao      || '',
+      id_residuo:      p.id_residuo     || '',
+      quantidade_kg:   p.quantidade_kg  || '',
+      valor_proposto:  p.valor_proposto || '',
+      provincia:       p.provincia      || '',
+      imagem:          p.imagem         || '',
+    });
+    setPublicacaoEditId(p.id_publicacao);
+    setErroForm('');
+    setModalAberto(true);
+  };
+
+  const handlePublicar = async () => {
+    if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
+    try {
+      setPublicando(true); setErroForm('');
+      if (publicacaoEditId) {
+        await editarPublicacao(publicacaoEditId, formulario);
+      } else {
+        await criarPublicacao(formulario);
+      }
+      setModalAberto(false);
+      setFormulario(FORM_VAZIO);
+      setPublicacaoEditId(null);
+      await carregarFeed();
+    } catch (err) { setErroForm(err.message); }
+    finally { setPublicando(false); }
+  };
+
+  const handleApagar = async (p) => {
+    if (p.tipo_publicacao === 'pedido_residuo' && parseFloat(p.total_acumulado || 0) > 0) {
+      alert('Não podes eliminar este pedido porque já existem acordos activos.');
+      return;
+    }
+    if (!window.confirm('Remover esta publicação?')) return;
+    try {
+      await apagarPublicacao(p.id_publicacao);
+      await carregarFeed();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const abrirModalInteresse = (publicacao) => {
+    setPublicacaoAlvo(publicacao);
+    setValorProposto('');
+    setMensagemInteresse('');
+    setErroInteresse('');
+    setModalInteresse(true);
+  };
+
+  const handleEnviarInteresse = async () => {
+    const vMin      = publicacaoAlvo?.preco_min ? parseFloat(publicacaoAlvo.preco_min) : null;
+    const vMax      = publicacaoAlvo?.preco_max ? parseFloat(publicacaoAlvo.preco_max) : null;
+    const vProposto = parseFloat(valorProposto);
+
+    if (!valorProposto || vProposto <= 0) { setErroInteresse('Indica um valor proposto em Kz.'); return; }
+    if (vMin && vProposto < vMin) { setErroInteresse(`O valor mínimo é ${vMin} Kz/kg.`); return; }
+    if (vMax && vProposto > vMax) { setErroInteresse(`O valor máximo é ${vMax} Kz/kg.`); return; }
+
+    try {
+      setEnviandoInteresse(true); setErroInteresse('');
+      await criarNotificacao({
+        id_usuario_destino: publicacaoAlvo.id_autor,
+        titulo:             'Nova proposta de compra',
+        mensagem:           `${utilizador?.nome || 'Uma empresa'} quer comprar o teu resíduo "${publicacaoAlvo?.titulo}" por ${vProposto.toFixed(0)} Kz/kg.${mensagemInteresse ? ` Nota: ${mensagemInteresse}` : ''}`,
+        id_publicacao:      publicacaoAlvo.id_publicacao,
+        tipo:               'proposta',
+      });
+      setInteresseEnviado(prev => ({ ...prev, [publicacaoAlvo.id_publicacao]: true }));
+      setModalInteresse(false);
+    } catch (err) {
+      setErroInteresse(err.message);
+    } finally {
+      setEnviandoInteresse(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-green-100 pt-24 pb-12">
       <HeaderEmpresa />
-      <p className="text-green-700 text-lg">A carregar perfil...</p>
+
+      <div className="px-6">
+
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-green-800">Página Inicial</h1>
+            <p className="text-green-600 text-sm mt-0.5">
+              Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vinda'}
+            </p>
+          </div>
+          <button onClick={abrirModalCriar}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition">
+            <Plus size={16} /> Publicar
+          </button>
+        </div>
+
+        <div className="flex gap-6 items-start">
+
+          <div className="flex-1 min-w-0">
+
+            {/* ── Barra de pesquisa com dropdown ── */}
+            <div className="relative mb-4" ref={pesquisaRef}>
+              <Search size={15} className="absolute left-3 top-3.5 text-gray-400 z-10" />
+              <input
+                type="text"
+                placeholder="Pesquisar empresas, utilizadores, coletadores..."
+                value={pesquisa}
+                onChange={(e) => handlePesquisa(e.target.value)}
+                onFocus={() => { if (resultadosPesquisa && totalResultados > 0) setMostrarDropdown(true); }}
+                className="w-full bg-white border border-green-200 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 shadow-sm"
+              />
+              {pesquisa && !pesquisando && (
+                <button onClick={() => { setPesquisa(''); setResultadosPesquisa(null); setMostrarDropdown(false); }}
+                  className="absolute right-3 top-3.5">
+                  <X size={15} className="text-gray-400" />
+                </button>
+              )}
+              {pesquisando && (
+                <div className="absolute right-3 top-3.5">
+                  <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Dropdown */}
+              {mostrarDropdown && resultadosPesquisa && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                  {totalResultados === 0 ? (
+                    <div className="p-4 text-center text-gray-400 text-sm">
+                      Nenhum resultado para "{pesquisa}"
+                    </div>
+                  ) : (
+                    <>
+                      {resultadosPesquisa.empresas?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Empresas</p>
+                          {resultadosPesquisa.empresas.map(e => (
+                            <button key={e.id_empresa} onClick={() => irParaPerfil('empresa', e)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {e.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{e.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <Building2 size={10} /> Empresa Recicladora
+                                  {e.provincia && <><MapPin size={10} className="ml-1" /> {e.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {resultadosPesquisa.utilizadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Utilizadores</p>
+                          {resultadosPesquisa.utilizadores.map(u => (
+                            <button key={u.id_usuario} onClick={() => irParaPerfil('comum', u)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {u.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{u.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <User size={10} /> Utilizador
+                                  {u.provincia && <><MapPin size={10} className="ml-1" /> {u.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {resultadosPesquisa.coletadores?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 px-4 pt-3 pb-1 uppercase tracking-wide">Coletadores</p>
+                          {resultadosPesquisa.coletadores.map(c => (
+                            <button key={c.id_coletador} onClick={() => irParaPerfil('coletor', c)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-green-50 transition text-left">
+                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {c.nome?.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p>
+                                <p className="text-gray-400 text-xs flex items-center gap-1">
+                                  <Recycle size={10} /> Coletador
+                                  {c.provincia && <><MapPin size={10} className="ml-1" /> {c.provincia}</>}
+                                </p>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300 ml-auto shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-gray-300 text-xs text-center">
+                          {totalResultados} resultado{totalResultados !== 1 ? 's' : ''} encontrado{totalResultados !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Filtros */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-hide">
+              {FILTROS.map(f => (
+                <button key={f.valor} onClick={() => setFiltro(f.valor)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition shrink-0 ${
+                    filtro === f.valor ? 'bg-green-600 text-white' : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Feed */}
+            <div className="space-y-4">
+              {carregando && <p className="text-green-700 text-center py-12">A carregar...</p>}
+              {erro && <p className="text-red-500 text-center py-6">{erro}</p>}
+              {!carregando && !erro && feedFiltrado.length === 0 && (
+                <div className="text-center py-16 bg-white rounded-2xl border border-green-100">
+                  <p className="text-gray-400">Nenhuma publicação encontrada.</p>
+                  <button onClick={abrirModalCriar} className="mt-3 text-green-600 text-sm underline">
+                    Sê o primeiro a publicar
+                  </button>
+                </div>
+              )}
+
+              {feedFiltrado.map(p => {
+                if (p.tipo_publicacao === 'pedido_residuo') {
+                  return (
+                    <CartaoPedidoEmpresa key={p.id_publicacao} publicacao={p}
+                      utilizador={utilizador} onEditar={abrirModalEditar} onApagar={handleApagar} />
+                  );
+                }
+                return (
+                  <CartaoGeral key={p.id_publicacao} publicacao={p}
+                    utilizador={utilizador} onEditar={abrirModalEditar} onApagar={handleApagar}
+                    onInteresse={abrirModalInteresse}
+                    interesseJaEnviado={!!interesseEnviado[p.id_publicacao]} />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="hidden lg:flex flex-col gap-4 w-68 shrink-0">
+            <div className="bg-white border border-green-100 rounded-2xl shadow-sm p-5">
+              <h3 className="text-green-800 font-semibold text-sm mb-4 flex items-center gap-2">
+                <Building2 size={15} className="text-purple-600" /> Empresas Parceiras
+              </h3>
+              {empresas.length === 0 ? (
+                <p className="text-gray-400 text-xs">Nenhuma empresa registada.</p>
+              ) : (
+                <div className="space-y-1">
+                  {empresas.slice(0, 5).map(e => (
+                    <button key={e.id_empresa}
+                      onClick={() => navigate(`/PerfilEmpresa/${e.id_empresa}`)}
+                      className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-green-50 transition text-left">
+                      <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {e.nome?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-gray-700 text-xs font-medium truncate">{e.nome}</p>
+                        {e.provincia && <p className="text-gray-400 text-xs flex items-center gap-1"><MapPin size={10} /> {e.provincia}</p>}
+                      </div>
+                      <ChevronRight size={13} className="text-gray-300 shrink-0" />
+                    </button>
+                  ))}
+                  {empresas.length > 5 && <p className="text-green-600 text-xs text-center mt-1">+{empresas.length - 5} empresas</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white border border-red-100 rounded-2xl shadow-sm p-5">
+              <h3 className="text-red-600 font-semibold text-sm mb-4 flex items-center gap-2">
+                <Bell size={15} /> Avisos
+              </h3>
+              {avisos.length === 0 ? (
+                <p className="text-gray-400 text-xs">Sem avisos de momento.</p>
+              ) : (
+                <div className="space-y-3">
+                  {avisos.slice(0, 3).map(aviso => (
+                    <div key={aviso.id_publicacao} className="border-l-2 border-red-300 pl-3">
+                      <p className="text-gray-700 text-xs font-medium">{aviso.titulo}</p>
+                      {aviso.descricao && <p className="text-gray-400 text-xs mt-0.5 line-clamp-2">{aviso.descricao}</p>}
+                      <p className="text-gray-300 text-xs mt-1">{new Date(aviso.criado_em).toLocaleDateString('pt-AO')}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal criar/editar */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-green-800 font-bold text-lg">
+                {publicacaoEditId ? 'Editar Publicação' : 'Nova Publicação'}
+              </h3>
+              <button onClick={() => setModalAberto(false)}><X size={20} className="text-gray-400" /></button>
+            </div>
+            <div className="space-y-4">
+              {!publicacaoEditId && (
+                <div>
+                  <label className="text-gray-600 text-sm block mb-2">O que quero publicar</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TIPOS_EMPRESA.map(t => (
+                      <button key={t.valor} onClick={() => handleTipo(t.valor)}
+                        className={`py-2 px-3 rounded-xl text-sm font-medium transition border ${
+                          formulario.tipo_publicacao === t.valor
+                            ? 'bg-green-600 text-white border-green-600'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
+                        }`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="text-gray-600 text-sm block mb-1">Título <span className="text-red-500">*</span></label>
+                <input type="text" value={formulario.titulo} onChange={(e) => handleCampo('titulo', e.target.value)}
+                  placeholder="Título da publicação"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+              <div>
+                <label className="text-gray-600 text-sm block mb-1">Descrição (opcional)</label>
+                <textarea value={formulario.descricao} onChange={(e) => handleCampo('descricao', e.target.value)}
+                  placeholder="Mais detalhes..." rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
+              </div>
+              {mostrarCamposResiduo && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-600 text-sm block mb-1">Tipo de Resíduo</label>
+                    <select value={formulario.id_residuo} onChange={(e) => handleCampo('id_residuo', e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+                      <option value="">Seleccionar</option>
+                      {residuos.map(r => (<option key={r.id_residuo} value={r.id_residuo}>{r.tipo}</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-gray-600 text-sm block mb-1">Valor (Kz/kg)</label>
+                    <input type="number" min="0" value={formulario.valor_proposto}
+                      onChange={(e) => handleCampo('valor_proposto', e.target.value)}
+                      placeholder="Ex: 200"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="text-gray-600 text-sm block mb-1">Província (opcional)</label>
+                <input type="text" value={formulario.provincia} onChange={(e) => handleCampo('provincia', e.target.value)}
+                  placeholder="Ex: Luanda"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              </div>
+              {erroForm && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erroForm}</p>}
+            </div>
+            <button onClick={handlePublicar} disabled={publicando}
+              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+              {publicando ? 'A guardar...' : publicacaoEditId ? <><Check size={16} /> Guardar Alterações</> : <><Plus size={16} /> Publicar</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de proposta */}
+      {modalInteresse && publicacaoAlvo && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-green-800 font-bold text-lg">Propor Compra</h3>
+              <button onClick={() => setModalInteresse(false)}><X size={20} className="text-gray-400" /></button>
+            </div>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
+              <p className="text-green-800 font-medium text-sm">{publicacaoAlvo.titulo}</p>
+              {publicacaoAlvo.tipo_residuo && (
+                <p className="text-green-600 text-xs mt-0.5 flex items-center gap-1">
+                  <Recycle size={11} /> {publicacaoAlvo.tipo_residuo}
+                  {publicacaoAlvo.provincia && <span className="ml-2 flex items-center gap-1"><MapPin size={11} />{publicacaoAlvo.provincia}</span>}
+                </p>
+              )}
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-gray-600 text-sm block mb-1">Valor que propões <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(Kz/kg)</span></label>
+                <div className="relative">
+                  <input type="number" min="1" step="1" value={valorProposto} onChange={(e) => setValorProposto(e.target.value)}
+                    placeholder="Ex: 750"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  <span className="absolute right-4 top-3 text-gray-400 text-sm">Kz</span>
+                </div>
+                {publicacaoAlvo.preco_min && publicacaoAlvo.preco_max && (
+                  <p className="text-xs text-gray-400 mt-1">Referência: {publicacaoAlvo.preco_min}–{publicacaoAlvo.preco_max} Kz/kg</p>
+                )}
+              </div>
+              <div>
+                <label className="text-gray-600 text-sm block mb-1">Nota (opcional)</label>
+                <textarea value={mensagemInteresse} onChange={(e) => setMensagemInteresse(e.target.value)}
+                  placeholder="Ex: Podemos recolher na próxima semana..." rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
+              </div>
+              {erroInteresse && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erroInteresse}</p>}
+            </div>
+            <button onClick={handleEnviarInteresse} disabled={enviandoInteresse}
+              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+              {enviandoInteresse ? 'A enviar...' : <><HandshakeIcon size={16} /> Enviar Proposta</>}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
 
-  if (erro) return (
-    <div className="min-h-screen bg-green-100 pt-24 flex items-center justify-center">
-      <HeaderEmpresa />
-      <div className="bg-white p-6 rounded-xl text-center shadow-sm">
-        <p className="text-red-600 mb-4">{erro}</p>
-        <button onClick={() => navigate(-1)} className="bg-green-600 text-white px-4 py-2 rounded-lg">
-          Voltar
-        </button>
+function CartaoPedidoEmpresa({ publicacao: p, utilizador, onEditar, onApagar }) {
+  const podeGerir = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
+  const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
+  const qualCfg = QUALIDADE_CONFIG[p.qualidade] || null;
+  const progresso = (() => {
+    const acumulado = parseFloat(p.total_acumulado || 0);
+    const meta      = parseFloat(p.minimo_para_agendar || 0);
+    if (!meta || meta <= 0) return null;
+    return Math.min(Math.round((acumulado / meta) * 100), 100);
+  })();
+  const minimoUnidades = (() => {
+    const kg  = parseFloat(p.minimo_por_pessoa_kg || 0);
+    const kpu = parseFloat(p.kg_por_unidade || 0);
+    if (!kg || !kpu) return null;
+    return Math.ceil(kg / kpu);
+  })();
+
+  return (
+    <div className="bg-white border border-purple-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+      {p.imagem && (
+        <img src={p.imagem} alt={p.titulo} className="w-full h-44 object-cover"
+          onError={(e) => { e.target.style.display = 'none'; }} />
+      )}
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">Pedido de Empresa</span>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
+            {podeGerir && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => onEditar(p)}
+                  className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium transition">
+                  <Pencil size={13} /> Editar
+                </button>
+                {temAcordos ? (
+                  <span title="Não podes eliminar — já existem acordos activos"
+                    className="flex items-center gap-1 text-gray-300 text-xs cursor-not-allowed">
+                    <Trash2 size={13} /> Eliminar
+                  </span>
+                ) : (
+                  <button onClick={() => onApagar(p)}
+                    className="flex items-center gap-1 text-red-400 hover:text-red-600 text-xs font-medium transition">
+                    <Trash2 size={13} /> Eliminar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <h3 className="text-gray-900 font-bold text-base mb-1">{p.titulo}</h3>
+        {p.descricao && <p className="text-gray-500 text-sm mb-3 line-clamp-2">{p.descricao}</p>}
+        {(p.tipo_residuo || p.qualidade) && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {p.tipo_residuo && (
+              <span className="flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                <Recycle size={11} /> {p.tipo_residuo}
+              </span>
+            )}
+            {qualCfg && (
+              <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${qualCfg.cor}`}>
+                {qualCfg.icone} {qualCfg.label}
+              </span>
+            )}
+            {p.provincia && <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>}
+          </div>
+        )}
+        {p.valor_proposto && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-green-700 text-xs font-medium">A empresa paga</p>
+              <p className="text-green-800 font-bold text-xl">
+                {parseFloat(p.valor_proposto).toFixed(0)} Kz<span className="text-sm font-normal text-green-600"> /kg</span>
+              </p>
+            </div>
+            <Leaf size={24} className="text-green-400" />
+          </div>
+        )}
+        {p.minimo_por_pessoa_kg && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3">
+            <p className="text-blue-700 text-xs font-semibold mb-1 flex items-center gap-1"><Info size={12} /> O que cada pessoa tem de trazer no mínimo</p>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <Scale size={14} className="text-blue-500" />
+                <span className="text-gray-800 text-sm font-bold">{parseFloat(p.minimo_por_pessoa_kg).toFixed(0)} kg</span>
+                <span className="text-gray-400 text-xs">em peso</span>
+              </div>
+              {minimoUnidades !== null && p.nome_unidade && (
+                <>
+                  <span className="text-gray-300 text-xs">ou</span>
+                  <div className="flex items-center gap-1.5">
+                    <Recycle size={14} className="text-blue-500" />
+                    <span className="text-gray-800 text-sm font-bold">{minimoUnidades.toLocaleString()} {p.nome_unidade}s</span>
+                    <span className="text-gray-400 text-xs">sem balança</span>
+                  </div>
+                </>
+              )}
+            </div>
+            {p.valor_proposto && (
+              <p className="text-green-600 text-xs mt-2 font-medium">
+                Quem trouxer o mínimo recebe cerca de <strong>{(parseFloat(p.minimo_por_pessoa_kg) * parseFloat(p.valor_proposto)).toFixed(0)} Kz</strong>
+              </p>
+            )}
+          </div>
+        )}
+        {progresso !== null && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-gray-500 text-xs flex items-center gap-1"><Target size={11} /> Progresso para a recolha</span>
+              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-600'}`}>
+                {parseFloat(p.total_acumulado || 0).toFixed(0)} / {parseFloat(p.minimo_para_agendar || 0).toFixed(0)} kg ({progresso}%)
+              </span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`} style={{ width: `${progresso}%` }} />
+            </div>
+            {progresso >= 100
+              ? <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida — podes agendar a recolha</p>
+              : <p className="text-gray-400 text-xs mt-1">Faltam {(parseFloat(p.minimo_para_agendar || 0) - parseFloat(p.total_acumulado || 0)).toFixed(0)} kg para agendar</p>
+            }
+          </div>
+        )}
+        {temAcordos && podeGerir && (
+          <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
+            <AlertCircle size={14} className="text-yellow-600 mt-0.5 shrink-0" />
+            <p className="text-yellow-700 text-xs">
+              Já existem <strong>{parseFloat(p.total_acumulado).toFixed(0)} kg</strong> em acordos activos. Podes editar mas não eliminar este pedido.
+            </p>
+          </div>
+        )}
+        {p.com_coletador && (
+          <div className="flex items-center justify-end pt-3 border-t border-gray-100">
+            <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full border border-green-200">
+              <Truck size={11} /> A empresa vem buscar
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+function CartaoGeral({ publicacao: p, utilizador, onEditar, onApagar, onInteresse, interesseJaEnviado }) {
+  const estilo = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
+  const podeGerir = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
+  const podeInteresse = p.tipo_publicacao === 'oferta_residuo' && p.id_autor !== utilizador?.id;
 
   return (
-    <div className="min-h-screen bg-green-100 pt-24 p-6">
-      <HeaderEmpresa />
-
-      <div className="max-w-2xl mx-auto space-y-6">
-
-        {/* ── Avatar + nome ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-8 text-center">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {perfil?.foto_perfil ? (
-              <img src={perfil.foto_perfil} alt="logo" className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <Building2 size={40} className="text-green-600" />
+    <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm`}>
+      {p.imagem && (
+        <img src={p.imagem} alt={p.titulo} className="w-full h-48 object-cover"
+          onError={(e) => { e.target.style.display = 'none'; }} />
+      )}
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className={`px-2 py-0.5 rounded-lg text-xs font-medium ${estilo.badge}`}>{estilo.label}</span>
+          <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO')}</span>
+        </div>
+        <h3 className="text-gray-800 font-semibold text-sm mb-1">{p.titulo}</h3>
+        {p.descricao && <p className="text-gray-500 text-xs mb-2 line-clamp-2">{p.descricao}</p>}
+        {p.tipo_publicacao === 'oferta_residuo' && (
+          <div className="flex flex-wrap gap-3 mb-2">
+            {p.tipo_residuo && <span className="flex items-center gap-1 text-gray-500 text-xs"><Recycle size={11} /> {p.tipo_residuo}</span>}
+            {p.provincia && <span className="flex items-center gap-1 text-gray-400 text-xs"><MapPin size={11} /> {p.provincia}</span>}
+            {p.preco_min && p.preco_max && <span className="text-green-600 text-xs font-medium">{p.preco_min}–{p.preco_max} Kz/kg</span>}
+          </div>
+        )}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold">
+              {p.nome_autor?.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-gray-500 text-xs">{p.nome_autor}</span>
+            {p.tipo_autor === 'empresa' && (
+              <span className="text-purple-600 text-xs flex items-center gap-1"><Building2 size={10} /> Empresa</span>
             )}
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">{perfil?.nome}</h2>
-          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
-            <Building2 size={14} /> Empresa Recicladora
-          </span>
-          {perfil?.descricao && (
-            <p className="text-gray-500 text-sm mt-4 leading-relaxed">{perfil.descricao}</p>
-          )}
-        </div>
-
-        {/* ── KPIs — só visíveis para a própria empresa ── */}
-        {ehProprioPerfilEmpresa && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
-              <div className="flex justify-center mb-2"><CheckCircle size={22} className="text-green-600" /></div>
-              <p className="text-2xl font-bold text-green-700">{entregasAceites.length}</p>
-              <p className="text-xs text-gray-500 mt-1">Entregas aceites</p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
-              <div className="flex justify-center mb-2"><Package size={22} className="text-blue-600" /></div>
-              <p className="text-2xl font-bold text-blue-700">{totalKg.toFixed(1)} kg</p>
-              <p className="text-xs text-gray-500 mt-1">Resíduos recolhidos</p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
-              <div className="flex justify-center mb-2"><TrendingUp size={22} className="text-orange-500" /></div>
-              <p className="text-xl font-bold text-orange-600">{totalPago.toFixed(0)} Kz</p>
-              <p className="text-xs text-gray-500 mt-1">Total pago</p>
-            </div>
-          </div>
-        )}
-
-        {/* ── Contactos ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-6">
-          <h3 className="text-lg font-semibold text-green-700 mb-4">Contactos</h3>
-          <div className="space-y-3 text-gray-600">
-            <div className="flex items-center gap-3">
-              <Phone size={18} className="text-green-500" />
-              <span>{perfil?.telefone || 'Não definido'}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Mail size={18} className="text-green-500" />
-              <span>{perfil?.email || 'Não definido'}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <MapPin size={18} className="text-green-500" />
-              <span>
-                {[perfil?.endereco, perfil?.bairro, perfil?.municipio, perfil?.provincia]
-                  .filter(Boolean).join(', ') || 'Localização não definida'}
-              </span>
-            </div>
-            {perfil?.site && (
-              <div className="flex items-center gap-3">
-                <Globe size={18} className="text-green-500" />
-                <a href={perfil.site} target="_blank" rel="noopener noreferrer"
-                  className="text-green-600 hover:underline">
-                  {perfil.site}
-                </a>
-              </div>
+          <div className="flex items-center gap-2">
+            {podeGerir && (
+              <>
+                <button onClick={() => onEditar(p)} className="text-blue-400 hover:text-blue-600 text-xs flex items-center gap-1 transition">
+                  <Pencil size={12} /> Editar
+                </button>
+                <button onClick={() => onApagar(p)} className="text-red-400 hover:text-red-500 text-xs flex items-center gap-1 transition">
+                  <Trash2 size={12} /> Eliminar
+                </button>
+              </>
+            )}
+            {podeInteresse && (
+              interesseJaEnviado
+                ? <span className="text-green-600 text-xs font-medium flex items-center gap-1"><Check size={11} /> Proposta enviada</span>
+                : (
+                  <button onClick={() => onInteresse(p)}
+                    className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+                    <HandshakeIcon size={12} /> Tenho interesse
+                  </button>
+                )
             )}
           </div>
-        </div>
-
-        {/* ── Horário ── */}
-        {(perfil?.horario_abertura || perfil?.horario_fechamento) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-6">
-            <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
-              <Clock size={20} /> Horário de Funcionamento
-            </h3>
-            <div className="flex items-center gap-4 text-gray-700">
-              <div className="bg-green-50 rounded-xl px-4 py-3 text-center flex-1">
-                <p className="text-xs text-gray-500 mb-1">Abertura</p>
-                <p className="text-xl font-bold text-green-700">{perfil.horario_abertura || '--:--'}</p>
-              </div>
-              <span className="text-gray-400 text-xl">→</span>
-              <div className="bg-red-50 rounded-xl px-4 py-3 text-center flex-1">
-                <p className="text-xs text-gray-500 mb-1">Fechamento</p>
-                <p className="text-xl font-bold text-red-600">{perfil.horario_fechamento || '--:--'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Resíduos aceites ── */}
-        {perfil?.residuos_aceites && (
-          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-6">
-            <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
-              <Recycle size={20} /> Resíduos Aceites
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {perfil.residuos_aceites.split(',').map((r, i) => (
-                <span key={i} className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-3 py-1 rounded-full">
-                  <Recycle size={12} /> {r.trim()}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Botões de acção ── */}
-        <div className="grid grid-cols-2 gap-4">
-
-          {/* Própria empresa — Editar + Dashboard */}
-          {ehProprioPerfilEmpresa && (
-            <>
-              <button
-                onClick={() => navigate('/EditarEmpresa')}
-                className="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium transition">
-                Editar Perfil
-              </button>
-              <button
-                onClick={() => navigate('/DashboardEmpresa')}
-                className="bg-white hover:bg-gray-50 text-green-700 border border-green-200 py-3 rounded-xl font-medium transition">
-                Dashboard
-              </button>
-            </>
-          )}
-
-          {/* Utilizador comum a ver perfil de empresa — Criar Oferta */}
-          {podeCreiarOferta && (
-            <button
-              onClick={() => navigate(`/NovoResiduo?empresa=${id}`)}
-              className="col-span-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
-              <Plus size={18} /> Criar Oferta para esta Empresa
-            </button>
-          )}
-
         </div>
       </div>
     </div>
