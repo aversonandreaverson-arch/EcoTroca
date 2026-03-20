@@ -3,22 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   Recycle, Building2, MapPin, Plus, Search, Trash2,
   X, Bell, Pencil, Check, Target, Scale, Leaf, Info,
-  Truck, AlertCircle, ChevronRight, User, FileText,
-  Wrench, Wine, Calendar, Newspaper, BookOpen, Megaphone,
-  ThumbsDown, Smile, ThumbsUp, Star, HandshakeIcon
+  Truck, AlertCircle, ChevronRight, User,
+  Calendar, Newspaper, BookOpen, Megaphone,
+  ThumbsDown, Smile, ThumbsUp, Star
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa';
 import {
-  getFeed, criarPublicacao, apagarPublicacao, editarPublicacao,
-  getResiduos, getUtilizadorLocal, getEmpresas, pesquisar
+  getFeed, apagarPublicacao, getUtilizadorLocal, getEmpresas, pesquisar
 } from '../../api.js';
-
-const TIPOS_EMPRESA = [
-  { valor: 'pedido_residuo', label: 'Pedido de Resíduo' },
-  { valor: 'evento',         label: 'Evento'            },
-  { valor: 'educacao',       label: 'Educação'          },
-  { valor: 'noticia',        label: 'Notícia'           },
-];
 
 const FILTROS = [
   { valor: 'todos',          label: 'Tudo'      },
@@ -46,12 +38,6 @@ const QUALIDADE_CONFIG = {
   excelente: { icone: <Star       size={11} className="text-orange-400" />, label: 'Excelente', cor: 'bg-orange-50 text-orange-600 border-orange-200' },
 };
 
-const FORM_VAZIO = {
-  tipo_publicacao: 'pedido_residuo',
-  titulo: '', descricao: '', id_residuo: '',
-  quantidade_kg: '', valor_proposto: '', provincia: '', imagem: '',
-};
-
 export default function PaginaInicialEmpresa() {
   const navigate   = useNavigate();
   const utilizador = getUtilizadorLocal();
@@ -68,20 +54,10 @@ export default function PaginaInicialEmpresa() {
   const pesquisaRef = useRef(null);
   const timeoutRef  = useRef(null);
 
-  const [modalAberto,      setModalAberto]      = useState(false);
-  const [residuos,         setResiduos]         = useState([]);
-  const [formulario,       setFormulario]       = useState(FORM_VAZIO);
-  const [publicando,       setPublicando]       = useState(false);
-  const [erroForm,         setErroForm]         = useState('');
-  const [publicacaoEditId, setPublicacaoEditId] = useState(null);
-
   const [empresas, setEmpresas] = useState([]);
-
-  const mostrarCamposResiduo = ['oferta_residuo', 'pedido_residuo'].includes(formulario.tipo_publicacao);
 
   useEffect(() => {
     carregarFeed();
-    carregarResiduos();
     getEmpresas().then(setEmpresas).catch(console.error);
   }, []);
 
@@ -98,11 +74,6 @@ export default function PaginaInicialEmpresa() {
     try { setCarregando(true); setFeed(await getFeed()); }
     catch (err) { setErro(err.message); }
     finally { setCarregando(false); }
-  };
-
-  const carregarResiduos = async () => {
-    try { setResiduos(await getResiduos()); }
-    catch (err) { console.error(err); }
   };
 
   const handlePesquisa = (valor) => {
@@ -123,46 +94,13 @@ export default function PaginaInicialEmpresa() {
   const irParaPerfil = (tipo_resultado, item) => {
     setMostrarDropdown(false); setPesquisa(''); setResultadosPesquisa(null);
     if (tipo_resultado === 'empresa')       navigate(`/PerfilEmpresa/${item.id_empresa}`);
-    else if (tipo_resultado === 'comum')   navigate(`/Perfil/${item.id_usuario}`);
-    else if (tipo_resultado === 'coletor') navigate(`/PerfilColetador/${item.id_coletador}`);
+    else if (tipo_resultado === 'comum')    navigate(`/Perfil/${item.id_usuario}`);
+    else if (tipo_resultado === 'coletor')  navigate(`/PerfilColetador/${item.id_coletador}`);
   };
 
   const totalResultados = resultadosPesquisa
     ? (resultadosPesquisa.empresas?.length || 0) + (resultadosPesquisa.utilizadores?.length || 0) + (resultadosPesquisa.coletadores?.length || 0)
     : 0;
-
-  const feedFiltrado = feed.filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
-  const avisos       = feed.filter(p => p.tipo_publicacao === 'aviso');
-
-  const handleCampo = (campo, valor) => setFormulario(prev => ({ ...prev, [campo]: valor }));
-  const handleTipo  = (novoTipo)     => setFormulario({ ...FORM_VAZIO, tipo_publicacao: novoTipo });
-
-  const abrirModalCriar = () => {
-    setFormulario({ ...FORM_VAZIO, tipo_publicacao: TIPOS_EMPRESA[0].valor });
-    setPublicacaoEditId(null); setErroForm(''); setModalAberto(true);
-  };
-
-  const abrirModalEditar = (p) => {
-    setFormulario({
-      tipo_publicacao: p.tipo_publicacao, titulo: p.titulo || '',
-      descricao: p.descricao || '', id_residuo: p.id_residuo || '',
-      quantidade_kg: p.quantidade_kg || '', valor_proposto: p.valor_proposto || '',
-      provincia: p.provincia || '', imagem: p.imagem || '',
-    });
-    setPublicacaoEditId(p.id_publicacao); setErroForm(''); setModalAberto(true);
-  };
-
-  const handlePublicar = async () => {
-    if (!formulario.titulo.trim()) { setErroForm('O título é obrigatório.'); return; }
-    try {
-      setPublicando(true); setErroForm('');
-      if (publicacaoEditId) await editarPublicacao(publicacaoEditId, formulario);
-      else await criarPublicacao(formulario);
-      setModalAberto(false); setFormulario(FORM_VAZIO); setPublicacaoEditId(null);
-      await carregarFeed();
-    } catch (err) { setErroForm(err.message); }
-    finally { setPublicando(false); }
-  };
 
   const handleApagar = async (p) => {
     if (p.tipo_publicacao === 'pedido_residuo' && parseFloat(p.total_acumulado || 0) > 0) {
@@ -173,20 +111,24 @@ export default function PaginaInicialEmpresa() {
     catch (err) { alert(err.message); }
   };
 
+  const feedFiltrado = feed.filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
+  const avisos       = feed.filter(p => p.tipo_publicacao === 'aviso');
+
   return (
     <div className="min-h-screen bg-green-100 pt-24 pb-12">
       <HeaderEmpresa />
 
       <div className="px-6">
 
+        {/* Cabeçalho — sem botão Publicar (vai para o Dashboard) */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-green-800">Página Inicial</h1>
             <p className="text-green-600 text-sm mt-0.5">Olá, {utilizador?.nome?.split(' ')[0] || 'bem-vinda'}</p>
           </div>
-          <button onClick={abrirModalCriar}
+          <button onClick={() => navigate('/DashboardEmpresa')}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition">
-            <Plus size={16} /> Publicar
+            <Plus size={16} /> Novo Pedido
           </button>
         </div>
 
@@ -288,13 +230,17 @@ export default function PaginaInicialEmpresa() {
             {!carregando && !erro && feedFiltrado.length === 0 && (
               <div className="text-center py-16 bg-white rounded-2xl border border-green-100">
                 <p className="text-gray-400">Nenhuma publicação encontrada.</p>
-                <button onClick={abrirModalCriar} className="mt-3 text-green-600 text-sm underline">Sê o primeiro a publicar</button>
+                <button onClick={() => navigate('/DashboardEmpresa')} className="mt-3 text-green-600 text-sm underline">
+                  Criar primeiro pedido no Dashboard
+                </button>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {feedFiltrado.map(p => (
                 <CardPublicacao key={p.id_publicacao} publicacao={p}
-                  utilizador={utilizador} onEditar={abrirModalEditar} onApagar={handleApagar} />
+                  utilizador={utilizador}
+                  onEditar={() => navigate('/DashboardEmpresa')}
+                  onApagar={handleApagar} />
               ))}
             </div>
           </div>
@@ -343,83 +289,15 @@ export default function PaginaInicialEmpresa() {
           </div>
         </div>
       </div>
-
-      {/* Modal criar/editar */}
-      {modalAberto && (
-        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg">{publicacaoEditId ? 'Editar Publicação' : 'Nova Publicação'}</h3>
-              <button onClick={() => setModalAberto(false)}><X size={20} className="text-gray-400" /></button>
-            </div>
-            <div className="space-y-4">
-              {!publicacaoEditId && (
-                <div>
-                  <label className="text-gray-600 text-sm block mb-2">O que quero publicar</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TIPOS_EMPRESA.map(t => (
-                      <button key={t.valor} onClick={() => handleTipo(t.valor)}
-                        className={`py-2 px-3 rounded-xl text-sm font-medium transition border ${
-                          formulario.tipo_publicacao === t.valor ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
-                        }`}>{t.label}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-gray-600 text-sm block mb-1">Título <span className="text-red-500">*</span></label>
-                <input type="text" value={formulario.titulo} onChange={(e) => handleCampo('titulo', e.target.value)}
-                  placeholder="Título da publicação"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-              </div>
-              <div>
-                <label className="text-gray-600 text-sm block mb-1">Descrição (opcional)</label>
-                <textarea value={formulario.descricao} onChange={(e) => handleCampo('descricao', e.target.value)}
-                  placeholder="Mais detalhes..." rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
-              </div>
-              {mostrarCamposResiduo && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-gray-600 text-sm block mb-1">Tipo de Resíduo</label>
-                    <select value={formulario.id_residuo} onChange={(e) => handleCampo('id_residuo', e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-                      <option value="">Seleccionar</option>
-                      {residuos.map(r => (<option key={r.id_residuo} value={r.id_residuo}>{r.tipo}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-gray-600 text-sm block mb-1">Valor (Kz/kg)</label>
-                    <input type="number" min="0" value={formulario.valor_proposto}
-                      onChange={(e) => handleCampo('valor_proposto', e.target.value)} placeholder="Ex: 200"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-gray-600 text-sm block mb-1">Província (opcional)</label>
-                <input type="text" value={formulario.provincia} onChange={(e) => handleCampo('provincia', e.target.value)}
-                  placeholder="Ex: Luanda"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-              </div>
-              {erroForm && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erroForm}</p>}
-            </div>
-            <button onClick={handlePublicar} disabled={publicando}
-              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-              {publicando ? 'A guardar...' : publicacaoEditId ? <><Check size={16} /> Guardar</> : <><Plus size={16} /> Publicar</>}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 // ── Card unificado ────────────────────────────────────────────
 function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
-  const estilo    = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
-  const qualCfg   = QUALIDADE_CONFIG[p.qualidade] || null;
-  const podeGerir = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
+  const estilo     = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso;
+  const qualCfg    = QUALIDADE_CONFIG[p.qualidade] || null;
+  const podeGerir  = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor;
   const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
 
   const progresso = (() => {
@@ -439,7 +317,7 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
   return (
     <div className={`bg-white border ${estilo.borda} rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col`}>
 
-      {/* Imagem ou fundo colorido */}
+      {/* Imagem ou fundo colorido com ícone */}
       {p.imagem ? (
         <img src={p.imagem} alt={p.titulo} className="w-full h-44 object-cover"
           onError={(e) => { e.target.style.display = 'none'; }} />
@@ -451,14 +329,15 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
 
       <div className="p-4 flex flex-col flex-1">
 
-        {/* Badge + data + acções */}
+        {/* Badge + data + acções (só para o autor) */}
         <div className="flex items-center justify-between mb-2">
           <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${estilo.badge}`}>{estilo.label}</span>
           <div className="flex items-center gap-2">
             <span className="text-gray-400 text-xs">{new Date(p.criado_em).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short' })}</span>
             {podeGerir && (
               <>
-                <button onClick={() => onEditar(p)} className="text-blue-400 hover:text-blue-600 transition"><Pencil size={13} /></button>
+                <button onClick={onEditar} title="Editar no Dashboard"
+                  className="text-blue-400 hover:text-blue-600 transition"><Pencil size={13} /></button>
                 {temAcordos
                   ? <span title="Já existem acordos activos" className="text-gray-300 cursor-not-allowed"><Trash2 size={13} /></span>
                   : <button onClick={() => onApagar(p)} className="text-red-400 hover:text-red-600 transition"><Trash2 size={13} /></button>
@@ -495,16 +374,13 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
           </div>
         )}
 
-        {/* Valor */}
+        {/* Valor — sem a flor, só texto */}
         {p.tipo_publicacao === 'pedido_residuo' && p.valor_proposto && (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 mb-2 flex items-center justify-between">
-            <div>
-              <p className="text-green-700 text-xs">A empresa paga</p>
-              <p className="text-green-800 font-bold text-base">
-                {parseFloat(p.valor_proposto).toFixed(0)} Kz<span className="text-xs font-normal text-green-600"> /kg</span>
-              </p>
-            </div>
-            <Leaf size={18} className="text-green-400" />
+          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 mb-2">
+            <p className="text-green-700 text-xs">A empresa paga</p>
+            <p className="text-green-800 font-bold text-base">
+              {parseFloat(p.valor_proposto).toFixed(0)} Kz<span className="text-xs font-normal text-green-600"> /kg</span>
+            </p>
           </div>
         )}
 
@@ -521,16 +397,26 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
           </div>
         )}
 
+        {/* Qualidade */}
+        {qualCfg && p.tipo_publicacao === 'pedido_residuo' && (
+          <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border mb-2 w-fit ${qualCfg.cor}`}>
+            {qualCfg.icone} Qualidade: {qualCfg.label}
+          </div>
+        )}
+
         {/* Progresso */}
         {progresso !== null && (
           <div className="mb-2">
             <div className="flex justify-between mb-1">
               <span className="text-gray-400 text-xs flex items-center gap-1"><Target size={10} /> Progresso</span>
-              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-500'}`}>{progresso}%</span>
+              <span className={`text-xs font-bold ${progresso >= 100 ? 'text-green-600' : 'text-gray-500'}`}>
+                {parseFloat(p.total_acumulado || 0).toFixed(0)}/{parseFloat(p.minimo_para_agendar || 0).toFixed(0)} kg
+              </span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div className={`h-full rounded-full ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`} style={{ width: `${progresso}%` }} />
             </div>
+            {progresso >= 100 && <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida — agenda a recolha no Dashboard</p>}
           </div>
         )}
 
@@ -548,6 +434,16 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar }) {
             <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full border border-green-200">
               <Truck size={10} /> A empresa vem buscar
             </span>
+          </div>
+        )}
+
+        {/* Autor — só mostra para publicações de outros */}
+        {p.id_autor !== utilizador?.id && (
+          <div className="mt-auto pt-2 border-t border-gray-100 flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {p.nome_autor?.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-gray-500 text-xs truncate">{p.nome_autor}</span>
           </div>
         )}
       </div>
