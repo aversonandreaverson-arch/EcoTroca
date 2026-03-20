@@ -46,8 +46,7 @@ import EducacaoEmpresa      from './Components/EmpresaProfile/EducacaoEmpresa'
 import NoticiasEmpresa      from './Components/EmpresaProfile/NoticiasEmpresa'
 
 // ── Feed ──────────────────────────────────────────────────────
-import Feed          from './Components/Feed/Feed'
-import PerfilPublico from './Components/Feed/PerfilPublico'
+import Feed from './Components/Feed/Feed'
 
 // ── Admin ─────────────────────────────────────────────────────
 import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
@@ -72,24 +71,23 @@ function App() {
       <Route path='/ConfirmarEmail/:token' element={<ConfirmarEmail />} />
 
       {/* ── ROTAS PRIVADAS — qualquer utilizador autenticado ─── */}
-      <Route path='/Feed'              element={<RotaProtegida><Feed /></RotaProtegida>} />
-      <Route path='/Perfil/:tipo/:id'  element={<RotaProtegida><PerfilPublico /></RotaProtegida>} />
-      <Route path='/PaginaInicial'     element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
-      <Route path='/Dashboard'         element={<RotaProtegida><Dashboard /></RotaProtegida>} />
-      <Route path='/UserProfile'       element={<RotaProtegida><UserProfile /></RotaProtegida>} />
-      <Route path='/Eventos'           element={<RotaProtegida><Eventos /></RotaProtegida>} />
-      <Route path='/Noticias'          element={<RotaProtegida><Noticias /></RotaProtegida>} />
-      <Route path='/Educacao'          element={<RotaProtegida><Educacao /></RotaProtegida>} />
-      <Route path='/Perfil'            element={<RotaProtegida><Perfil /></RotaProtegida>} />
-      <Route path='/Definicoes'        element={<RotaProtegida><Definicoes /></RotaProtegida>} />
-      <Route path='/Editar'            element={<RotaProtegida><Editar /></RotaProtegida>} />
+      <Route path='/Feed'          element={<RotaProtegida><Feed /></RotaProtegida>} />
+      <Route path='/PaginaInicial' element={<RotaProtegida><PaginaInicial /></RotaProtegida>} />
+      <Route path='/Dashboard'     element={<RotaProtegida><Dashboard /></RotaProtegida>} />
+      <Route path='/UserProfile'   element={<RotaProtegida><UserProfile /></RotaProtegida>} />
+      <Route path='/Eventos'       element={<RotaProtegida><Eventos /></RotaProtegida>} />
+      <Route path='/Noticias'      element={<RotaProtegida><Noticias /></RotaProtegida>} />
+      <Route path='/Educacao'      element={<RotaProtegida><Educacao /></RotaProtegida>} />
+      <Route path='/Perfil'        element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/Definicoes'    element={<RotaProtegida><Definicoes /></RotaProtegida>} />
+      <Route path='/Editar'        element={<RotaProtegida><Editar /></RotaProtegida>} />
       <Route path='/NovoResiduo'       element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
       <Route path='/EditarResiduo/:id' element={<RotaProtegida><NovoResiduo /></RotaProtegida>} />
 
-      {/* Perfil público de empresa — acessível a utilizadores comuns
-          /PerfilEmpresa/:id → utilizador comum vê o perfil de uma empresa
-          e pode clicar em "Criar Oferta para esta Empresa"               */}
-      <Route path='/PerfilEmpresa/:id' element={<RotaProtegida><PerfilEmpresa /></RotaProtegida>} />
+      {/* ── Perfis públicos — mesmo componente detecta o :id ── */}
+      <Route path='/Perfil/:id'          element={<RotaProtegida><Perfil /></RotaProtegida>} />
+      <Route path='/PerfilColetador/:id' element={<RotaProtegida><PerfilColetador /></RotaProtegida>} />
+      <Route path='/PerfilEmpresa/:id'   element={<RotaProtegida><PerfilEmpresa /></RotaProtegida>} />
 
       {/* ── ROTAS PRIVADAS — coletador ──────────────────────── */}
       <Route path='/ColetadorInicio'     element={<RotaProtegida tipos={["coletor"]}><PaginaInicialColetador /></RotaProtegida>} />
