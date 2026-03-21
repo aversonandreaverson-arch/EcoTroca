@@ -1,9 +1,13 @@
-
+// ============================================================
+//  DashboardEmpresa.jsx
+//  Guardar em: src/Components/EmpresaProfile/DashboardEmpresa.jsx
+//
 //  Painel principal da empresa recicladora.
 //  Contém 3 modais encadeados:
 //    Modal 1 — Novo Pedido de Resíduo (com conversão de unidades)
 //    Modal 2 — Recolhas (progresso do limiar + acordos + recolhas)
 //    Modal 3 — Agendar Recolha (data/hora/coletadores)
+// ============================================================
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -719,21 +723,20 @@ export default function DashboardEmpresa() {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Info size={15} className="text-blue-600 shrink-0" />
-                    <p className="text-blue-800 text-sm font-semibold">Conversão de unidades</p>
+                    <p className="text-blue-800 text-sm font-semibold">Ajudar quem não tem balança</p>
                   </div>
                   <p className="text-blue-600 text-xs mb-3">
-                    Algumas pessoas não têm balança em casa. Ao definires quantas {formulario.nome_unidade || 'unidades'} equivalem a 1 kg,
-                    o sistema converte automaticamente para que toda a gente consiga participar.
+                    Muitas pessoas não sabem quantos kg têm em casa. Se disseres que, por exemplo, uma garrafa pesa 30g, o sistema mostra automaticamente "traz pelo menos 20 garrafas" em vez de "traz 600g".
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-blue-700 text-xs font-medium block mb-1">Nome da unidade</label>
+                      <label className="text-blue-700 text-xs font-medium block mb-1">Como se chama a unidade?</label>
                       <input type="text" value={formulario.nome_unidade} onChange={e => handleCampo('nome_unidade', e.target.value)}
-                        placeholder="Ex: garrafa, saco, peça"
+                        placeholder="Ex: garrafa, saco, caixa"
                         className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-blue-700 text-xs font-medium block mb-1">1 {formulario.nome_unidade || 'unidade'} pesa</label>
+                      <label className="text-blue-700 text-xs font-medium block mb-1">Quanto pesa 1 {formulario.nome_unidade || 'unidade'}?</label>
                       <div className="relative">
                         <input type="number" min="0.001" step="0.001" value={formulario.kg_por_unidade} onChange={e => handleCampo('kg_por_unidade', e.target.value)}
                           placeholder="Ex: 0.03"
@@ -744,7 +747,7 @@ export default function DashboardEmpresa() {
                   </div>
                   {formulario.nome_unidade && formulario.kg_por_unidade && (
                     <div className="mt-3 bg-white rounded-xl p-3 border border-blue-200">
-                      <p className="text-blue-700 text-xs font-medium">Como vai aparecer para os utilizadores:</p>
+                      <p className="text-blue-700 text-xs font-medium">O que as pessoas vão ver:</p>
                       <p className="text-gray-700 text-sm mt-1">"1 {formulario.nome_unidade} = {formulario.kg_por_unidade} kg"</p>
                     </div>
                   )}
@@ -754,9 +757,9 @@ export default function DashboardEmpresa() {
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Users size={15} className="text-green-600 shrink-0" />
-                  <label className="text-gray-700 text-sm font-semibold">Quanto deve cada pessoa trazer no mínimo? <span className="text-red-500">*</span></label>
+                  <label className="text-gray-700 text-sm font-semibold">Quanto é o mínimo que cada pessoa pode trazer? <span className="text-red-500">*</span></label>
                 </div>
-                <p className="text-gray-400 text-xs mb-3">Só as pessoas que tiverem esta quantidade ou mais podem responder ao teu pedido.</p>
+                <p className="text-gray-400 text-xs mb-3">Define um mínimo para que valha a pena ir buscar. Quem tiver menos do que isto não consegue responder ao teu pedido.</p>
                 <div className="relative">
                   <input type="number" min="1" step="0.1" value={formulario.minimo_por_pessoa_kg}
                     onChange={e => handleCampo('minimo_por_pessoa_kg', e.target.value)}
@@ -781,9 +784,9 @@ export default function DashboardEmpresa() {
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Target size={15} className="text-green-600 shrink-0" />
-                  <label className="text-gray-700 text-sm font-semibold">Quantos kg no total para ir buscar? <span className="text-red-500">*</span></label>
+                  <label className="text-gray-700 text-sm font-semibold">A partir de quantos kg vale a pena ir buscar? <span className="text-red-500">*</span></label>
                 </div>
-                <p className="text-gray-400 text-xs mb-3">O sistema vai somar o lixo de todas as pessoas que aceitarem. Quando chegar a este valor, avisamos-te para marcares o dia de recolha.</p>
+                <p className="text-gray-400 text-xs mb-3">Quando o total de resíduo prometido por todas as pessoas atingir este valor, avisamos-te para marcares o dia de recolha.</p>
                 <div className="relative">
                   <input type="number" min="1" step="0.1" value={formulario.minimo_para_agendar}
                     onChange={e => handleCampo('minimo_para_agendar', e.target.value)}
@@ -1026,7 +1029,7 @@ export default function DashboardEmpresa() {
           MODAL 3: Agendar Recolha
       ════════════════════════════════════════════════════ */}
       {modalAgendar && (
-        <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-60 px-0 md:px-4">
+        <div className="fixed inset-0 bg-black/70 flex items-end md:items-center justify-center z-[60] px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><CalendarCheck size={20} /> Agendar Recolha</h3>
