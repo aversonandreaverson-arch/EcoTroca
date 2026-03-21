@@ -1,4 +1,3 @@
-
 //  Fluxo principal:
 //    1. Utilizador cria entrega via NovoResiduo.jsx
 //    2. Backend cria Entrega + Entrega_Residuo + Publicacao (automática) + Chat
@@ -12,8 +11,6 @@ import pool from '../config/database.js';
 const router = Router();
 
 // ── GET /api/entregas ─────────────────────────────────────────
-// Lista todas as entregas do utilizador autenticado
-// Faz JOIN com Publicacao para trazer a imagem guardada na publicação
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -26,10 +23,10 @@ router.get('/', auth, async (req, res) => {
         MAX(r.preco_min)                    AS preco_min,
         MAX(r.preco_max)                    AS preco_max,
         p.imagem                            AS imagem
-       FROM Entrega e
-       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
-       LEFT JOIN Residuo r          ON er.id_residuo = r.id_residuo
-       LEFT JOIN Publicacao p       ON p.id_entrega = e.id_entrega AND p.eliminado = 0
+       FROM entrega e
+       LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN residuo r          ON er.id_residuo = r.id_residuo
+       LEFT JOIN publicacao p       ON p.id_entrega = e.id_entrega AND p.eliminado = 0
        WHERE e.id_usuario = ?
        GROUP BY e.id_entrega, p.imagem
        ORDER BY e.data_hora DESC`,
@@ -43,38 +40,43 @@ router.get('/', auth, async (req, res) => {
 
 // ── POST /api/entregas ────────────────────────────────────────
 // Cria a entrega e automaticamente uma Publicacao no feed
-// Aceita imagem em base64 e guarda na Publicacao
+// Se id_empresa ou id_publicacao vier no body, associa directamente
 router.post('/', auth, async (req, res) => {
   try {
     const {
       tipo_entrega, endereco_domicilio, id_ponto,
       tipo_recompensa, residuos, observacoes,
-      imagem, // Base64 da foto do resíduo — pode ser null
+      imagem,
+      id_empresa,      // empresa destino (quando vem do NovoResiduo?empresa=X)
+      id_publicacao,   // pedido específico da empresa (quando vem de um pedido)
     } = req.body;
 
-    // Insiro a entrega principal na tabela Entrega
+    // Insiro a entrega principal
     const [result] = await pool.query(
-      `INSERT INTO Entrega
-        (id_usuario, tipo_entrega, endereco_domicilio, id_ponto, tipo_recompensa, observacoes, data_hora)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO entrega
+        (id_usuario, tipo_entrega, endereco_domicilio, id_ponto,
+         tipo_recompensa, observacoes, data_hora, id_empresa, id_publicacao)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
       [
         req.usuario.id_usuario,
         tipo_entrega,
         endereco_domicilio,
-        id_ponto || null,
+        id_ponto      || null,
         tipo_recompensa,
-        observacoes || null,
+        observacoes   || null,
+        id_empresa    || null,
+        id_publicacao || null,
       ]
     );
 
     const id_entrega = result.insertId;
 
-    // Insiro cada resíduo na tabela Entrega_Residuo
+    // Insiro cada resíduo na tabela entrega_residuo
     let id_residuo_principal = null;
     if (residuos && residuos.length > 0) {
       for (const r of residuos) {
         await pool.query(
-          'INSERT INTO Entrega_Residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
+          'INSERT INTO entrega_residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
           [id_entrega, r.id_residuo, r.quantidade || 1, r.peso_kg]
         );
         id_residuo_principal = r.id_residuo;
@@ -82,39 +84,35 @@ router.post('/', auth, async (req, res) => {
     }
 
     // ── Criação automática da Publicacao ─────────────────────
-    if (id_residuo_principal) {
-
-      // Vou buscar os detalhes do resíduo para construir o título e descrição
+    // Só cria publicação automática se NÃO for uma entrega directa a empresa
+    // (quando é directa, o pedido da empresa já existe no feed)
+    if (id_residuo_principal && !id_publicacao) {
       const [residuoRows] = await pool.query(
-        'SELECT tipo, qualidade, preco_min, preco_max, descricao FROM Residuo WHERE id_residuo = ?',
+        'SELECT tipo, qualidade, preco_min, preco_max, descricao FROM residuo WHERE id_residuo = ?',
         [id_residuo_principal]
       );
 
       if (residuoRows.length > 0) {
         const r = residuoRows[0];
 
-        // Título gerado automaticamente com base no tipo e qualidade
         const labelQualidade = {
           ruim: 'Ruim', moderada: 'Moderada', boa: 'Boa', excelente: 'Excelente',
         }[r.qualidade] || r.qualidade;
 
         const titulo = `Oferta de ${r.tipo} — Qualidade ${labelQualidade}`;
 
-        // Descrição com intervalo de preço e observações opcionais
         let descricao = `${r.tipo} de qualidade ${labelQualidade}.`;
         if (r.preco_min && r.preco_max) descricao += ` Valor estimado: ${r.preco_min}–${r.preco_max} Kz/kg.`;
         if (observacoes) descricao += ` ${observacoes}`;
 
-        // Vou buscar a província do utilizador para mostrar no cartão
         const [userRows] = await pool.query(
-          'SELECT provincia FROM Usuario WHERE id_usuario = ?',
+          'SELECT provincia FROM usuario WHERE id_usuario = ?',
           [req.usuario.id_usuario]
         );
         const provincia = userRows[0]?.provincia || null;
 
-        // Insiro a publicação com a imagem base64 se foi enviada
         await pool.query(
-          `INSERT INTO Publicacao
+          `INSERT INTO publicacao
             (id_usuario, tipo_autor, tipo_publicacao, titulo, descricao,
              id_residuo, provincia, imagem, status, id_entrega, criado_em)
            VALUES (?, 'utilizador', 'oferta_residuo', ?, ?, ?, ?, ?, 'disponivel', ?, NOW())`,
@@ -124,15 +122,42 @@ router.post('/', auth, async (req, res) => {
             descricao,
             id_residuo_principal,
             provincia,
-            imagem || null, // Base64 da imagem ou null se não foi enviada
+            imagem || null,
             id_entrega,
           ]
         );
       }
     }
 
-    // Crio o chat para esta entrega — usado depois da negociação
-    await pool.query('INSERT INTO Chat (id_entrega) VALUES (?)', [id_entrega]);
+    // Se for entrega directa a um pedido de empresa, notifica a empresa
+    if (id_publicacao) {
+      try {
+        // Vou buscar a empresa dona do pedido
+        const [pubRows] = await pool.query(
+          `SELECT p.id_usuario, u.nome AS nome_utilizador
+           FROM publicacao p
+           INNER JOIN usuario u ON u.id_usuario = ?
+           WHERE p.id_publicacao = ?`,
+          [req.usuario.id_usuario, id_publicacao]
+        );
+
+        if (pubRows.length > 0) {
+          await pool.query(
+            `INSERT INTO notificacao (id_usuario, titulo, mensagem)
+             VALUES (?, 'Nova oferta para o teu pedido', ?)`,
+            [
+              pubRows[0].id_usuario,
+              `${pubRows[0].nome_utilizador} respondeu ao teu pedido de resíduo com uma oferta.`,
+            ]
+          );
+        }
+      } catch {
+        // Notificação é opcional — ignora se falhar
+      }
+    }
+
+    // Crio o chat para esta entrega
+    await pool.query('INSERT INTO chat (id_entrega) VALUES (?)', [id_entrega]);
 
     res.status(201).json({ mensagem: 'Entrega criada com sucesso!', id_entrega });
   } catch (err) {
@@ -141,7 +166,6 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ── GET /api/entregas/:id ─────────────────────────────────────
-// Devolve o detalhe de uma entrega específica com a imagem da publicação
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -154,10 +178,10 @@ router.get('/:id', auth, async (req, res) => {
         r.preco_min,
         r.preco_max,
         p.imagem    AS imagem
-       FROM Entrega e
-       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
-       LEFT JOIN Residuo r          ON er.id_residuo = r.id_residuo
-       LEFT JOIN Publicacao p       ON p.id_entrega = e.id_entrega AND p.eliminado = 0
+       FROM entrega e
+       LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN residuo r          ON er.id_residuo = r.id_residuo
+       LEFT JOIN publicacao p       ON p.id_entrega = e.id_entrega AND p.eliminado = 0
        WHERE e.id_entrega = ? AND e.id_usuario = ?
        LIMIT 1`,
       [req.params.id, req.usuario.id_usuario]
@@ -170,14 +194,12 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ── PUT /api/entregas/:id ─────────────────────────────────────
-// Edita uma entrega e actualiza a imagem na Publicacao correspondente
 router.put('/:id', auth, async (req, res) => {
   try {
     const { tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes, residuos, imagem } = req.body;
 
-    // Verifico se a entrega existe e pertence ao utilizador
     const [rows] = await pool.query(
-      'SELECT status FROM Entrega WHERE id_entrega = ? AND id_usuario = ?',
+      'SELECT status FROM entrega WHERE id_entrega = ? AND id_usuario = ?',
       [req.params.id, req.usuario.id_usuario]
     );
     if (!rows.length) return res.status(404).json({ erro: 'Entrega não encontrada.' });
@@ -185,9 +207,8 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ erro: 'Só é possível editar entregas pendentes.' });
     }
 
-    // Actualizo os dados da entrega
     await pool.query(
-      `UPDATE Entrega SET
+      `UPDATE entrega SET
         tipo_entrega       = ?,
         endereco_domicilio = ?,
         tipo_recompensa    = ?,
@@ -196,20 +217,18 @@ router.put('/:id', auth, async (req, res) => {
       [tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes || null, req.params.id]
     );
 
-    // Actualizo a imagem na Publicacao correspondente se foi enviada uma nova
     if (imagem !== undefined) {
       await pool.query(
-        'UPDATE Publicacao SET imagem = ? WHERE id_entrega = ? AND eliminado = 0',
+        'UPDATE publicacao SET imagem = ? WHERE id_entrega = ? AND eliminado = 0',
         [imagem || null, req.params.id]
       );
     }
 
-    // Se vieram novos resíduos, apago os antigos e insiro os novos
     if (residuos && residuos.length > 0) {
-      await pool.query('DELETE FROM Entrega_Residuo WHERE id_entrega = ?', [req.params.id]);
+      await pool.query('DELETE FROM entrega_residuo WHERE id_entrega = ?', [req.params.id]);
       for (const r of residuos) {
         await pool.query(
-          'INSERT INTO Entrega_Residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
+          'INSERT INTO entrega_residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
           [req.params.id, r.id_residuo, r.quantidade || 1, r.peso_kg || 0]
         );
       }
@@ -222,8 +241,6 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/confirmar ────────────────────────
-// Confirma a coleta com o peso real e calcula todos os valores
-// Comissão: empresa paga 10%, utilizador recebe 70% - 50Kz, coletador recebe 30%
 router.patch('/:id/confirmar', auth, async (req, res) => {
   try {
     const { peso_real } = req.body;
@@ -232,11 +249,10 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
       return res.status(400).json({ erro: 'O peso real é obrigatório para confirmar a coleta.' });
     }
 
-    // Vou buscar o valor por kg do resíduo desta entrega
     const [rows] = await pool.query(
       `SELECT er.id_residuo, r.valor_por_kg
-       FROM Entrega_Residuo er
-       LEFT JOIN Residuo r ON er.id_residuo = r.id_residuo
+       FROM entrega_residuo er
+       LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
        WHERE er.id_entrega = ?
        LIMIT 1`,
       [req.params.id]
@@ -244,12 +260,10 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
 
     if (!rows.length) return res.status(404).json({ erro: 'Entrega não encontrada.' });
 
-    // Vou buscar as configurações de comissão da base de dados
-    const [configs] = await pool.query('SELECT chave, valor FROM Configuracao');
+    const [configs] = await pool.query('SELECT chave, valor FROM configuracao');
     const cfg = {};
     configs.forEach(c => { cfg[c.chave] = parseFloat(c.valor); });
 
-    // Cálculo dos valores com base no peso real
     const valor_por_kg      = parseFloat(rows[0].valor_por_kg);
     const peso              = parseFloat(peso_real);
     const valor_total       = valor_por_kg * peso;
@@ -258,9 +272,8 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
     const valor_coletador   = valor_total * 0.30;
     const comissao_ecotroca = comissao_empresa + (cfg.comissao_utilizador_fixo || 50);
 
-    // Actualizo a entrega com o status 'coletada' e todos os valores calculados
     await pool.query(
-      `UPDATE Entrega SET
+      `UPDATE entrega SET
         status            = 'coletada',
         peso_total        = ?,
         valor_total       = ?,
@@ -286,12 +299,10 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
 });
 
 // ── PATCH /api/entregas/:id/cancelar ─────────────────────────
-// Cancela a entrega E elimina a publicação correspondente do feed
 router.patch('/:id/cancelar', auth, async (req, res) => {
   try {
-    // Cancelo a entrega — só funciona se ainda estiver pendente
     const [result] = await pool.query(
-      `UPDATE Entrega SET status = 'cancelada'
+      `UPDATE entrega SET status = 'cancelada'
        WHERE id_entrega = ? AND id_usuario = ? AND status = 'pendente'`,
       [req.params.id, req.usuario.id_usuario]
     );
@@ -302,9 +313,8 @@ router.patch('/:id/cancelar', auth, async (req, res) => {
       });
     }
 
-    // Elimino a publicação correspondente do feed (soft delete)
     await pool.query(
-      `UPDATE Publicacao SET eliminado = 1
+      `UPDATE publicacao SET eliminado = 1
        WHERE id_entrega = ? AND id_usuario = ? AND eliminado = 0 AND status != 'fechada'`,
       [req.params.id, req.usuario.id_usuario]
     );

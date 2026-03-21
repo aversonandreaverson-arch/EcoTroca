@@ -50,13 +50,14 @@ router.get('/', auth, async (req, res) => {
         r.preco_min,
         r.preco_max,
         COALESCE((
-  SELECT SUM(e2.peso_total)
-  FROM entrega e2
-  INNER JOIN empresarecicladora em2 ON em2.id_usuario = p.id_usuario
-  WHERE e2.id_empresa = em2.id_empresa
-    AND e2.status IN ('aceita','coletada')
-), 0) AS total_acumulado
-FROM publicacao p
+          SELECT SUM(e2.peso_total)
+          FROM entrega e2
+          INNER JOIN empresarecicladora em2 ON em2.id_empresa = e2.id_empresa
+          WHERE em2.id_usuario = p.id_usuario
+            AND e2.id_residuo = p.id_residuo
+            AND e2.status IN ('aceita','coletada')
+        ), 0) AS total_acumulado
+      FROM publicacao p
       LEFT JOIN usuario u ON p.id_usuario = u.id_usuario
       LEFT JOIN residuo r ON p.id_residuo = r.id_residuo
       WHERE p.eliminado = 0
@@ -316,7 +317,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /api/feed/:id/status ────────────────────────────────
+// ── PATCH /api/feed/:id/status 
 router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
