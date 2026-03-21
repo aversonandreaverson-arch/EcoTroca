@@ -15,7 +15,7 @@ import {
   getEmpresas, pesquisar
 } from '../../api.js';
 
-// ── Tipos de publicação permitidos por perfil ────────────────
+// ── Tipos de publicação permitidos por perfil 
 const TIPOS_POR_PERFIL = {
   admin:   [
     { valor: 'evento',         label: 'Evento'    },
@@ -669,10 +669,16 @@ function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, o
   const podeApagar = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor; // quem pode apagar
   const temAcordos = parseFloat(p.total_acumulado || 0) > 0; // se já há acordos activos
 
-  // Só empresas podem mostrar interesse em ofertas de outros utilizadores
+  // Empresa vê "Tenho interesse" em ofertas de resíduo de utilizadores comuns
   const podeInteresse =
     tipoUtilizador === 'empresa' &&
     p.tipo_publicacao === 'oferta_residuo' &&
+    p.id_autor !== utilizador?.id;
+
+  // Utilizador comum vê "Quero Participar" em pedidos de empresa
+  const podeParticipar =
+    tipoUtilizador === 'comum' &&
+    p.tipo_publicacao === 'pedido_residuo' &&
     p.id_autor !== utilizador?.id;
 
   // Calcula progresso da barra (total acumulado / total para agendar)
@@ -780,7 +786,7 @@ function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, o
               </span>
             </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${progresso >= 100 ? 'bg-green-500' : 'bg-purple-400'}`} style={{ width: `${progresso}%` }} />
+              <div className={`h-full rounded-full ${progresso >= 100 ? 'bg-green-500' : 'bg-green-400'}`} style={{ width: `${progresso}%` }} />
             </div>
             {progresso >= 100 && <p className="text-green-600 text-xs mt-1 font-medium">Meta atingida</p>}
           </div>
@@ -810,10 +816,11 @@ function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, o
               )
           )}
 
-          {/* Botão "Quero Participar" — para utilizadores comuns em pedidos de empresa */}
-          {tipoUtilizador !== 'empresa' && tipoUtilizador !== 'admin' &&
-           p.tipo_publicacao === 'pedido_residuo' && p.id_autor !== utilizador?.id && (
-            <button className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
+          {/* Botão "Quero Participar" — utilizador comum responde a pedido de empresa */}
+          {podeParticipar && (
+            <button
+              onClick={() => onInteresse(p)}
+              className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
               <CheckCircle size={12} /> Participar
             </button>
           )}
