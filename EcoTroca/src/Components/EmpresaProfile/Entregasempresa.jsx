@@ -1,10 +1,19 @@
 
+//  Página de gestão de entregas da empresa recicladora.
+//
 //  FLUXO:
 //    1. Entrega chega com status 'pendente'
 //    2. Empresa pode:
 //       a) ACEITAR → abre modal para registar peso real
 //          → sistema calcula pagamentos e credita nas carteiras
 //       b) REJEITAR → abre modal com motivo + opções de correcção
+//
+//  CÁLCULO DO PAGAMENTO (comissão EcoTroca):
+//    valor_total       = peso_real × valor_por_kg
+//    valor_utilizador  = valor_total × 70% - 50 Kz (taxa fixa)
+//    valor_coletador   = valor_total × 30% (se usou coletador)
+//    comissao_ecotroca = valor_total × 10% + 50 Kz
+
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -56,12 +65,12 @@ export default function EntregasEmpresa() {
     }
   };
 
-  // ── Filtra entregas consoante o filtro activo 
+  // ── Filtra entregas consoante o filtro activo ─────────────
   const entregasFiltradas = filtro === 'todos'
     ? entregas
     : entregas.filter(e => e.status === filtro);
 
-  // ── Calcula a estimativa de pagamento em tempo real 
+  // ── Calcula a estimativa de pagamento em tempo real ───────
   // Usado no modal de aceitar para mostrar preview antes de confirmar
   const calcularEstimativa = (peso, valorKg) => {
     const p   = parseFloat(peso);      // peso real em kg
@@ -81,7 +90,7 @@ export default function EntregasEmpresa() {
     };
   };
 
-  // ── Encontra a entrega actual no modal de aceitar 
+  // ── Encontra a entrega actual no modal de aceitar ─────────
   const entregaAceitar = entregas.find(e => e.id_entrega === modalAceitar);
 
   // Calcula estimativa em tempo real baseada no peso inserido
@@ -96,7 +105,7 @@ export default function EntregasEmpresa() {
     setErroAceitar('');         // limpa erros
   };
 
-  // ── Confirma aceitação com o peso real 
+  // ── Confirma aceitação com o peso real ────────────────────
   // Chama POST /api/empresas/minhas/entregas/:id/aceitar com o peso
   const handleAceitar = async () => {
     // Valida que o peso foi introduzido e é positivo
@@ -121,7 +130,7 @@ export default function EntregasEmpresa() {
     }
   };
 
-  // ── Confirma rejeição com motivo 
+  // ── Confirma rejeição com motivo ──────────────────────────
   // Chama POST /api/empresas/minhas/entregas/:id/rejeitar
   const handleRejeitar = async () => {
     // Motivo é obrigatório para que o utilizador saiba o que corrigir
