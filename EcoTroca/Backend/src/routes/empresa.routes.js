@@ -15,7 +15,7 @@ const getIdEmpresa = async (id_usuario) => {
   return rows[0];
 };
 
-// ── GET /api/empresas ─────────────────────────────────────────
+// ── GET /api/empresas 
 // Lista todas as empresas activas — usado na sidebar do feed
 router.get('/', auth, async (req, res) => {
   try {
@@ -36,7 +36,7 @@ router.get('/', auth, async (req, res) => {
 
 
 
-// ── GET /api/empresas/perfil ──────────────────────────────────
+// ── GET /api/empresas/perfil 
 // Devolve o perfil completo da empresa autenticada
 router.get('/perfil', auth, async (req, res) => {
   try {
@@ -52,7 +52,7 @@ router.get('/perfil', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/entregas ─────────────────────────
+// ── GET /api/empresas/minhas/entregas 
 // Lista todas as entregas associadas à empresa autenticada
 router.get('/minhas/entregas', auth, async (req, res) => {
   try {
@@ -78,7 +78,7 @@ router.get('/minhas/entregas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/eventos ─────────────────────────
+// ── GET /api/empresas/minhas/eventos 
 // Lista os eventos criados pela empresa
 router.get('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -93,7 +93,7 @@ router.get('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/eventos ─────────────────────────
+// ── POST /api/empresas/minhas/eventos 
 // Cria um novo evento para a empresa
 router.post('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -115,7 +115,7 @@ router.post('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/coletadores ─────────────────────
+// ── GET /api/empresas/minhas/coletadores 
 // Lista os coletadores da equipa da empresa
 // Inclui o campo 'tipo' para distinguir dependentes de independentes
 router.get('/minhas/coletadores', auth, async (req, res) => {
@@ -135,7 +135,7 @@ router.get('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/coletadores ─────────────────────
+// ── POST /api/empresas/minhas/coletadores 
 // Adiciona um coletador à equipa da empresa
 router.post('/minhas/coletadores', auth, async (req, res) => {
   try {
@@ -161,7 +161,7 @@ router.post('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/empresas/minhas/coletadores/:id ───────────────
+// ── DELETE /api/empresas/minhas/coletadores/:id 
 // Remove um coletador da equipa da empresa
 router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
   try {
@@ -176,12 +176,12 @@ router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
+
 //  RECOLHAS AGENDADAS
 //  Sistema de logística para recolha em lote ou individual
-// ════════════════════════════════════════════════════════════
 
-// ── GET /api/empresas/minhas/recolhas ─────────────────────────
+
+// ── GET /api/empresas/minhas/recolhas 
 // Lista todas as recolhas agendadas da empresa
 // Inclui os coletadores e o número de entregas associadas
 router.get('/minhas/recolhas', auth, async (req, res) => {
@@ -209,7 +209,7 @@ router.get('/minhas/recolhas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/recolhas/:id ────────────────────
+// ── GET /api/empresas/minhas/recolhas/:id 
 // Detalhe de uma recolha — coletadores + entregas/utilizadores associados
 router.get('/minhas/recolhas/:id', auth, async (req, res) => {
   try {
@@ -442,7 +442,7 @@ router.get('/minhas/acordos-pendentes', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/minhas/limiar ───────────────────────────
+// ── PUT /api/empresas/minhas/limiar 
 // Actualiza o limiar de recolha da empresa
 // O limiar define quantos acordos mínimos para sugerir recolha em lote
 router.put('/minhas/limiar', auth, async (req, res) => {
@@ -463,7 +463,7 @@ router.put('/minhas/limiar', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/perfil ──────────────────────────────────
+// ── PUT /api/empresas/perfil 
 // Actualiza os dados do perfil da empresa
 router.put('/perfil', auth, async (req, res) => {
   try {
@@ -505,41 +505,58 @@ router.put('/perfil', auth, async (req, res) => {
 //   4. Credita na carteira do utilizador (dinheiro ou saldo)
 //   5. Marca a entrega como 'coletada'
 //   6. Notifica o utilizador e o coletador
+
+
+ // ── PATCH para a rota POST /api/empresas/minhas/entregas/:id/aceitar ──
+// Substitui a rota existente no empresa.routes.js
+//
+// O que muda:
+//   - Recebe peso_real do body (registado pela empresa ao pesar os resíduos)
+//   - Passa peso_real ao processarPagamento
+//   - Valida que peso_real foi enviado antes de processar
+
 router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
   try {
     const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
     const id_entrega = parseInt(req.params.id);
- 
+    const { peso_real } = req.body; // peso real pesado pela empresa
+
+    // Valida que o peso real foi enviado
+    if (!peso_real || parseFloat(peso_real) <= 0)
+      return res.status(400).json({ erro: 'O peso real dos resíduos é obrigatório para aceitar a entrega.' });
+
     // Verifica que a entrega pertence a esta empresa e está pendente
     const [entregas] = await pool.query(
-      `SELECT id_entrega, status, id_usuario, id_coletador, peso_total
-       FROM entrega
+      `SELECT id_entrega, status FROM entrega
        WHERE id_entrega = ? AND id_empresa = ?`,
       [id_entrega, id_empresa]
     );
- 
+
     if (entregas.length === 0)
       return res.status(404).json({ erro: 'Entrega não encontrada.' });
- 
+
     if (entregas[0].status !== 'pendente')
-      return res.status(400).json({ erro: `Esta entrega já foi ${entregas[0].status === 'coletada' ? 'aceite' : 'rejeitada'}.` });
- 
-    // Chama o serviço de pagamento
+      return res.status(400).json({
+        erro: `Esta entrega já foi ${entregas[0].status === 'aceita' ? 'aceite' : 'rejeitada'}.`
+      });
+
+    // Processa o pagamento com o peso real
     const { processarPagamento } = await import('../services/empresa.service.js');
-    const resultado = await processarPagamento(id_entrega, id_empresa);
- 
+    const resultado = await processarPagamento(id_entrega, id_empresa, parseFloat(peso_real));
+
     res.json({
-      mensagem:            'Entrega aceite e pagamento processado com sucesso.',
-      valor_bruto:         resultado.valor_bruto,
-      comissao_plataforma: resultado.comissao_plataforma,
-      valor_liquido:       resultado.valor_liquido,
+      mensagem:          'Entrega aceite e pagamento processado com sucesso.',
+      peso_real:         resultado.peso_real,
+      valor_total:       resultado.valor_total,
+      comissao_ecotroca: resultado.comissao_ecotroca,
+      valor_utilizador:  resultado.valor_utilizador,
+      valor_coletador:   resultado.valor_coletador,
     });
   } catch (err) {
     console.error('Erro ao aceitar entrega:', err);
     res.status(500).json({ erro: err.message });
   }
 });
- 
 // ── POST /api/empresas/minhas/entregas/:id/rejeitar ───────────
 // A empresa rejeita uma entrega pendente
 // Pode indicar motivo, pedir fotos e/ou pedir limpeza ao utilizador
@@ -584,7 +601,7 @@ router.post('/minhas/entregas/:id/rejeitar', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/:id ─────────────────────────────────────
+// ── GET /api/empresas/:id 
 // IMPORTANTE: esta rota tem de ficar SEMPRE no fim
 // para não interceptar as rotas /perfil, /minhas/...
 router.get('/:id', auth, async (req, res) => {
