@@ -507,6 +507,20 @@ router.put('/perfil', auth, async (req, res) => {
 //   6. Notifica o utilizador e o coletador
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  // ── PATCH para a rota POST /api/empresas/minhas/entregas/:id/aceitar ──
 // Substitui a rota existente no empresa.routes.js
 //
