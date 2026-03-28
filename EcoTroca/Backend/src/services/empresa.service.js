@@ -1,48 +1,68 @@
-// ============================================================
-//  empresa.service.js
-//  Serviço responsável pela lógica de negócio da empresa:
-//    - Pagamento ao utilizador e coletador (Regra 16)
-//    - Rejeição de resíduos (Regra 17)
-//    - Criação e gestão de eventos
-// ============================================================
+
+//  Serviço responsável pela lógica de negócio da empresa.
+
+//  REGRAS DE PAGAMENTO:
+//    valor_total       = peso_real × valor_por_kg do resíduo
+//    comissao_ecotroca = valor_total × 10% + 50 Kz (taxa fixa)
+//    valor_liquido     = valor_total - comissao_ecotroca
+
+//    COM coletador:
+//      utilizador  = valor_liquido × 70%
+//      coletador   = valor_liquido × 30%
+
+//    SEM coletador:
+//      utilizador  = valor_liquido × 100%
+
+//  TIPO DE RECOMPENSA (escolhido pelo utilizador na entrega):
+//    'dinheiro' → credita em carteira.dinheiro (sacável)
+//    'saldo'    → credita em carteira.saldo (só na plataforma)
+//    'pontos'   → credita em pontuacaousuario.total_pontos
+
 
 import pool from '../config/database.js';
 
-// ──────────────────────────────────────────────────────────────
-// PAGAMENTO — Regra 16
-// A empresa é responsável pelo pagamento ao utilizador e coletador
-//
-// Fluxo:
-//   1. Empresa aceita a entrega
-//   2. Sistema calcula o valor total dos resíduos
-//   3. Plataforma retém 10% de comissão
-//   4. Se coletador envolvido: utilizador 70%, coletador 30%
-//   5. Se sem coletador: utilizador recebe 100%
-// ──────────────────────────────────────────────────────────────
-export const processarPagamento = async (id_entrega, id_empresa) => {
+// ── processarPagamento 
+// Chamado quando a empresa aceita uma entrega e regista o peso real.
+// peso_real → peso efectivo pesado pela empresa no momento da recepção.
+// 
+export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
 
-  // Busca os resíduos da entrega com o valor por kg de cada um
+  // Valida o peso real — obrigatório e positivo
+  if (!peso_real || parseFloat(peso_real) <= 0)
+    throw new Error('O peso real é obrigatório e deve ser positivo.');
+
+  const peso = parseFloat(peso_real);
+
+  // Busca o valor por kg do resíduo desta entrega
+  // Usa o preco_min como valor base se valor_por_kg não estiver definido
   const [residuos] = await pool.query(
-    `SELECT er.peso_kg, r.valor_por_kg
-     FROM Entrega_Residuo er
-     JOIN Residuo r ON er.id_residuo = r.id_residuo
-     WHERE er.id_entrega = ?`,
+    `SELECT r.valor_por_kg, r.preco_min, r.preco_max
+     FROM entrega_residuo er
+     JOIN residuo r ON er.id_residuo = r.id_residuo
+     WHERE er.id_entrega = ?
+     LIMIT 1`,
     [id_entrega]
   );
 
-  // Calcula o valor total bruto (soma de peso × valor_por_kg)
-  const valor_bruto = residuos.reduce(
-    (acc, r) => acc + (r.peso_kg || 0) * (r.valor_por_kg || 0), 0
-  );
+  if (residuos.length === 0)
+    throw new Error('Não foram encontrados resíduos associados a esta entrega.');
 
-  // Plataforma retém 10% de comissão
-  const comissao_plataforma = parseFloat((valor_bruto * 0.10).toFixed(2));
-  const valor_liquido        = parseFloat((valor_bruto * 0.90).toFixed(2));
+  // Usa valor_por_kg se disponível, senão usa preco_min como referência
+  const valor_por_kg = parseFloat(residuos[0].valor_por_kg || residuos[0].preco_min || 0);
 
-  // Busca os dados da entrega: id do utilizador, coletador e tipo de recompensa
+  if (valor_por_kg <= 0)
+    throw new Error('Valor por kg não definido para este resíduo.');
+
+  // ── Cálculo do valor total com o peso real 
+  const valor_total       = peso * valor_por_kg;              // valor bruto total
+  const taxa_fixa         = 50;                               // taxa fixa da EcoTroca em Kz
+  const comissao_ecotroca = (valor_total * 0.10) + taxa_fixa; // 10% + 50 Kz
+  const valor_liquido     = valor_total - comissao_ecotroca;  // o que sobra para distribuir
+
+  // Busca dados da entrega: utilizador, coletador e tipo de recompensa
   const [entregas] = await pool.query(
     `SELECT id_usuario, id_coletador, tipo_recompensa
-     FROM Entrega WHERE id_entrega = ?`,
+     FROM entrega WHERE id_entrega = ?`,
     [id_entrega]
   );
 
@@ -50,140 +70,165 @@ export const processarPagamento = async (id_entrega, id_empresa) => {
 
   const { id_usuario, id_coletador, tipo_recompensa } = entregas[0];
 
-  // ── Distribui o valor conforme o tipo de recompensa escolhido ──
+  // ── Calcula quanto vai para cada parte 
+  let valor_utilizador = 0;
+  let valor_coletador  = 0;
+
+  if (id_coletador) {
+    // COM coletador: utilizador 70%, coletador 30% do valor líquido
+    valor_utilizador = parseFloat((valor_liquido * 0.70).toFixed(2));
+    valor_coletador  = parseFloat((valor_liquido * 0.30).toFixed(2));
+  } else {
+    // SEM coletador: utilizador recebe 100% do valor líquido
+    valor_utilizador = parseFloat(valor_liquido.toFixed(2));
+    valor_coletador  = 0;
+  }
+
+  // ── Actualiza o peso real e o valor na entrega 
+  await pool.query(
+    `UPDATE entrega SET
+       peso_total       = ?,
+       valor_total      = ?,
+       valor_utilizador = ?,
+       valor_coletador  = ?,
+       comissao_ecotroca = ?,
+       status           = 'aceita'
+     WHERE id_entrega = ?`,
+    [peso, valor_total, valor_utilizador, valor_coletador,
+     parseFloat(comissao_ecotroca.toFixed(2)), id_entrega]
+  );
+
+  // ── Credita na carteira do utilizador 
   if (tipo_recompensa === 'dinheiro') {
-
-    if (id_coletador) {
-      // Com coletador: 70% utilizador + 30% coletador
-      const valor_usuario   = parseFloat((valor_liquido * 0.70).toFixed(2));
-      const valor_coletador = parseFloat((valor_liquido * 0.30).toFixed(2));
-
-      // Credita dinheiro sacável ao utilizador
-      await pool.query(
-        'UPDATE Carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
-        [valor_usuario, id_usuario]
-      );
-
-      // Busca o id_usuario do coletador para creditar na carteira dele
-      const [coletadorInfo] = await pool.query(
-        'SELECT id_usuario FROM Coletador WHERE id_coletador = ?',
-        [id_coletador]
-      );
-
-      if (coletadorInfo.length > 0) {
-        await pool.query(
-          'UPDATE Carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
-          [valor_coletador, coletadorInfo[0].id_usuario]
-        );
-
-        // Notifica o coletador
-        await pool.query(
-          'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-          [coletadorInfo[0].id_usuario, '💵 Comissão recebida!',
-           `Recebeste ${valor_coletador} Kz de comissão pela entrega #${id_entrega}.`]
-        );
-      }
-
-      // Notifica o utilizador
-      await pool.query(
-        'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-        [id_usuario, '💰 Pagamento recebido!',
-         `Recebeste ${valor_usuario} Kz pela entrega #${id_entrega}.`]
-      );
-
-    } else {
-      // Sem coletador: utilizador recebe 100% do valor líquido
-      await pool.query(
-        'UPDATE Carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
-        [valor_liquido, id_usuario]
-      );
-
-      await pool.query(
-        'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-        [id_usuario, '💰 Pagamento recebido!',
-         `Recebeste ${valor_liquido} Kz pela entrega #${id_entrega}.`]
-      );
-    }
-
-  } else if (tipo_recompensa === 'saldo') {
-    // Saldo — não pode sacar, só usa na plataforma
+    // Dinheiro sacável — vai para carteira.dinheiro
     await pool.query(
-      'UPDATE Carteira SET saldo = saldo + ? WHERE id_usuario = ?',
-      [valor_liquido, id_usuario]
+      'UPDATE carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
+      [valor_utilizador, id_usuario]
     );
-
+  } else if (tipo_recompensa === 'saldo') {
+    // Saldo na plataforma — vai para carteira.saldo
     await pool.query(
-      'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-      [id_usuario, '💳 Saldo adicionado!',
-       `Recebeste ${valor_liquido} Kz em saldo pela entrega #${id_entrega}.`]
+      'UPDATE carteira SET saldo = saldo + ? WHERE id_usuario = ?',
+      [valor_utilizador, id_usuario]
+    );
+  } else {
+    // Pontos — converte Kz em pontos (1 Kz = 1 ponto por simplicidade)
+    const pontos = Math.floor(valor_utilizador);
+    await pool.query(
+      `UPDATE pontuacaousuario
+       SET total_pontos = total_pontos + ?, total_entregas = total_entregas + 1
+       WHERE id_usuario = ?`,
+      [pontos, id_usuario]
     );
   }
 
-  // Marca a entrega como concluída
+  // Notifica o utilizador com o valor recebido
+  const tipoMoeda = tipo_recompensa === 'pontos' ? 'pontos' : 'Kz';
+  const valorExibir = tipo_recompensa === 'pontos'
+    ? Math.floor(valor_utilizador)
+    : valor_utilizador.toFixed(0);
+
   await pool.query(
-    `UPDATE Entrega SET status = 'coletada' WHERE id_entrega = ?`,
-    [id_entrega]
+    `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+     VALUES (?, 'Pagamento recebido', ?, 'sistema')`,
+    [id_usuario,
+     `Recebeste ${valorExibir} ${tipoMoeda} pela entrega de ${peso} kg de resíduos. Obrigado pela tua contribuição!`]
   );
 
-  return { valor_bruto, comissao_plataforma, valor_liquido };
+  // ── Credita comissão do coletador se houver 
+  if (id_coletador && valor_coletador > 0) {
+    // Vai buscar o id_usuario do coletador para creditar na carteira dele
+    const [coletadorInfo] = await pool.query(
+      'SELECT id_usuario FROM coletador WHERE id_coletador = ?',
+      [id_coletador]
+    );
+
+    if (coletadorInfo.length > 0) {
+      // Coletador sempre recebe em dinheiro sacável
+      await pool.query(
+        'UPDATE carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
+        [valor_coletador, coletadorInfo[0].id_usuario]
+      );
+
+      // Notifica o coletador da comissão recebida
+      await pool.query(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+         VALUES (?, 'Comissão recebida', ?, 'sistema')`,
+        [coletadorInfo[0].id_usuario,
+         `Recebeste ${valor_coletador.toFixed(0)} Kz de comissão pela recolha da entrega #${id_entrega}.`]
+      );
+    }
+  }
+
+  // Devolve o resumo do pagamento para mostrar no frontend
+  return {
+    valor_total:      parseFloat(valor_total.toFixed(2)),
+    comissao_ecotroca: parseFloat(comissao_ecotroca.toFixed(2)),
+    valor_liquido:    parseFloat(valor_liquido.toFixed(2)),
+    valor_utilizador,
+    valor_coletador,
+    peso_real:        peso,
+  };
 };
 
-// ──────────────────────────────────────────────────────────────
-// REJEIÇÃO DE RESÍDUOS — Regra 17
-// Empresa pode rejeitar resíduos danificados, sujos ou suspeitos
-// Pode pedir fotos, limpeza ou organização antes de aceitar
-// ──────────────────────────────────────────────────────────────
+// ── rejeitarEntrega 
+// Empresa rejeita uma entrega pendente.
+// Regista o motivo na tabela rejeicao.
+// Notifica o utilizador com o motivo e pedidos de correcção.
+// 
 export const rejeitarEntrega = async (id_entrega, id_empresa, motivo, pede_foto, pede_limpeza) => {
 
-  // Verifica se a entrega existe e está pendente
+  // Verifica que a entrega existe e está pendente
   const [entregas] = await pool.query(
-    `SELECT id_usuario, status FROM Entrega WHERE id_entrega = ?`,
+    `SELECT id_usuario, status FROM entrega WHERE id_entrega = ?`,
     [id_entrega]
   );
 
   if (entregas.length === 0) throw new Error('Entrega não encontrada.');
-  if (entregas[0].status !== 'pendente') throw new Error('Só é possível rejeitar entregas pendentes.');
+  if (entregas[0].status !== 'pendente')
+    throw new Error('Só é possível rejeitar entregas pendentes.');
 
   const { id_usuario } = entregas[0];
 
-  // Regista a rejeição na tabela Rejeicao
+  // Regista a rejeição na tabela rejeicao para histórico
   await pool.query(
-    `INSERT INTO Rejeicao (id_entrega, id_empresa, motivo, pede_foto, pede_limpeza)
+    `INSERT INTO rejeicao (id_entrega, id_empresa, motivo, pede_foto, pede_limpeza)
      VALUES (?, ?, ?, ?, ?)`,
-    [id_entrega, id_empresa, motivo, pede_foto || false, pede_limpeza || false]
+    [id_entrega, id_empresa, motivo, pede_foto ? 1 : 0, pede_limpeza ? 1 : 0]
   );
 
-  // Monta a mensagem de notificação para o utilizador
+  // Monta mensagem explicativa para o utilizador
   let mensagem = `A tua entrega #${id_entrega} foi rejeitada. Motivo: ${motivo}.`;
-  if (pede_foto)    mensagem += ' A empresa pede fotos dos resíduos.';
-  if (pede_limpeza) mensagem += ' A empresa pede que os resíduos sejam limpos antes da recolha.';
+  if (pede_foto)    mensagem += ' A empresa pede que envies fotos dos resíduos.';
+  if (pede_limpeza) mensagem += ' A empresa pede que os resíduos sejam limpos antes da próxima tentativa.';
 
   // Notifica o utilizador sobre a rejeição
   await pool.query(
-    'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-    [id_usuario, ' Entrega rejeitada', mensagem]
+    `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+     VALUES (?, 'Entrega rejeitada', ?, 'sistema')`,
+    [id_usuario, mensagem]
   );
 
   return { mensagem: 'Entrega rejeitada com sucesso.' };
 };
 
-// ──────────────────────────────────────────────────────────────
-// CRIAR EVENTO
-// Só empresas e admins podem criar eventos (Regra da sessão)
-// ──────────────────────────────────────────────────────────────
+// ── criarEvento 
+// Só empresas e admins podem criar eventos.
+// 
 export const criarEvento = async (dados, id_empresa, id_usuario_adm) => {
   const { titulo, descricao, data_inicio, data_fim, local, provincia, municipio, tipo } = dados;
 
   if (!titulo)      throw new Error('O título do evento é obrigatório.');
   if (!data_inicio) throw new Error('A data de início é obrigatória.');
 
-  // Insere o evento na base de dados
   const [result] = await pool.query(
-    `INSERT INTO Evento
-       (id_empresa, id_usuario_adm, titulo, descricao, data_inicio, data_fim, local, provincia, municipio, tipo)
+    `INSERT INTO evento
+       (id_empresa, id_usuario_adm, titulo, descricao,
+        data_inicio, data_fim, local, provincia, municipio, tipo)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id_empresa || null, id_usuario_adm || null,
-     titulo, descricao, data_inicio, data_fim, local, provincia, municipio, tipo || 'recolha']
+     titulo, descricao || null, data_inicio, data_fim || null,
+     local || null, provincia || null, municipio || null, tipo || 'recolha']
   );
 
   return { mensagem: 'Evento criado com sucesso!', id_evento: result.insertId };
