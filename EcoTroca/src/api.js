@@ -1,7 +1,9 @@
+//  api.js — Ficheiro central de comunicação com o backend
+//  Todas as chamadas ao servidor passam por aqui
 
 const BASE_URL = 'http://localhost:3000/api';
 
-// ── Função base para todas as chamadas 
+// ── Função base para todas as chamadas ───────────────────────
 // Adiciona o token JWT automaticamente em cada pedido.
 // Se o servidor devolver 401 (token expirado/inválido),
 // limpa o localStorage e redireciona para o login.
@@ -163,8 +165,13 @@ export const atualizarEmpresa = (dados) =>
 
 export const getEntregasEmpresa = () => pedido('/empresas/minhas/entregas');
 
-export const aceitarEntregaEmpresa = (id) =>
-  pedido(`/empresas/minhas/entregas/${id}/aceitar`, { method: 'POST' });
+// Aceita entrega com o peso real registado pela empresa
+// peso_real → kg efectivos pesados no momento da recepção dos resíduos
+export const aceitarEntregaEmpresa = (id, peso_real) =>
+  pedido(`/empresas/minhas/entregas/${id}/aceitar`, {
+    method: 'POST',
+    body: JSON.stringify({ peso_real }),
+  });
 
 export const rejeitarEntregaEmpresa = (id, motivo, pede_foto, pede_limpeza) =>
   pedido(`/empresas/minhas/entregas/${id}/rejeitar`, {
