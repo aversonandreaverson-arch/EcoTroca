@@ -186,21 +186,21 @@ export default function PaginaInicial() {
     else if (tipo_resultado === 'coletor') navigate(`/PerfilColetador/${item.id_coletador}`);
   };
 
-  // ── Total de resultados da pesquisa ──────────────────────
+  // ── Total de resultados da pesquisa 
   const totalResultados = resultadosPesquisa
     ? (resultadosPesquisa.empresas?.length    || 0) +
       (resultadosPesquisa.utilizadores?.length || 0) +
       (resultadosPesquisa.coletadores?.length  || 0)
     : 0;
 
-  // ── Feed filtrado apenas por tipo ─────────────────────────
+  // ── Feed filtrado apenas por tipo 
   // A pesquisa de texto é para pessoas — não filtra o feed
   const feedFiltrado = feed.filter(p => filtro === 'todos' || p.tipo_publicacao === filtro);
 
-  // ── Avisos reais do feed para a sidebar ──────────────────
+  // ── Avisos reais do feed para a sidebar 
   const avisos = feed.filter(p => p.tipo_publicacao === 'aviso');
 
-  // ── Handlers do formulário de publicação ─────────────────
+  // ── Handlers do formulário de publicação 
   const handleCampo = (campo, valor) =>
     setFormulario(prev => ({ ...prev, [campo]: valor }));
 
