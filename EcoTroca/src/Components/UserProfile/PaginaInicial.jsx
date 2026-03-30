@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Recycle, Building2, MapPin, Plus, Search, Trash2,
-  X, HandshakeIcon, Bell, Target, Scale,
+  Handshake, Bell, Target, Scale,
   ChevronRight, Truck, CheckCircle, Star, ThumbsUp,
   ThumbsDown, Smile, Leaf, Info, User, Megaphone,
   Calendar, Newspaper, BookOpen
@@ -449,11 +449,12 @@ export default function PaginaInicial() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {feedFiltrado.map(p => (
-                <CardPublicacao
+                  <CardPublicacao
                   key={p.id_publicacao}
                   publicacao={p}
                   utilizador={utilizador}
                   tipoUtilizador={tipo}
+                  navigate={navigate}
                   onApagar={handleApagar}
                   onInteresse={abrirModalInteresse}
                   interesseJaEnviado={!!interesseEnviado[p.id_publicacao]}
@@ -646,7 +647,7 @@ export default function PaginaInicial() {
             </div>
             <button onClick={handleEnviarInteresse} disabled={enviandoInteresse}
               className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-              {enviandoInteresse ? 'A enviar...' : <><HandshakeIcon size={16} /> Enviar Proposta</>}
+{enviandoInteresse ? 'A enviar...' : <><Handshake size={16} /> Enviar Proposta</>}
             </button>
           </div>
         </div>
@@ -663,11 +664,11 @@ export default function PaginaInicial() {
 //  Só o autor e admin podem apagar.
 //  Só empresas podem enviar proposta em ofertas de resíduo.
 // ============================================================
-function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, onInteresse, interesseJaEnviado }) {
+function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, navigate, onApagar, onInteresse, interesseJaEnviado }) {
   const estilo    = ESTILOS[p.tipo_publicacao] || ESTILOS.aviso; // estilo visual do tipo
   const qualCfg   = QUALIDADE_CONFIG[p.qualidade] || null;        // config da qualidade se existir
   const podeApagar = utilizador?.tipo === 'admin' || utilizador?.id === p.id_autor; // quem pode apagar
-  const temAcordos = parseFloat(p.total_acumulado || 0) > 0; // se já há acordos activos
+  // const temAcordos = parseFloat(p.total_acumulado || 0) > 0; // se já há acordos activos
 
   // Empresa vê "Tenho interesse" em ofertas de resíduo de utilizadores comuns
   const podeInteresse =
@@ -811,7 +812,7 @@ function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, o
               : (
                 <button onClick={() => onInteresse(p)}
                   className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
-                  <HandshakeIcon size={12} /> Tenho interesse
+                  <Handshake size={12} /> Tenho interesse
                 </button>
               )
           )}
@@ -819,7 +820,7 @@ function CardPublicacao({ publicacao: p, utilizador, tipoUtilizador, onApagar, o
           {/* Botão "Quero Participar" — utilizador comum responde a pedido de empresa */}
           {podeParticipar && (
             <button
-              onClick={() => onInteresse(p)}
+              onClick={() => navigate(`/NovoResiduo?empresa=${p.id_autor}&pub=${p.id_publicacao}`)}
               className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition">
               <CheckCircle size={12} /> Participar
             </button>
