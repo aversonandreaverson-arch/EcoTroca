@@ -1,5 +1,5 @@
 //  api.js — Ficheiro central de comunicação com o backend
-//  Todas as chamadas ao servidor passam por aqui
+//  Todas as chamadas ao servidor passam por aqui.
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -128,6 +128,12 @@ export const getCarteira = () => pedido('/usuarios/carteira');
 // ============================================================
 
 export const getMinhasEntregas = () => pedido('/entregas');
+
+// Utilizador participa num pedido de empresa directamente do feed
+// Cria entrega ligada ao pedido (id_publicacao) e notifica a empresa automaticamente
+// dados: { id_empresa, id_publicacao, tipo_entrega, endereco_domicilio, tipo_recompensa, residuos }
+export const participarEmPedido = (dados) =>
+  pedido('/entregas', { method: 'POST', body: JSON.stringify(dados) });
 
 export const getEntrega = (id) => pedido(`/entregas/${id}`);
 
