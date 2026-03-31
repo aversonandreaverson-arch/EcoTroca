@@ -129,30 +129,39 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    // Se for entrega directa a um pedido de empresa, notifica a empresa
+    // ── Notifica a empresa quando utilizador participa num pedido ──
+    // O utilizador ao clicar "Participar" está automaticamente a comprometer-se
+    // com o mínimo definido no pedido. A empresa recebe uma notificação simples.
     if (id_publicacao) {
       try {
-        // Vou buscar a empresa dona do pedido
+        // Busca o id_usuario da empresa (dona do pedido) e o nome do utilizador
+        // que está a participar para montar a mensagem de notificação
         const [pubRows] = await pool.query(
-          `SELECT p.id_usuario, u.nome AS nome_utilizador
+          `SELECT
+             p.id_usuario AS id_empresa_usuario,   -- utilizador da empresa a notificar
+             p.titulo     AS titulo_pedido,          -- título do pedido para a mensagem
+             u.nome       AS nome_utilizador         -- nome de quem participou
            FROM publicacao p
-           INNER JOIN usuario u ON u.id_usuario = ?
+           INNER JOIN usuario u ON u.id_usuario = ?  -- utilizador que participou
            WHERE p.id_publicacao = ?`,
           [req.usuario.id_usuario, id_publicacao]
         );
 
         if (pubRows.length > 0) {
+          const pub = pubRows[0];
+          // Notifica a empresa: "João aceitou participar no teu pedido X."
           await pool.query(
-            `INSERT INTO notificacao (id_usuario, titulo, mensagem)
-             VALUES (?, 'Nova oferta para o teu pedido', ?)`,
+            `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+             VALUES (?, 'Novo participante no teu pedido', ?, 'geral')`,
             [
-              pubRows[0].id_usuario,
-              `${pubRows[0].nome_utilizador} respondeu ao teu pedido de resíduo com uma oferta.`,
+              pub.id_empresa_usuario,
+              `${pub.nome_utilizador} aceitou participar no pedido "${pub.titulo_pedido}".`,
             ]
           );
         }
-      } catch {
-        // Notificação é opcional — ignora se falhar
+      } catch (errNotif) {
+        // Notificação é opcional — não bloqueia a criação da entrega se falhar
+        console.error('Erro ao notificar empresa:', errNotif.message);
       }
     }
 
