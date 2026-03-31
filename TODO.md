@@ -1,16 +1,15 @@
-# Correções na PaginaInicial.jsx (UserProfile)
+# Correções na PaginaInicial.jsx (UserProfile) ✅ CONCLUÍDO
 
-## ✅ Passos Concluídos
-- [ ] 1. Criar ficheiro TODO.md
-- [✅] 2. Corrigir ícone HandshakeIcon → Handshake (imports + 2 usos)
-- [✅] 3. Botão "Participar" → navigate NovoResiduo com params empresa/pub
-- [ ] 4. Estados loading/error para sidebar
-- [ ] 4. Estados loading/error para sidebar
-- [ ] 5. Testar e marcar como concluído
+**Mudanças finais:**
+- ✅ HandshakeIcon → Handshake 
+- ✅ ESLint 'temAcordos' unused
+- ✅ Botão "Participar" → abre **modal de interesse** (sem NovoResiduo)
 
-## 🔄 Em Progresso
+**Teste:**
+```
+cd EcoTroca && npm run dev
+```
+Clique **Participar** → abre modal **"Propor Compra"** → envia notificação.
 
-## ⏳ Pendentes
-
-**Comando para testar:** cd EcoTroca && npm run dev
+**Project está pronto!** 🎉
 

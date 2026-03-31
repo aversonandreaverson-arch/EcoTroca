@@ -96,8 +96,9 @@ export default function NovoResiduo() {
           try {
             const empresa = await getEmpresaPorId(idEmpresaUrl);
             setNomeEmpresa(empresa.nome || 'Empresa');
-          } catch {
-            setNomeEmpresa('Empresa');
+          } catch (err) {
+            console.error('Erro empresa 404:', err);
+            setNomeEmpresa('Empresa #' + idEmpresaUrl);
           }
         }
 
