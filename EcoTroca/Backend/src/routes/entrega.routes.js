@@ -10,7 +10,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/entregas ─────────────────────────────────────────
+// ── GET /api/entregas 
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -72,14 +72,18 @@ router.post('/', auth, async (req, res) => {
     const id_entrega = result.insertId;
 
     // Insiro cada resíduo na tabela entrega_residuo
+    // Ignora resíduos sem id_residuo (pedidos de empresa onde o resíduo pode ser null no feed)
     let id_residuo_principal = null;
     if (residuos && residuos.length > 0) {
       for (const r of residuos) {
-        await pool.query(
-          'INSERT INTO entrega_residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
-          [id_entrega, r.id_residuo, r.quantidade || 1, r.peso_kg]
-        );
-        id_residuo_principal = r.id_residuo;
+        // Só insere se o id_residuo estiver preenchido — evita erro "cannot be null"
+        if (r.id_residuo) {
+          await pool.query(
+            'INSERT INTO entrega_residuo (id_entrega, id_residuo, quantidade, peso_kg) VALUES (?, ?, ?, ?)',
+            [id_entrega, r.id_residuo, r.quantidade || 1, r.peso_kg || 0]
+          );
+          id_residuo_principal = r.id_residuo; // guarda o primeiro resíduo válido
+        }
       }
     }
 
@@ -174,7 +178,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/entregas/:id ─────────────────────────────────────
+// ── GET /api/entregas/:id 
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -202,7 +206,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/entregas/:id ─────────────────────────────────────
+// ── PUT /api/entregas/:id 
 router.put('/:id', auth, async (req, res) => {
   try {
     const { tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes, residuos, imagem } = req.body;
@@ -249,7 +253,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /api/entregas/:id/confirmar ────────────────────────
+// ── PATCH /api/entregas/:id/confirmar 
 router.patch('/:id/confirmar', auth, async (req, res) => {
   try {
     const { peso_real } = req.body;
