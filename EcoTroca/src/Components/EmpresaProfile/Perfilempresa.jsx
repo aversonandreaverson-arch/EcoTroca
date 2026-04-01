@@ -105,8 +105,8 @@ export default function PerfilEmpresa() {
             )}
           </div>
           <h2 className="text-2xl font-bold text-gray-800">{perfil?.nome}</h2>
-          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
-            <Building2 size={14} /> Empresa Recicladora
+<span className="bg-green-100 text-green-700 text-sm font-medium px-4 py-1 rounded-full mt-2">
+            Empresa Recicladora
           </span>
           {perfil?.descricao && (
             <p className="text-gray-500 text-sm mt-4 leading-relaxed">{perfil.descricao}</p>
