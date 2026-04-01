@@ -1,7 +1,5 @@
-// ============================================================
+
 //  NovoResiduo.jsx
-//  Guardar em: src/Components/UserProfile/NovoResiduo.jsx
-//
 //  MODOS:
 //    /NovoResiduo              -> oferta geral (sem empresa destino)
 //    /NovoResiduo?empresa=3    -> oferta directa a empresa 3
@@ -18,7 +16,7 @@
 //    5. Forma de recompensa (dinheiro, saldo ou pontos)
 //    6. Upload de foto (opcional)
 //    7. Observacoes (opcional)
-// ============================================================
+
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
