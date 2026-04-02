@@ -30,14 +30,14 @@ export default function DashboardColetador() {
   }, []);
 
   if (carregando) return (
-    <div className="min-h-screen bg-green-700 flex items-center justify-center pt-24">
+    <div className="min-h-screen bg-green-100 flex items-center justify-center pt-24">
       <Header />
-      <p className="text-white text-lg">A carregar...</p>
+      <p className="text-gray-500 text-lg">A carregar...</p>
     </div>
   );
 
   if (erro) return (
-    <div className="min-h-screen bg-green-700 flex items-center justify-center pt-24">
+    <div className="min-h-screen bg-green-100 flex items-center justify-center pt-24">
       <Header />
       <div className="bg-white p-6 rounded-xl text-center">
         <p className="text-red-600 mb-4">{erro}</p>
@@ -53,9 +53,9 @@ export default function DashboardColetador() {
   const pontosGanhos = concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0);
 
   return (
-    <div className="min-h-screen bg-green-700 pt-24 p-6">
+    <div className="min-h-screen bg-green-100 pt-24 p-6">
       <Header />
-      <div className="bg-white/10 text-white rounded-2xl p-6 shadow-lg mb-8">
+      <div className="bg-green-700 text-white rounded-2xl p-6 shadow-lg mb-8">
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-3xl font-bold mb-1">Olá, {perfil?.nome || "Coletador"}! 👋</h2>
@@ -70,7 +70,7 @@ export default function DashboardColetador() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-2xl shadow-md p-5">
+        <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-gray-600 text-sm font-medium">Pendentes</h3>
             <Clock className="text-yellow-500" size={20} />
@@ -78,7 +78,7 @@ export default function DashboardColetador() {
           <p className="text-3xl font-bold text-yellow-600">{aguardando.length}</p>
           <p className="text-xs text-gray-400 mt-1">à espera</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-md p-5">
+        <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-gray-600 text-sm font-medium">Em curso</h3>
             <Truck className="text-blue-500" size={20} />
@@ -86,7 +86,7 @@ export default function DashboardColetador() {
           <p className="text-3xl font-bold text-blue-600">{emCurso.length}</p>
           <p className="text-xs text-gray-400 mt-1">aceites por mim</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-md p-5">
+        <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-gray-600 text-sm font-medium">Concluídas</h3>
             <CheckCircle className="text-green-500" size={20} />
@@ -94,7 +94,7 @@ export default function DashboardColetador() {
           <p className="text-3xl font-bold text-green-600">{concluidas.length}</p>
           <p className="text-xs text-gray-400 mt-1">coletas feitas</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-md p-5">
+        <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-gray-600 text-sm font-medium">Meus Pontos</h3>
             <Star className="text-yellow-500" size={20} />
@@ -104,7 +104,7 @@ export default function DashboardColetador() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-md p-6 mb-6 border border-green-100">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-green-700 flex items-center gap-2">
             <Clock size={20} className="text-yellow-500" />Pedidos Pendentes
@@ -128,7 +128,7 @@ export default function DashboardColetador() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-md p-6">
+      <div className="bg-white rounded-2xl shadow-md p-6 border border-green-100">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-green-700">
           <TrendingUp size={20} className="text-green-600" />Atividade Recente
         </h3>

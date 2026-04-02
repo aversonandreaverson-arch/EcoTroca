@@ -56,12 +56,12 @@ export default function PedidosPendentes() {
   const aceites = entregas.filter(e => e.status === "aceita");
 
   return (
-    <div className="min-h-screen bg-green-700 pt-24 p-6">
+    <div className="min-h-screen bg-green-100 pt-24 p-6">
       <Header />
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Pedidos de Coleta</h1>
-        <p className="text-gray-300 mt-1">Aceita pedidos e marca-os como recolhidos.</p>
+        <h1 className="text-3xl font-bold text-gray-800">Pedidos de Coleta</h1>
+        <p className="text-gray-600 mt-1">Aceita pedidos e marca-os como recolhidos.</p>
       </div>
 
       {erro && (
@@ -71,13 +71,13 @@ export default function PedidosPendentes() {
       )}
 
       {carregando ? (
-        <p className="text-white text-center">A carregar pedidos...</p>
+        <p className="text-gray-500 text-center">A carregar pedidos...</p>
       ) : (
         <div className="space-y-8">
 
           {/* ===== PEDIDOS PENDENTES — para aceitar ===== */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full">
                 {pendentes.length}
               </span>
@@ -85,7 +85,7 @@ export default function PedidosPendentes() {
             </h2>
 
             {pendentes.length === 0 ? (
-              <div className="bg-white/10 rounded-2xl p-6 text-center text-white">
+              <div className="bg-white rounded-2xl p-6 text-center text-gray-500 border border-green-100">
                 Sem pedidos pendentes no momento.
               </div>
             ) : (
@@ -105,7 +105,7 @@ export default function PedidosPendentes() {
 
           {/* ===== PEDIDOS ACEITES — para marcar como recolhido ===== */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <span className="bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded-full">
                 {aceites.length}
               </span>
@@ -113,7 +113,7 @@ export default function PedidosPendentes() {
             </h2>
 
             {aceites.length === 0 ? (
-              <div className="bg-white/10 rounded-2xl p-6 text-center text-white">
+              <div className="bg-white rounded-2xl p-6 text-center text-gray-500 border border-green-100">
                 Sem coletas em andamento.
               </div>
             ) : (
@@ -140,7 +140,7 @@ export default function PedidosPendentes() {
 // Componente auxiliar — cartão de cada pedido
 function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, carregando }) {
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5">
+    <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100">
 
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-4">

@@ -45,25 +45,25 @@ export default function HistoricoColetas() {
   const totalPontos = concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0);
 
   return (
-    <div className="min-h-screen bg-green-700 pt-24 p-6">
+    <div className="min-h-screen bg-green-100 pt-24 p-6">
       <Header />
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Histórico de Coletas</h1>
-        <p className="text-gray-300 mt-1">Todas as coletas registadas na tua conta.</p>
+        <h1 className="text-3xl font-bold text-gray-800">Histórico de Coletas</h1>
+        <p className="text-gray-600 mt-1">Todas as coletas registadas na tua conta.</p>
       </div>
 
       {/* Resumo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-4 text-center shadow">
+        <div className="bg-white rounded-2xl p-4 text-center shadow border border-green-100">
           <p className="text-2xl font-bold text-green-700">{concluidas.length}</p>
           <p className="text-xs text-gray-500 mt-1">Coletas concluídas</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 text-center shadow">
+        <div className="bg-white rounded-2xl p-4 text-center shadow border border-green-100">
           <p className="text-2xl font-bold text-green-700">{totalKg.toFixed(1)} kg</p>
           <p className="text-xs text-gray-500 mt-1">Total recolhido</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 text-center shadow">
+        <div className="bg-white rounded-2xl p-4 text-center shadow border border-green-100">
           <p className="text-2xl font-bold text-green-700 flex items-center justify-center gap-1">
             <Banknote size={16} />
             {/* parseFloat converte string do MySQL para número */}
@@ -71,7 +71,7 @@ export default function HistoricoColetas() {
           </p>
           <p className="text-xs text-gray-500 mt-1">Dinheiro sacável</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 text-center shadow">
+        <div className="bg-white rounded-2xl p-4 text-center shadow border border-green-100">
           <p className="text-2xl font-bold text-yellow-600 flex items-center justify-center gap-1">
             <Star size={16} /> {totalPontos}
           </p>
@@ -93,8 +93,8 @@ export default function HistoricoColetas() {
             onClick={() => setFiltro(val)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
               filtro === val
-                ? "bg-white text-green-700 shadow"
-                : "bg-white/20 text-white hover:bg-white/30"
+                ? "bg-green-600 text-white shadow"
+                : "bg-white text-gray-600 hover:bg-gray-50 border border-green-100"
             }`}
           >
             {label}
@@ -104,9 +104,9 @@ export default function HistoricoColetas() {
 
       {/* Lista */}
       {carregando ? (
-        <p className="text-white text-center">A carregar histórico...</p>
+        <p className="text-gray-500 text-center">A carregar histórico...</p>
       ) : filtradas.length === 0 ? (
-        <div className="bg-white/10 rounded-2xl p-8 text-center text-white">
+        <div className="bg-white rounded-2xl p-8 text-center text-gray-500 border border-green-100">
           <Truck size={40} className="mx-auto mb-3 opacity-50" />
           <p>Nenhuma coleta encontrada.</p>
         </div>
@@ -116,7 +116,7 @@ export default function HistoricoColetas() {
             const config = STATUS_CONFIG[entrega.status] || STATUS_CONFIG.pendente;
             const { Icone } = config;
             return (
-              <div key={entrega.id_entrega} className="bg-white rounded-2xl shadow p-5 flex justify-between items-center">
+              <div key={entrega.id_entrega} className="bg-white rounded-2xl shadow p-5 flex justify-between items-center border border-green-100">
                 <div>
                   <p className="font-semibold text-gray-800">
                     {entrega.tipos_residuos || "Resíduo"} — {entrega.peso_total || "?"} kg
