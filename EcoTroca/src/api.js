@@ -377,3 +377,69 @@ export const apagarEducacao = (id) =>
 
 export const getRelatoriosAdmin = (periodo = 'mes') =>
   pedido(`/admin/relatorios?periodo=${periodo}`);
+
+// ============================================================
+//  GEOLOCALIZAÇÃO - Coletador
+// ============================================================
+
+// Obter localização atual do coletador (usa Geolocation API do navegador)
+export async function obterLocalizacaoColetador() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocalização não é suportada neste navegador"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          nome: "Sua localização",
+        });
+      },
+      (error) => {
+        const mensagens = {
+          1: "Permissão de localização negada. Ativa nas definições do navegador.",
+          2: "Localização não disponível neste momento.",
+          3: "O pedido de localização expirou.",
+        };
+        reject(new Error(mensagens[error.code] || "Erro ao obter localização"));
+      }
+    );
+  });
+}
+
+// Enviar localização atual do coletador para o backend (para tracking)
+export async function enviarLocalizacaoColetador(latitude, longitude) {
+  const response = await fetch(`${BASE_URL}/coletador/localizacao`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ latitude, longitude }),
+  });
+  if (!response.ok) throw new Error("Erro ao enviar localização");
+  return response.json();
+}
+
+// Iniciar tracking em tempo real (envia localização a cada 30 segundos)
+export function iniciarTrackingColetador(intervalo = 30000) {
+  const trackingId = setInterval(async () => {
+    try {
+      const loc = await obterLocalizacaoColetador();
+      await enviarLocalizacaoColetador(loc.lat, loc.lng);
+      console.log("📍 Localização enviada:", loc);
+    } catch (err) {
+      console.error("Erro no tracking:", err.message);
+    }
+  }, intervalo);
+
+  return trackingId; // para parar depois: clearInterval(trackingId)
+}
+
+// Parar tracking
+export function pararTrackingColetador(trackingId) {
+  if (trackingId) {
+    clearInterval(trackingId);
+    console.log("Tracking parado");
+  }
+}
