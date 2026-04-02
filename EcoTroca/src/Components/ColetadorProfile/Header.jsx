@@ -5,11 +5,12 @@ import { LogOut } from "lucide-react";
 
 // Links específicos do coletador — diferentes do utilizador comum
 const links = [
-  { label: "Início", to: "/ColetadorDashboard" },
+  { label: "Página Inicial", to: "/ColetadorInicio" },
+  { label: "Dashboard", to: "/ColetadorDashboard" },
   { label: "Pedidos Pendentes", to: "/PedidosPendentes" },
   { label: "Histórico", to: "/HistoricoColetas" },
-  { label: "Notícias", to: "/Noticias" },
-  { label: "Eventos", to: "/Eventos" },
+  { label: "Notícias", to: "/ColetadorNoticias" },
+  { label: "Eventos", to: "/ColetadorEventos" },
   { label: "Perfil", to: "/PerfilColetador" },
 ];
 
