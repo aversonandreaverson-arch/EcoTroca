@@ -1,4 +1,8 @@
 
+//  Rotas da empresa recicladora:
+//  - Perfil, entregas, eventos, coletadores
+//  - Recolhas agendadas (novo sistema de logística)
+
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import pool from '../config/database.js';
@@ -34,9 +38,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-
-
-// ── GET /api/empresas/perfil 
+// ── GET /api/empresas/perfil ──────────────────────────────────
 // Devolve o perfil completo da empresa autenticada
 router.get('/perfil', auth, async (req, res) => {
   try {
@@ -52,7 +54,7 @@ router.get('/perfil', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/entregas 
+// ── GET /api/empresas/minhas/entregas ─────────────────────────
 // Lista todas as entregas associadas à empresa autenticada
 router.get('/minhas/entregas', auth, async (req, res) => {
   try {
@@ -78,7 +80,7 @@ router.get('/minhas/entregas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/eventos 
+// ── GET /api/empresas/minhas/eventos ─────────────────────────
 // Lista os eventos criados pela empresa
 router.get('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -93,7 +95,7 @@ router.get('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/eventos 
+// ── POST /api/empresas/minhas/eventos ─────────────────────────
 // Cria um novo evento para a empresa
 router.post('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -115,7 +117,7 @@ router.post('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/coletadores 
+// ── GET /api/empresas/minhas/coletadores ─────────────────────
 // Lista os coletadores da equipa da empresa
 // Inclui o campo 'tipo' para distinguir dependentes de independentes
 router.get('/minhas/coletadores', auth, async (req, res) => {
@@ -135,7 +137,7 @@ router.get('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/coletadores 
+// ── POST /api/empresas/minhas/coletadores ─────────────────────
 // Adiciona um coletador à equipa da empresa
 router.post('/minhas/coletadores', auth, async (req, res) => {
   try {
@@ -161,7 +163,7 @@ router.post('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/empresas/minhas/coletadores/:id 
+// ── DELETE /api/empresas/minhas/coletadores/:id ───────────────
 // Remove um coletador da equipa da empresa
 router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
   try {
@@ -176,12 +178,12 @@ router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
   }
 });
 
-
+// ════════════════════════════════════════════════════════════
 //  RECOLHAS AGENDADAS
 //  Sistema de logística para recolha em lote ou individual
+// ════════════════════════════════════════════════════════════
 
-
-// ── GET /api/empresas/minhas/recolhas 
+// ── GET /api/empresas/minhas/recolhas ─────────────────────────
 // Lista todas as recolhas agendadas da empresa
 // Inclui os coletadores e o número de entregas associadas
 router.get('/minhas/recolhas', auth, async (req, res) => {
@@ -209,7 +211,7 @@ router.get('/minhas/recolhas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/recolhas/:id 
+// ── GET /api/empresas/minhas/recolhas/:id ────────────────────
 // Detalhe de uma recolha — coletadores + entregas/utilizadores associados
 router.get('/minhas/recolhas/:id', auth, async (req, res) => {
   try {
@@ -442,7 +444,7 @@ router.get('/minhas/acordos-pendentes', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/minhas/limiar 
+// ── PUT /api/empresas/minhas/limiar ───────────────────────────
 // Actualiza o limiar de recolha da empresa
 // O limiar define quantos acordos mínimos para sugerir recolha em lote
 router.put('/minhas/limiar', auth, async (req, res) => {
@@ -463,7 +465,7 @@ router.put('/minhas/limiar', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/perfil 
+// ── PUT /api/empresas/perfil ──────────────────────────────────
 // Actualiza os dados do perfil da empresa
 router.put('/perfil', auth, async (req, res) => {
   try {
@@ -496,126 +498,76 @@ router.put('/perfil', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/entregas/:id/aceitar 
-// A empresa aceita uma entrega pendente
-// Chama processarPagamento que:
-//   1. Calcula valor total (peso × valor_por_kg)
-//   2. Retém 10% de comissão da plataforma
-//   3. Distribui o restante: 70% utilizador + 30% coletador 
-//   4. Credita na carteira do utilizador (dinheiro ou saldo)
-//   5. Marca a entrega como 'coletada'
-//   6. Notifica o utilizador e o coletador
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- // ── PATCH para a rota POST /api/empresas/minhas/entregas/:id/aceitar ──
-// Substitui a rota existente no empresa.routes.js
-//
-// O que muda:
-//   - Recebe peso_real do body (registado pela empresa ao pesar os resíduos)
-//   - Passa peso_real ao processarPagamento
-//   - Valida que peso_real foi enviado antes de processar
-
-router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
+// ── POST /api/empresas/minhas/entregas/:id/propor-data ────────
+// Empresa propoe uma data de recolha ao utilizador
+// Utilizador recebe notificacao com a data proposta
+// A empresa e a unica que pode propor a data — contexto angolano
+router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
   try {
     const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
     const id_entrega = parseInt(req.params.id);
-    const { peso_real } = req.body; // peso real pesado pela empresa
+    const { data_recolha, observacoes } = req.body;
 
-    // Valida que o peso real foi enviado
-    if (!peso_real || parseFloat(peso_real) <= 0)
-      return res.status(400).json({ erro: 'O peso real dos resíduos é obrigatório para aceitar a entrega.' });
+    // Valida que a data foi enviada
+    if (!data_recolha)
+      return res.status(400).json({ erro: 'A data de recolha e obrigatoria.' });
 
-    // Verifica que a entrega pertence a esta empresa e está pendente
+    // Verifica que a entrega pertence a esta empresa
     const [entregas] = await pool.query(
-      `SELECT id_entrega, status FROM entrega
-       WHERE id_entrega = ? AND id_empresa = ?`,
-      [id_entrega, id_empresa]
+      `SELECT en.id_entrega, en.status, en.id_usuario,
+              u.nome AS nome_utilizador,
+              emp.nome AS nome_empresa
+       FROM entrega en
+       INNER JOIN usuario u ON u.id_usuario = en.id_usuario
+       INNER JOIN empresarecicladora emp ON emp.id_empresa = ?
+       WHERE en.id_entrega = ? AND en.id_empresa = ?`,
+      [id_empresa, id_entrega, id_empresa]
     );
 
     if (entregas.length === 0)
-      return res.status(404).json({ erro: 'Entrega não encontrada.' });
+      return res.status(404).json({ erro: 'Entrega nao encontrada.' });
 
-    if (entregas[0].status !== 'pendente')
-      return res.status(400).json({
-        erro: `Esta entrega já foi ${entregas[0].status === 'aceita' ? 'aceite' : 'rejeitada'}.`
-      });
+    // Guarda a data proposta na entrega
+    await pool.query(
+      `UPDATE entrega SET
+         data_recolha_proposta = ?,
+         observacoes_empresa   = ?
+       WHERE id_entrega = ?`,
+      [data_recolha, observacoes || null, id_entrega]
+    );
 
-    // Processa o pagamento com o peso real
-    const { processarPagamento } = await import('../services/empresa.service.js');
-    const resultado = await processarPagamento(id_entrega, id_empresa, parseFloat(peso_real));
+    // Formata a data — ex: "quinta-feira, 10 de Abril de 2026 as 09:00"
+    const dataFormatada = new Date(data_recolha).toLocaleString('pt-AO', {
+      weekday: 'long', day: '2-digit', month: 'long',
+      year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    const { nome_utilizador, nome_empresa } = entregas[0];
+
+    // Notifica o utilizador com a data proposta
+    await pool.query(
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, ?, ?, 'geral')`,
+      [
+        entregas[0].id_usuario,
+        'Data de recolha marcada',
+        `A empresa ${nome_empresa} marcou a recolha dos teus residuos para ${dataFormatada}.${observacoes ? ` Nota: ${observacoes}` : ''} Certifica-te de estar disponivel.`,
+      ]
+    );
 
     res.json({
-      mensagem:          'Entrega aceite e pagamento processado com sucesso.',
-      peso_real:         resultado.peso_real,
-      valor_total:       resultado.valor_total,
-      comissao_ecotroca: resultado.comissao_ecotroca,
-      valor_utilizador:  resultado.valor_utilizador,
-      valor_coletador:   resultado.valor_coletador,
+      mensagem:       `Data proposta com sucesso. ${nome_utilizador} foi notificado.`,
+      data_recolha:   data_recolha,
+      data_formatada: dataFormatada,
     });
   } catch (err) {
-    console.error('Erro ao aceitar entrega:', err);
-    res.status(500).json({ erro: err.message });
-  }
-});
-// ── POST /api/empresas/minhas/entregas/:id/rejeitar ───────────
-// A empresa rejeita uma entrega pendente
-// Pode indicar motivo, pedir fotos e/ou pedir limpeza ao utilizador
-// Notifica o utilizador com o motivo e os pedidos adicionais
-router.post('/minhas/entregas/:id/rejeitar', auth, async (req, res) => {
-  try {
-    const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
-    const id_entrega = parseInt(req.params.id);
-    const { motivo, pede_foto, pede_limpeza } = req.body;
- 
-    if (!motivo || !motivo.trim())
-      return res.status(400).json({ erro: 'O motivo da rejeição é obrigatório.' });
- 
-    // Verifica que a entrega pertence a esta empresa e está pendente
-    const [entregas] = await pool.query(
-      `SELECT id_entrega, status, id_usuario
-       FROM entrega
-       WHERE id_entrega = ? AND id_empresa = ?`,
-      [id_entrega, id_empresa]
-    );
- 
-    if (entregas.length === 0)
-      return res.status(404).json({ erro: 'Entrega não encontrada.' });
- 
-    if (entregas[0].status !== 'pendente')
-      return res.status(400).json({ erro: `Esta entrega já foi ${entregas[0].status === 'coletada' ? 'aceite' : 'rejeitada'}.` });
- 
-    // Chama o serviço de rejeição
-    const { rejeitarEntrega } = await import('../services/empresa.service.js');
-    const resultado = await rejeitarEntrega(id_entrega, id_empresa, motivo, pede_foto, pede_limpeza);
- 
-    // Marca a entrega como cancelada
-    await pool.query(
-      `UPDATE entrega SET status = 'cancelada' WHERE id_entrega = ?`,
-      [id_entrega]
-    );
- 
-    res.json(resultado);
-  } catch (err) {
-    console.error('Erro ao rejeitar entrega:', err);
+    console.error('Erro ao propor data:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
-// ── GET /api/empresas/:id 
+// ── GET /api/empresas/:id ─────────────────────────────────────
 // IMPORTANTE: esta rota tem de ficar SEMPRE no fim
 // para não interceptar as rotas /perfil, /minhas/...
 router.get('/:id', auth, async (req, res) => {
