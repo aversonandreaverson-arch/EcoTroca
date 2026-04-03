@@ -14,17 +14,17 @@
 //    valor_coletador   = valor_total × 30% (se usou coletador)
 //    comissao_ecotroca = valor_total × 10% + 50 Kz
 
-
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle, XCircle, Package, User, MapPin,
-  Clock, Scale, AlertCircle, X, Leaf
+  Clock, Scale, AlertCircle, X, Leaf, CalendarCheck
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
 import {
   getEntregasEmpresa,
   aceitarEntregaEmpresa,
-  rejeitarEntregaEmpresa
+  rejeitarEntregaEmpresa,
+  proporDataRecolha
 } from '../../api.js';
 
 export default function EntregasEmpresa() {
@@ -273,6 +273,38 @@ export default function EntregasEmpresa() {
                 )}
               </div>
 
+              {/* Botao Marcar Data — so para entregas aceites ainda sem data */}
+              {e.status === 'aceita' && (
+                <div className="mt-2">
+                  {e.data_recolha_proposta ? (
+                    // Mostra a data ja proposta
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                      <CalendarCheck size={14} className="text-blue-600 shrink-0" />
+                      <div>
+                        <p className="text-blue-700 text-xs font-medium">Recolha marcada</p>
+                        <p className="text-blue-600 text-xs">
+                          {new Date(e.data_recolha_proposta).toLocaleString('pt-AO', {
+                            weekday: 'short', day: '2-digit', month: 'short',
+                            hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <button onClick={() => { setModalData(e.id_entrega); setDataRecolha(''); setObsEmpresa(''); }}
+                        className="ml-auto text-blue-500 text-xs underline shrink-0">
+                        Alterar
+                      </button>
+                    </div>
+                  ) : (
+                    // Botao para propor data
+                    <button
+                      onClick={() => { setModalData(e.id_entrega); setDataRecolha(''); setObsEmpresa(''); setErroData(''); }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+                      <CalendarCheck size={14} /> Marcar Data de Recolha
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Botões — só aparecem para entregas pendentes */}
               {e.status === 'pendente' && (
                 <div className="grid grid-cols-2 gap-3">
@@ -294,6 +326,74 @@ export default function EntregasEmpresa() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          MODAL PROPOR DATA
+          Empresa escolhe a data e hora da recolha.
+          Utilizador e notificado automaticamente.
+      ════════════════════════════════════════════════════ */}
+      {modalData && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
+                <CalendarCheck size={20} /> Marcar Data de Recolha
+              </h3>
+              <button onClick={() => setModalData(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+
+            <p className="text-gray-500 text-sm mb-4">
+              O utilizador sera notificado automaticamente com a data que marcares. Nao e preciso confirmacao da parte dele.
+            </p>
+
+            {/* Selector de data e hora */}
+            <div className="mb-4">
+              <label className="text-gray-700 text-sm font-semibold block mb-1">
+                Data e hora da recolha <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={dataRecolha}
+                onChange={e => setDataRecolha(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+            </div>
+
+            {/* Nota opcional */}
+            <div className="mb-4">
+              <label className="text-gray-700 text-sm font-semibold block mb-1">
+                Nota para o utilizador (opcional)
+              </label>
+              <textarea
+                value={obsEmpresa}
+                onChange={e => setObsEmpresa(e.target.value)}
+                placeholder="Ex: Traz os residuos ensacados. Vem ao portao principal."
+                rows={2}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+              />
+            </div>
+
+            {erroData && (
+              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} /> {erroData}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setModalData(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleProporData} disabled={propondo}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                <CalendarCheck size={16} />
+                {propondo ? 'A enviar...' : 'Confirmar Data'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
