@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MapPin, Weight, User, CheckCircle, Truck, Map, ArrowLeft, AlertCircle } from "lucide-react";
 import Header from "./Header.jsx";
 import { getEntregasPendentes, aceitarEntrega, recolherEntrega } from "../../api.js";
+import Mapa from "./Mapa.jsx";
 
 export default function PedidosPendentes() {
   const [entregas, setEntregas] = useState([]);
