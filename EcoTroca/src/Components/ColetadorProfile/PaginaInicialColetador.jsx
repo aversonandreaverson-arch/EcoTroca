@@ -2,7 +2,6 @@
 //  Pagina inicial do coletador — ve o feed de publicacoes,
 //  pesquisa empresas/utilizadores/coletadores e ve oportunidades.
 //  Coletador nao publica — so le o feed.
-// ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
