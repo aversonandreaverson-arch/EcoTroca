@@ -1,7 +1,5 @@
-// ============================================================
-//  HistoricoColetas.jsx — Coletador
+
 //  Histórico de todas as coletas com filtros e resumo
-// ============================================================
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle, Clock, XCircle, Truck, Banknote, Star } from "lucide-react";

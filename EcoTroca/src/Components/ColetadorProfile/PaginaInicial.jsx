@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Header from './Header';
 import { getEntregasPendentes, getNotificacoes, getCarteira } from "../../api.js";
 
-// ─── Cartão de pedido pendente ───────────────────────────────
+// ─── Cartão de pedido pendente 
 function CartaoPedido({ entrega, onVer }) {
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 hover:shadow-lg transition">

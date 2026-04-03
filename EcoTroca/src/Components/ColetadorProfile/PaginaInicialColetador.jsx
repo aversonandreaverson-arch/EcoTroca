@@ -1,7 +1,4 @@
-// ============================================================
-//  PaginaInicialColetador.jsx
-//  Guardar em: src/Components/ColetadorProfile/PaginaInicialColetador.jsx
-//
+
 //  Pagina inicial do coletador — ve o feed de publicacoes,
 //  pesquisa empresas/utilizadores/coletadores e ve oportunidades.
 //  Coletador nao publica — so le o feed.
