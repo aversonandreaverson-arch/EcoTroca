@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../database/connection.js';
+import pool from '../config/database.js';
 import { verificarToken, verificarTipo } from '../middlewares/auth.js';
 
 const router = express.Router();
