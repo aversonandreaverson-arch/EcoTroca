@@ -1,7 +1,4 @@
-// ============================================================
-//  educacao.routes.js
-//  Rotas de conteúdos educativos
-//
+
 //  GET    /api/educacao           → listar (filtra por publico_alvo + pesquisa + categoria)
 //  GET    /api/educacao/:id       → ver conteúdo completo
 //  POST   /api/educacao           → admin cria conteúdo
@@ -16,7 +13,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ──────────────────────────────────────────────────────────────
+
 // GET /api/educacao
 // Lista conteúdos filtrados por:
 //   - publico_alvo do utilizador autenticado (automático)
@@ -24,7 +21,6 @@ const router = Router();
 //   - ?categoria=valor  → filtra por categoria
 //   - ?ordem=recente    → mais recente primeiro (padrão)
 //   - ?ordem=antigo     → mais antigo primeiro
-// ──────────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
     const { pesquisa, categoria, ordem } = req.query;
