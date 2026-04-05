@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 
-// ── Importo todas as rotas da aplicação ──
+// ── Importo todas as rotas da aplicação 
 import authRoutes          from './routes/auth.routes.js';
 import usuarioRoutes       from './routes/usuario.routes.js';
 import entregaRoutes       from './routes/entrega.routes.js';
