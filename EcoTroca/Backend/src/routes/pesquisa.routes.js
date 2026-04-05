@@ -1,7 +1,4 @@
-// ============================================================
-//  pesquisa.routes.js
-//  Guardar em: src/routes/pesquisa.routes.js
-//
+
 //  GET /api/pesquisa?q=texto
 //  Devolve utilizadores, empresas e coletadores correspondentes
 // ============================================================
