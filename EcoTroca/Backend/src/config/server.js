@@ -17,7 +17,7 @@ const app = express();
 // Porta do servidor — usa a do .env ou 3000 por defeito
 const PORT = process.env.PORT || 3000;
 
-// ── Middleware de parsing do body ─────────────────────────────
+// ── Middleware de parsing do body 
 // Limite de 10mb para suportar upload de imagens em base64
 // Uma imagem de 5MB em base64 ocupa ~7MB de texto
 app.use(express.json({ limit: '10mb' }));
