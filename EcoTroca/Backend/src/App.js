@@ -32,7 +32,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// ── Middleware para ler JSON no body dos pedidos ──
+// ── Middleware para ler JSON no body dos pedidos 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
