@@ -20,7 +20,7 @@ import recolhasRoutes      from './routes/recolhas.routes.js';
 
 const app = express();
 
-// ── CORS — permite pedidos do frontend ──
+// ── CORS — permite pedidos do frontend 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || origin.startsWith('http://localhost')) {
