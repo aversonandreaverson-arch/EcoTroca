@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Clock, MapPin, Truck, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import Header from "./Header.jsx";
-import Mapa from "../Shared/Mapa.jsx";
+import Mapa from "../Shared/MapaRotas.jsx";
 import { getRecolhasAgendadas, iniciarRecolha, concluirRecolha, reportarFalhaRecolha } from "../../api.js";
 
 export default function RecolhasAgendadas() {
