@@ -117,7 +117,7 @@ router.post('/:id/aceitar', auth, async (req, res) => {
     // Envio notificação de confirmação à empresa que fez a proposta
     await pool.query(
       `INSERT INTO Notificacao (id_usuario, titulo, mensagem, tipo)
-       VALUES (?, '✅ Proposta aceite!', ?, 'sistema')`,
+       VALUES (?, ' Proposta aceite!', ?, 'sistema')`,
       [
         notif.id_usuario_remetente,
         `${nomeUtilizador} aceitou a tua proposta para "${tituloPublicacao}". Podem agora combinar os detalhes da recolha.`,

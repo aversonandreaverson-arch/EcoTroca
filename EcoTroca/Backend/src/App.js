@@ -22,7 +22,7 @@ const app = express();
 
 // ── CORS — permite pedidos do frontend 
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: (origin, callback) => { 
     if (!origin || origin.startsWith('http://localhost')) {
       callback(null, true);
     } else {

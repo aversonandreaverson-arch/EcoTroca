@@ -3,7 +3,6 @@
 //    - Carregar variáveis de ambiente do .env
 //    - Configurar middleware (JSON, CORS, body limit)
 //    - Iniciar o servidor na porta definida
-// ============================================================
 
 // Carrega as variáveis do ficheiro .env para process.env
 // Tem de ser a primeira coisa a correr antes de qualquer import
@@ -18,8 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware de parsing do body 
-// Limite de 10mb para suportar upload de imagens em base64
-// Uma imagem de 5MB em base64 ocupa ~7MB de texto
+// Limite de 10mb para suportar upload de imagens em base64 
+// Uma imagem de 5MB em base64 ocupa ~7MB de texto 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
