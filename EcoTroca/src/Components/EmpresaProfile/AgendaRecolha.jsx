@@ -77,13 +77,13 @@ export default function AgendarRecolha({ entrega, empresa, onSucesso, onCancel }
         {/* Info da entrega */}
         <div className="bg-green-50 p-4 rounded-lg border border-green-100 space-y-2">
           <p className="text-sm text-gray-700">
-            <strong>👤 Utilizador:</strong> {entrega?.nome_usuario}
+            <strong> Utilizador:</strong> {entrega?.nome_usuario}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>♻️ Tipo:</strong> {entrega?.tipo_residuo}
+            <strong> Tipo:</strong> {entrega?.tipo_residuo}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>⚖️ Peso:</strong> {entrega?.peso_total} kg
+            <strong> Peso:</strong> {entrega?.peso_total} kg
           </p>
         </div>
 
@@ -147,7 +147,7 @@ export default function AgendarRecolha({ entrega, empresa, onSucesso, onCancel }
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent h-20 resize-none"
           />
           <p className="text-xs text-gray-500 mt-1">
-            💡 Descrição clara ajuda o coletador a encontrar o endereço com rapidez
+             Descrição clara ajuda o coletador a encontrar o endereço com rapidez
           </p>
         </div>
 
