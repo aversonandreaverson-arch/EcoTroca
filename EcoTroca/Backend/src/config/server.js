@@ -1,7 +1,4 @@
-// ============================================================
-//  server.js — Ponto de entrada do backend EcoTroca
-//  Guardar em: src/server.js (ou raiz do projecto backend)
-//
+
 //  Responsabilidades:
 //    - Carregar variáveis de ambiente do .env
 //    - Configurar middleware (JSON, CORS, body limit)
