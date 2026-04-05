@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import db from '../database/connection.js';
+import { verificarToken, verificarTipo } from '../middlewares/auth.js';
+
 const router = express.Router();
-const db = require('../database/connection');
-const { verificarToken, verificarTipo } = require('../middlewares/auth');
 
 // ============================================================
 //  EMPRESA - Criar recolha agendada
@@ -132,7 +133,7 @@ router.patch('/recolhas/:id_recolha/confirmar', verificarToken, verificarTipo(['
 //  COLETADOR - Listar recolhas agendadas
 // ============================================================
 
-router.get('/coletador/recolhas/agendadas', verificarToken, verificarTipo(['coletador']), async (req, res) => {
+router.get('/coletador/recolhas/agendadas', verificarToken, verificarTipo(['coletor']), async (req, res) => {
   try {
     const id_coletador = req.usuario.id_usuario;
 
@@ -164,7 +165,7 @@ router.get('/coletador/recolhas/agendadas', verificarToken, verificarTipo(['cole
 //  COLETADOR - Iniciar recolha
 // ============================================================
 
-router.patch('/recolhas/:id_recolha/iniciar', verificarToken, verificarTipo(['coletador']), async (req, res) => {
+router.patch('/recolhas/:id_recolha/iniciar', verificarToken, verificarTipo(['coletor']), async (req, res) => {
   try {
     const { id_recolha } = req.params;
     const id_coletador = req.usuario.id_usuario;
@@ -173,18 +174,6 @@ router.patch('/recolhas/:id_recolha/iniciar', verificarToken, verificarTipo(['co
     await db.execute(
       'UPDATE recolha_agendada SET id_coletador = ?, status = ? WHERE id_recolha = ?',
       [id_coletador, 'em_curso', id_recolha]
-    );
-
-    // Registar no histórico
-    const [recolha] = await db.execute(
-      'SELECT * FROM recolha_agendada WHERE id_recolha = ?',
-      [id_recolha]
-    );
-
-    await db.execute(
-      `INSERT INTO recolha_historico (id_recolha, data_tentativa, status_tentativa)
-       VALUES (?, CURDATE(), 'realizada')`,
-      [id_recolha]
     );
 
     res.json({ sucesso: true, mensagem: 'Recolha iniciada!' });
@@ -198,7 +187,7 @@ router.patch('/recolhas/:id_recolha/iniciar', verificarToken, verificarTipo(['co
 //  COLETADOR - Concluir recolha
 // ============================================================
 
-router.patch('/recolhas/:id_recolha/concluir', verificarToken, verificarTipo(['coletador']), async (req, res) => {
+router.patch('/recolhas/:id_recolha/concluir', verificarToken, verificarTipo(['coletor']), async (req, res) => {
   try {
     const { id_recolha } = req.params;
     const { peso_real, observacoes } = req.body;
@@ -213,13 +202,6 @@ router.patch('/recolhas/:id_recolha/concluir', verificarToken, verificarTipo(['c
       ['concluida', id_recolha]
     );
 
-    // Registar no histórico com peso
-    await db.execute(
-      `UPDATE recolha_historico SET peso_recolhido = ?, observacoes = ? 
-       WHERE id_recolha = ? AND data_tentativa = CURDATE()`,
-      [peso_real, observacoes || null, id_recolha]
-    );
-
     // Notificar empresa e utilizador
     const [recolha] = await db.execute(
       `SELECT r.id_empresa, e.id_usuario FROM recolha_agendada r
@@ -228,14 +210,29 @@ router.patch('/recolhas/:id_recolha/concluir', verificarToken, verificarTipo(['c
       [id_recolha]
     );
 
-    await db.execute(
-      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo, id_referencia, lido)
-       VALUES (?, ?, ?, 'recolha_concluida', ?, 0), (?, ?, ?, 'recolha_concluida', ?, 0)`,
-      [
-        recolha[0].id_empresa, 'Recolha concluída ✅', `Peso: ${peso_real}kg`, id_recolha,
-        recolha[0].id_usuario, 'Sua recolha foi concluída! ✅', `Peso recolhido: ${peso_real}kg`, id_recolha
-      ]
-    );
+    if (recolha.length > 0) {
+      await db.execute(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo, id_referencia, lido)
+         VALUES (?, ?, ?, 'recolha_concluida', ?, 0)`,
+        [
+          recolha[0].id_empresa,
+          'Recolha concluída ✅',
+          `Peso: ${peso_real}kg`,
+          id_recolha
+        ]
+      );
+
+      await db.execute(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo, id_referencia, lido)
+         VALUES (?, ?, ?, 'recolha_concluida', ?, 0)`,
+        [
+          recolha[0].id_usuario,
+          'Sua recolha foi concluída! ✅',
+          `Peso recolhido: ${peso_real}kg`,
+          id_recolha
+        ]
+      );
+    }
 
     res.json({ sucesso: true, mensagem: 'Recolha concluída com sucesso!' });
   } catch (erro) {
@@ -248,7 +245,7 @@ router.patch('/recolhas/:id_recolha/concluir', verificarToken, verificarTipo(['c
 //  COLETADOR - Reportar falha
 // ============================================================
 
-router.post('/recolhas/:id_recolha/falha', verificarToken, verificarTipo(['coletador']), async (req, res) => {
+router.post('/recolhas/:id_recolha/falha', verificarToken, verificarTipo(['coletor']), async (req, res) => {
   try {
     const { id_recolha } = req.params;
     const { motivo } = req.body;
@@ -263,29 +260,24 @@ router.post('/recolhas/:id_recolha/falha', verificarToken, verificarTipo(['colet
       ['nao_compareceu', id_recolha]
     );
 
-    // Registar no histórico
-    await db.execute(
-      `INSERT INTO recolha_historico (id_recolha, data_tentativa, status_tentativa, observacoes)
-       VALUES (?, CURDATE(), 'não_compareceu', ?)`,
-      [id_recolha, motivo]
-    );
-
     // Notificar empresa
     const [recolha] = await db.execute(
       'SELECT id_empresa FROM recolha_agendada WHERE id_recolha = ?',
       [id_recolha]
     );
 
-    await db.execute(
-      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo, id_referencia, lido)
-       VALUES (?, ?, ?, 'recolha_falha', ?, 0)`,
-      [
-        recolha[0].id_empresa,
-        'Falha na recolha ⚠️',
-        `Motivo: ${motivo}. Reagende a recolha.`,
-        id_recolha
-      ]
-    );
+    if (recolha.length > 0) {
+      await db.execute(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo, id_referencia, lido)
+         VALUES (?, ?, ?, 'recolha_falha', ?, 0)`,
+        [
+          recolha[0].id_empresa,
+          'Falha na recolha ⚠️',
+          `Motivo: ${motivo}. Reagende a recolha.`,
+          id_recolha
+        ]
+      );
+    }
 
     res.json({ sucesso: true, mensagem: 'Falha reportada. Empresa será notificada.' });
   } catch (erro) {
@@ -303,7 +295,7 @@ router.get('/recolhas/datas-sugeridas/:id_empresa', verificarToken, verificarTip
     const hoje = new Date();
     const datas = [];
 
-    // Adicionar próximos 7 dias (excluindo finais de semana em Angola - segunda a sábado)
+    // Adicionar próximos 7 dias (excluindo domingos)
     for (let i = 1; i <= 10; i++) {
       const data = new Date(hoje);
       data.setDate(data.getDate() + i);
@@ -324,4 +316,4 @@ router.get('/recolhas/datas-sugeridas/:id_empresa', verificarToken, verificarTip
   }
 });
 
-module.exports = router;
+export default router;

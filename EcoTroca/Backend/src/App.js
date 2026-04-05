@@ -56,7 +56,7 @@ app.use('/api/perfilpublico',  perfilPublicoRoutes);
 // Aqui registo a rota dos resíduos para o frontend poder listar os tipos
 app.use('/api/residuos',       residuoRoutes);
 app.use('/api/pesquisa',       pesquisaRoutes);
-app.use('/api',                recolhasRoutes); // 
+app.use('/api/recolhas',                recolhasRoutes); // 
 
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
