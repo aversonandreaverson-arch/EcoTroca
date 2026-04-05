@@ -1,4 +1,4 @@
-import express, { json } from 'express';
+import express from 'express';
 import cors from 'cors';
 
 // ── Importo todas as rotas da aplicação ──
@@ -14,15 +14,13 @@ import notificacaoRoutes   from './routes/notificacao.route.js';
 import educacaoRoutes      from './routes/educacao.routes.js';
 import feedRoutes          from './routes/feed.routes.js';
 import perfilPublicoRoutes from './routes/perfilpublico.routes.js';
-// Aqui importo a rota dos resíduos — usada no formulário de nova publicação
 import residuoRoutes       from './routes/residuo.routes.js';
 import pesquisaRoutes      from './routes/pesquisa.routes.js';
-import recolhasRoutes      from './routes/recolhas.routes.js'; // 
+import recolhasRoutes      from './routes/recolhas.routes.js'; 
 
 const app = express();
 
 // ── CORS — permite pedidos do frontend ──
-// Aceita qualquer origem localhost em desenvolvimento (porta 5173, 5174, 5175, etc.)
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || origin.startsWith('http://localhost')) {
@@ -35,9 +33,7 @@ app.use(cors({
 }));
 
 // ── Middleware para ler JSON no body dos pedidos ──
-// Limite de 10mb para suportar upload de imagens em base64
-// Uma imagem de 5MB em base64 ocupa ~7MB de texto
-app.use(json({ limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── Rotas da API ──
@@ -53,10 +49,9 @@ app.use('/api/notificacoes',   notificacaoRoutes);
 app.use('/api/educacao',       educacaoRoutes);
 app.use('/api/feed',           feedRoutes);
 app.use('/api/perfilpublico',  perfilPublicoRoutes);
-// Aqui registo a rota dos resíduos para o frontend poder listar os tipos
 app.use('/api/residuos',       residuoRoutes);
 app.use('/api/pesquisa',       pesquisaRoutes);
-app.use('/api/recolhas',                recolhasRoutes); // 
+app.use('/api',                recolhasRoutes); 
 
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
