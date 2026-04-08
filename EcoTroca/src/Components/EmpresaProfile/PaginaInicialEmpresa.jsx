@@ -153,14 +153,16 @@ export default function PaginaInicialEmpresa() {
     try {
       setEnviandoTroca(publicacao.id_publicacao); // activa loading neste card
 
-      // Cria notificacao do tipo "geral" para o utilizador dono da oferta
-      // Aparece no sino do header sem botoes aceitar/recusar
+      // Cria notificacao do tipo "proposta" para o utilizador dono da oferta
+      // Tipo "proposta" faz aparecer botoes Aceitar/Recusar no Header do utilizador
+      // O backend guarda id_usuario_remetente automaticamente (empresa autenticada)
+      // Quando utilizador aceita -> empresa e notificada "X aceitou"
       await criarNotificacao({
         id_usuario_destino: publicacao.id_autor,      // utilizador dono da oferta
         titulo:             "Interesse numa troca",
-        mensagem:           `A empresa ${nomeEmpresa} quer fazer uma troca contigo pelo teu residuo "${publicacao.titulo}".`,
-        id_publicacao:      publicacao.id_publicacao, // referencia a oferta
-        tipo:               "geral",
+        mensagem:           `A empresa ${nomeEmpresa} quer fazer uma troca contigo pelo teu residuo "${publicacao.titulo}". Aceitas?`,
+        id_publicacao:      publicacao.id_publicacao, // referencia a oferta - necessario para aceitar/recusar
+        tipo:               "proposta",               // IMPORTANTE: mostra botoes Aceitar/Recusar no Header
       });
 
       // Marca como enviado - botao muda para "Enviado"
