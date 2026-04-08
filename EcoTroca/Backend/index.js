@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import app from './src/app.js';
 import { PORT } from './src/config/env.js';
 import pool from './src/config/database.js';

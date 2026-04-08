@@ -63,7 +63,7 @@ router.patch('/recolhas/:id_recolha/confirmar', auth, async (req, res) => {
     const { id_recolha } = req.params;
     const { aceito, motivo } = req.body;
     const id_usuario = req.usuario.id_usuario;
-v 
+
     const [recolha] = await pool.execute(
       `SELECT r.* 
        FROM recolha_agendada r
