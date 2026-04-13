@@ -149,10 +149,17 @@ export default function PaginaInicial() {
   }, []);
 
   // ── Carrega feed via GET /api/feed ────────────────────────
+  // O getFeed pode devolver:
+  //   - array simples (utilizador comum, coletador, admin)
+  //   - { publicacoes, propostasEnviadas } (empresa)
+  // Extraimos sempre o array para garantir compatibilidade
   const carregarFeed = async () => {
     try {
       setCarregando(true);
-      setFeed(await getFeed());
+      const dados = await getFeed();
+      // Se vier objecto (empresa), extrai apenas o array de publicacoes
+      const publicacoes = Array.isArray(dados) ? dados : (dados?.publicacoes || []);
+      setFeed(publicacoes);
     } catch (err) {
       setErro(err.message);
     } finally {
