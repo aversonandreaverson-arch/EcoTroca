@@ -1,4 +1,10 @@
 
+//  Painel principal da empresa recicladora.
+//  Contém 3 modais encadeados:
+//    Modal 1 — Novo/Editar Pedido de Resíduo
+//    Modal 2 — Recolhas (progresso + acordos + recolhas)
+//    Modal 3 — Agendar Recolha (data/hora/coletadores)
+
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,7 +25,7 @@ import {
   getColetadoresEmpresa,
   getFeed,
   criarPublicacao,
-  editarPublicacao,   
+  editarPublicacao,   // ← importado para usar no modo edição
   getResiduos,
   getConversoes,
   getAcordosPendentes,
@@ -28,6 +34,14 @@ import {
   actualizarStatusRecolha,
   apagarPublicacao,
 } from '../../api.js';
+
+// ── Funcao auxiliar para extrair publicacoes do getFeed ──────
+// O getFeed pode devolver:
+//   - array simples (utilizador comum, coletador)
+//   - { publicacoes, propostasEnviadas } (empresa) — nova estrutura
+// Esta funcao garante que sempre obtemos o array de publicacoes
+const extrairPublicacoes = (dados) =>
+  Array.isArray(dados) ? dados : (dados?.publicacoes || []);
 
 // ── Ícones por tipo de resíduo (usados no modal passo 1) ─────
 const ICONE_TIPO = {
@@ -207,8 +221,11 @@ export default function DashboardEmpresa() {
         // Extrai os tipos únicos dos resíduos: ['Plastico', 'Papel', 'Metal', 'Vidro']
         setTiposUnicos([...new Set(dadosResiduos.map(r => r.tipo))]);
 
-        // Filtra apenas os pedidos de resíduo criados por esta empresa
-        setPedidos(dadosFeed.filter(p =>
+        // Extrai o array de publicacoes — getFeed devolve { publicacoes, propostasEnviadas } para empresas
+        const publicacoesFeed = extrairPublicacoes(dadosFeed);
+
+        // Filtra apenas os pedidos de residuo criados por esta empresa
+        setPedidos(publicacoesFeed.filter(p =>
           p.tipo_publicacao === 'pedido_residuo' && p.tipo_autor === 'empresa'
         ));
 
@@ -373,7 +390,8 @@ export default function DashboardEmpresa() {
     if (!window.confirm('Remover este pedido?')) return; // confirmação do utilizador
     try {
       await apagarPublicacao(idPublicacao); // chama DELETE /api/feed/:id
-      const feed = await getFeed();          // recarrega o feed
+      const feedDados = await getFeed();     // recarrega o feed
+      const feed = extrairPublicacoes(feedDados); // extrai array — compativel com nova estrutura
       // Filtra novamente apenas os pedidos desta empresa
       setPedidos(feed.filter(x => x.tipo_publicacao === 'pedido_residuo' && x.tipo_autor === 'empresa'));
     } catch (err) {
@@ -420,8 +438,9 @@ export default function DashboardEmpresa() {
       setFormulario(FORM_VAZIO); // limpa o formulário para a próxima vez
       setPedidoEditId(null);   // reset do modo (volta a criar)
 
-      // Recarrega o feed para mostrar as alterações
-      const feed = await getFeed();
+      // Recarrega o feed para mostrar as alteracoes
+      const feedDados = await getFeed();
+      const feed = extrairPublicacoes(feedDados); // extrai array — compativel com nova estrutura
       setPedidos(feed.filter(p => p.tipo_publicacao === 'pedido_residuo' && p.tipo_autor === 'empresa'));
 
     } catch (err) {
