@@ -38,7 +38,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/perfil ──────────────────────────────────
+// ── GET /api/empresas/perfil 
 // Devolve o perfil completo da empresa autenticada
 router.get('/perfil', auth, async (req, res) => {
   try {
@@ -54,7 +54,7 @@ router.get('/perfil', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/entregas ─────────────────────────
+// ── GET /api/empresas/minhas/entregas 
 // Lista todas as entregas associadas à empresa autenticada
 router.get('/minhas/entregas', auth, async (req, res) => {
   try {
@@ -63,6 +63,10 @@ router.get('/minhas/entregas', auth, async (req, res) => {
       `SELECT
          en.id_entrega, en.status, en.peso_total, en.valor_total,
          en.data_hora, en.observacoes, en.endereco_domicilio,
+         en.data_recolha_proposta,  -- data marcada pela empresa para o utilizador aparecer
+         en.observacoes_empresa,    -- nota opcional enviada com a data
+         en.valor_utilizador,       -- valor creditado ao utilizador apos pagamento
+         en.valor_coletador,        -- valor creditado ao coletador se existir
          u.nome AS nome_usuario, u.telefone AS telefone_usuario,
          GROUP_CONCAT(r.tipo ORDER BY r.tipo SEPARATOR ', ') AS tipos_residuos
        FROM entrega en
@@ -80,7 +84,7 @@ router.get('/minhas/entregas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/eventos ─────────────────────────
+// ── GET /api/empresas/minhas/eventos 
 // Lista os eventos criados pela empresa
 router.get('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -95,7 +99,7 @@ router.get('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/eventos ─────────────────────────
+// ── POST /api/empresas/minhas/eventos 
 // Cria um novo evento para a empresa
 router.post('/minhas/eventos', auth, async (req, res) => {
   try {
@@ -117,7 +121,7 @@ router.post('/minhas/eventos', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/coletadores ─────────────────────
+// ── GET /api/empresas/minhas/coletadores 
 // Lista os coletadores da equipa da empresa
 // Inclui o campo 'tipo' para distinguir dependentes de independentes
 router.get('/minhas/coletadores', auth, async (req, res) => {
@@ -137,7 +141,7 @@ router.get('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/coletadores ─────────────────────
+// ── POST /api/empresas/minhas/coletadores 
 // Adiciona um coletador à equipa da empresa
 router.post('/minhas/coletadores', auth, async (req, res) => {
   try {
@@ -163,7 +167,7 @@ router.post('/minhas/coletadores', auth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/empresas/minhas/coletadores/:id ───────────────
+// ── DELETE /api/empresas/minhas/coletadores/:id 
 // Remove um coletador da equipa da empresa
 router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
   try {
@@ -183,7 +187,7 @@ router.delete('/minhas/coletadores/:id', auth, async (req, res) => {
 //  Sistema de logística para recolha em lote ou individual
 // ════════════════════════════════════════════════════════════
 
-// ── GET /api/empresas/minhas/recolhas ─────────────────────────
+// ── GET /api/empresas/minhas/recolhas 
 // Lista todas as recolhas agendadas da empresa
 // Inclui os coletadores e o número de entregas associadas
 router.get('/minhas/recolhas', auth, async (req, res) => {
@@ -211,7 +215,7 @@ router.get('/minhas/recolhas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/recolhas/:id ────────────────────
+// ── GET /api/empresas/minhas/recolhas/:id 
 // Detalhe de uma recolha — coletadores + entregas/utilizadores associados
 router.get('/minhas/recolhas/:id', auth, async (req, res) => {
   try {
@@ -253,7 +257,7 @@ router.get('/minhas/recolhas/:id', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/empresas/minhas/recolhas ───────────────────────
+// ── POST /api/empresas/minhas/recolhas 
 // Cria uma nova recolha agendada
 // Associa coletadores e entregas pendentes
 // Notifica todos os utilizadores envolvidos com a data/hora
@@ -328,7 +332,7 @@ router.post('/minhas/recolhas', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /api/empresas/minhas/recolhas/:id/status ───────────
+// ── PATCH /api/empresas/minhas/recolhas/:id/status 
 // Actualiza o status de uma recolha (em_curso, concluida, cancelada)
 // Quando concluída, notifica os utilizadores
 router.patch('/minhas/recolhas/:id/status', auth, async (req, res) => {
@@ -398,7 +402,7 @@ router.patch('/minhas/recolhas/:id/status', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/minhas/acordos-pendentes ───────────────
+// ── GET /api/empresas/minhas/acordos-pendentes 
 // Lista as entregas com acordo mas ainda sem recolha agendada
 // Usado pela empresa para ver quem está à espera de recolha
 // Também verifica se atingiu o limiar e avisa
@@ -444,7 +448,7 @@ router.get('/minhas/acordos-pendentes', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/minhas/limiar ───────────────────────────
+// ── PUT /api/empresas/minhas/limiar 
 // Actualiza o limiar de recolha da empresa
 // O limiar define quantos acordos mínimos para sugerir recolha em lote
 router.put('/minhas/limiar', auth, async (req, res) => {
@@ -465,7 +469,7 @@ router.put('/minhas/limiar', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/empresas/perfil ──────────────────────────────────
+// ── PUT /api/empresas/perfil 
 // Actualiza os dados do perfil da empresa
 router.put('/perfil', auth, async (req, res) => {
   try {
@@ -567,7 +571,7 @@ router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/empresas/:id ─────────────────────────────────────
+// ── GET /api/empresas/:id 
 // IMPORTANTE: esta rota tem de ficar SEMPRE no fim
 // para não interceptar as rotas /perfil, /minhas/...
 router.get('/:id', auth, async (req, res) => {
