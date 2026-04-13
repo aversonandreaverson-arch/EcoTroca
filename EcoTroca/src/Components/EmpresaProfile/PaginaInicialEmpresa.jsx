@@ -98,8 +98,27 @@ export default function PaginaInicialEmpresa() {
   }, []);
 
   // Carrega feed via GET /api/feed
+  // O backend devolve { publicacoes, propostasEnviadas }
+  // propostasEnviadas = ids das publicacoes onde ESTA empresa ja enviou proposta
+  // Usado para bloquear o botao "Fazer Troca" apenas para esta conta — outras empresas nao sao afectadas
   const carregarFeed = async () => {
-    try { setCarregando(true); setFeed(await getFeed()); }
+    try {
+      setCarregando(true);
+      const dados = await getFeed();
+      // Backend pode devolver array (utilizador comum) ou objecto { publicacoes, propostasEnviadas } (empresa)
+      if (Array.isArray(dados)) {
+        setFeed(dados); // utilizador comum — apenas array simples
+      } else {
+        setFeed(dados.publicacoes || []); // empresa — extrai as publicacoes
+        // Converte lista de ids para um Set para pesquisa rapida O(1)
+        const idsJaEnviados = new Set((dados.propostasEnviadas || []).map(id => Number(id)));
+        // Inicializa o map de trocaEnviada com os ids vindos do backend
+        // Assim o bloqueio persiste mesmo apos recarregar a pagina
+        const mapaInicial = {};
+        idsJaEnviados.forEach(id => { mapaInicial[id] = true; });
+        setTrocaEnviada(mapaInicial);
+      }
+    }
     catch (err) { setErro(err.message); }
     finally { setCarregando(false); }
   };
@@ -374,12 +393,18 @@ function CardPublicacao({ publicacao: p, utilizador, onEditar, onApagar, onFazer
   const temAcordos = parseFloat(p.total_acumulado || 0) > 0;
 
   // Empresa pode fazer troca em ofertas de outros utilizadores
+  // Condicoes: ser empresa, nao ser o autor, ser oferta_residuo, e publicacao nao estar fechada
+  // O bloqueio por "ja enviou" e tratado por jaEnviouTroca — independente para cada empresa
   const podeFazerTroca =
     utilizador?.tipo === "empresa" &&
     p.tipo_publicacao === "oferta_residuo" &&
-    p.id_autor !== utilizador?.id;
+    p.id_autor !== utilizador?.id &&
+    p.status !== "fechada"; // fechada = utilizador ja aceitou outra empresa — nao ha mais trocas
 
-  // Verifica se ja enviou notificacao de troca para esta oferta
+  // Verifica se JA enviou proposta para esta publicacao especifica:
+  // O estado trocaEnviada e inicializado com os dados do backend (propostasEnviadas)
+  // e actualizado localmente quando a empresa clica "Fazer Troca" nesta sessao
+  // Outras empresas nao sao afectadas — o bloqueio e individual por conta
   const jaEnviouTroca = !!(trocaEnviada?.[p.id_publicacao]);
 
   // Verifica se este card esta em loading
