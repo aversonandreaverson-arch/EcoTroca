@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, X, BookOpen } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa';
@@ -23,7 +22,10 @@ export default function EducacaoEmpresa() {
   const carregar = async () => {
     try {
       setCarregando(true);
-      const feed = await getFeed();
+      const dados = await getFeed();
+      // getFeed pode devolver array simples ou { publicacoes, propostasEnviadas }
+      // extraimos sempre o array antes de filtrar
+      const feed = Array.isArray(dados) ? dados : (dados?.publicacoes || []);
       setPublicacoes(feed.filter(p => p.tipo_publicacao === 'educacao'));
     } catch (err) {
       setErro(err.message);
@@ -100,7 +102,7 @@ export default function EducacaoEmpresa() {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-0.5 rounded-lg">
-                    📚 Educação
+                    Educação
                   </span>
                   <span className="text-gray-400 text-xs">
                     {new Date(p.criado_em).toLocaleDateString('pt-AO')}
@@ -127,12 +129,11 @@ export default function EducacaoEmpresa() {
         </div>
       )}
 
-      {/* Modal nova publicação */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg">📚 Nova Publicação de Educação</h3>
+              <h3 className="text-green-800 font-bold text-lg">Nova Publicação de Educação</h3>
               <button onClick={() => setModalAberto(false)}>
                 <X size={20} className="text-gray-400 hover:text-gray-600" />
               </button>
@@ -142,43 +143,31 @@ export default function EducacaoEmpresa() {
                 <label className="text-gray-600 text-sm block mb-1">
                   Título <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formulario.titulo}
+                <input type="text" value={formulario.titulo}
                   onChange={e => handleCampo('titulo', e.target.value)}
                   placeholder="Ex: Como separar resíduos correctamente"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
               <div>
                 <label className="text-gray-600 text-sm block mb-1">Conteúdo</label>
-                <textarea
-                  value={formulario.descricao}
+                <textarea value={formulario.descricao}
                   onChange={e => handleCampo('descricao', e.target.value)}
-                  placeholder="Escreve o conteúdo educativo..."
-                  rows={5}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                />
+                  placeholder="Escreve o conteúdo educativo..." rows={5}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
               </div>
               <div>
                 <label className="text-gray-600 text-sm block mb-1">Província (opcional)</label>
-                <input
-                  type="text"
-                  value={formulario.provincia}
+                <input type="text" value={formulario.provincia}
                   onChange={e => handleCampo('provincia', e.target.value)}
                   placeholder="Ex: Luanda"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
               {erroForm && (
                 <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erroForm}</p>
               )}
             </div>
-            <button
-              onClick={handlePublicar}
-              disabled={publicando}
-              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition"
-            >
+            <button onClick={handlePublicar} disabled={publicando}
+              className="w-full mt-5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition">
               {publicando ? 'A publicar...' : 'Publicar'}
             </button>
           </div>
