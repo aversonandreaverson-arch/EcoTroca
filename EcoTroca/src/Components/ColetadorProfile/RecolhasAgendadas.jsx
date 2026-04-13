@@ -1,143 +1,114 @@
+
+//  Lista as entregas pendentes para o coletador recolher
+//  Usa as rotas existentes do backend:
+//    GET  /api/coletador/entregas/pendentes  — lista entregas
+//    PATCH /api/coletador/entregas/:id/aceitar — coletador aceita
+//    PATCH /api/coletador/entregas/:id/recolher — marca como recolhida
+// ============================================================
+
 import React, { useState, useEffect } from "react";
-import { Calendar, Clock, MapPin, Truck, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  Calendar, Clock, MapPin, Truck,
+  CheckCircle, AlertCircle, Package
+} from "lucide-react";
 import Header from "./Header.jsx";
-import Mapa from "../Shared/MapaRotas.jsx";
-import { getRecolhasAgendadas, iniciarRecolha, concluirRecolha, reportarFalhaRecolha } from "../../api.js";
+import {
+  getEntregasPendentes, // GET /api/coletador/entregas/pendentes
+  aceitarEntrega,       // PATCH /api/coletador/entregas/:id/aceitar
+  recolherEntrega,      // PATCH /api/coletador/entregas/:id/recolher
+} from "../../api.js";
 
 export default function RecolhasAgendadas() {
-  const [recolhas, setRecolhas] = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState("");
-  const [recolhaSelecionada, setRecolhaSelecionada] = useState(null);
-  const [mostraMapa, setMostraMapa] = useState(false);
+  // Lista de entregas pendentes para este coletador
+  const [recolhas,    setRecolhas]    = useState([]);
+  const [carregando,  setCarregando]  = useState(true);
+  const [erro,        setErro]        = useState("");
 
+  // Carrega as entregas ao montar o componente
   useEffect(() => {
-    const carregar = async () => {
-      try {
-        const dados = await getRecolhasAgendadas();
-        setRecolhas(dados || []);
-      } catch (err) {
-        setErro(err.message || "Erro ao carregar recolhas");
-      } finally {
-        setCarregando(false);
-      }
-    };
     carregar();
   }, []);
 
-  const handleIniciar = async (id_recolha) => {
+  // Vai buscar as entregas pendentes ao backend
+  const carregar = async () => {
     try {
-      await iniciarRecolha(id_recolha);
-      setRecolhas(recolhas.map(r => 
-        r.id_recolha === id_recolha ? { ...r, status: 'em_curso' } : r
-      ));
-      alert("✅ Recolha iniciada! Bom trabalho 🚗");
+      setCarregando(true);
+      setErro("");
+      const dados = await getEntregasPendentes();
+      setRecolhas(dados || []);
     } catch (err) {
-      alert("❌ " + err.message);
+      setErro(err.message || "Erro ao carregar recolhas");
+    } finally {
+      setCarregando(false);
     }
   };
 
-  const handleConcluir = async (id_recolha) => {
-    const peso = prompt("⚖️ Peso recolhido (kg)?");
-    if (!peso || isNaN(peso)) {
-      alert("⚠️ Peso inválido");
-      return;
-    }
-
+  // Coletador aceita uma entrega pendente
+  const handleAceitar = async (id_entrega) => {
     try {
-      await concluirRecolha(id_recolha, parseFloat(peso));
-      setRecolhas(recolhas.map(r => 
-        r.id_recolha === id_recolha ? { ...r, status: 'concluida' } : r
-      ));
-      alert("✅ Recolha concluída! Parabéns 🎉");
+      await aceitarEntrega(id_entrega);
+      // Actualiza o status localmente sem recarregar tudo
+      setRecolhas(prev =>
+        prev.map(r => r.id_entrega === id_entrega ? { ...r, status: 'aceita' } : r)
+      );
     } catch (err) {
-      alert("❌ " + err.message);
+      alert("Erro ao aceitar entrega: " + err.message);
     }
   };
 
-  const handleFalha = async (id_recolha) => {
-    const motivo = prompt("⚠️ Motivo da falta (ex: endereço não encontrado, utilizador ausente):");
-    if (!motivo) return;
-
+  // Coletador marca entrega como recolhida (ja foi buscar os residuos)
+  const handleRecolher = async (id_entrega) => {
+    if (!window.confirm("Confirmas que ja recolheste os residuos desta entrega?")) return;
     try {
-      await reportarFalhaRecolha(id_recolha, motivo);
-      setRecolhas(recolhas.map(r => 
-        r.id_recolha === id_recolha ? { ...r, status: 'cancelada' } : r
-      ));
-      alert("📝 Falha reportada. A empresa será notificada para reagendar.");
+      await recolherEntrega(id_entrega);
+      // Actualiza o status localmente
+      setRecolhas(prev =>
+        prev.map(r => r.id_entrega === id_entrega ? { ...r, status: 'recolhida' } : r)
+      );
+      alert("Recolha concluida com sucesso!");
     } catch (err) {
-      alert("❌ " + err.message);
+      alert("Erro ao concluir recolha: " + err.message);
     }
   };
-
-  // Tela do Mapa
-  if (mostraMapa && recolhaSelecionada) {
-    return (
-      <div className="min-h-screen bg-green-100 pt-24 p-6">
-        <Header />
-        
-        <button
-          onClick={() => setMostraMapa(false)}
-          className="mb-4 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium flex items-center gap-2 transition"
-        >
-          <ArrowLeft size={16} />
-          Voltar
-        </button>
-        
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Rota para Recolha</h1>
-        <p className="text-gray-600 mb-4 text-sm font-medium">{recolhaSelecionada.referencia_local}</p>
-
-        <Mapa
-          origin={[recolhaSelecionada.latitude, recolhaSelecionada.longitude]}
-          destination={[recolhaSelecionada.latitude, recolhaSelecionada.longitude]}
-        />
-
-        <div className="mt-6 bg-white rounded-2xl p-4 border border-green-100 space-y-2">
-          <p className="text-sm text-gray-700"><strong>Utilizador:</strong> {recolhaSelecionada.nome_usuario}</p>
-          <p className="text-sm text-gray-700"><strong>Tipo:</strong> {recolhaSelecionada.tipo_residuo}</p>
-          <p className="text-sm text-gray-700"><strong>Peso:</strong> {recolhaSelecionada.peso_total} kg</p>
-          <p className="text-sm text-gray-700"><strong>Hora:</strong> {recolhaSelecionada.hora_inicio.substring(0, 5)}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-green-100 pt-24 p-6">
+    <div className="min-h-screen bg-green-100 pt-24 pb-12 px-6">
       <Header />
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Minhas Recolhas Agendadas</h1>
-        <p className="text-gray-600 mt-1">Recolhas que precisa fazer hoje/próximos dias</p>
+      {/* Cabecalho da pagina */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-green-800">Minhas Recolhas</h1>
+        <p className="text-gray-500 mt-1">Entregas pendentes para recolher</p>
       </div>
 
+      {/* Erro global */}
       {erro && (
         <div className="bg-red-100 border border-red-300 text-red-700 rounded-xl p-4 mb-6 flex items-center gap-2">
-          <AlertCircle size={20} />
-          {erro}
+          <AlertCircle size={16} /> {erro}
         </div>
       )}
 
+      {/* Estado de carregamento */}
       {carregando ? (
-        <p className="text-gray-500 text-center py-8">A carregar recolhas...</p>
+        <p className="text-green-700 text-center py-12">A carregar recolhas...</p>
+
+      // Estado vazio
       ) : recolhas.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center border border-green-100">
+        <div className="bg-white rounded-2xl p-8 text-center border border-green-100 shadow-sm">
           <Truck size={48} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500">Nenhuma recolha agendada no momento.</p>
+          <p className="text-gray-400 font-medium">Nenhuma recolha pendente.</p>
+          <p className="text-gray-300 text-sm mt-1">As novas entregas aparecem aqui automaticamente.</p>
         </div>
+
+      // Lista de cards de recolha
       ) : (
         <div className="space-y-4">
-          {recolhas.map((recolha) => (
-            <CartaoRecolha
-              key={recolha.id_recolha}
+          {recolhas.map(recolha => (
+            <CardRecolha
+              key={recolha.id_entrega}
               recolha={recolha}
-              onIniciar={() => handleIniciar(recolha.id_recolha)}
-              onConcluir={() => handleConcluir(recolha.id_recolha)}
-              onFalha={() => handleFalha(recolha.id_recolha)}
-              onMapa={() => {
-                setRecolhaSelecionada(recolha);
-                setMostraMapa(true);
-              }}
+              onAceitar={() => handleAceitar(recolha.id_entrega)}
+              onRecolher={() => handleRecolher(recolha.id_entrega)}
             />
           ))}
         </div>
@@ -146,91 +117,113 @@ export default function RecolhasAgendadas() {
   );
 }
 
-function CartaoRecolha({ recolha, onIniciar, onConcluir, onFalha, onMapa }) {
-  const data = new Date(recolha.data_proposta);
-  const hoje = new Date();
-  const isHoje = data.toDateString() === hoje.toDateString();
+// Card individual de cada recolha
+function CardRecolha({ recolha, onAceitar, onRecolher }) {
+
+  // Cor da borda esquerda por status
+  const corBorda =
+    recolha.status === 'aceita'    ? 'border-l-blue-500'   :
+    recolha.status === 'recolhida' ? 'border-l-green-500'  :
+                                     'border-l-yellow-500';
 
   return (
-    <div className={`bg-white rounded-2xl shadow-md p-5 border-l-4 hover:shadow-lg transition ${
-      recolha.status === 'em_curso' ? 'border-l-blue-500' :
-      recolha.status === 'concluida' ? 'border-l-green-500' :
-      'border-l-yellow-500'
-    }`}>
-      
-      <div className="flex justify-between items-start mb-4">
+    <div className={`bg-white rounded-2xl shadow-sm p-5 border border-green-100 border-l-4 ${corBorda} hover:shadow-md transition`}>
+
+      {/* Cabecalho: nome do utilizador + badge de status */}
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="text-lg font-bold text-gray-800">
-            {recolha.nome_usuario}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {recolha.tipo_residuo} • {recolha.peso_total} kg
-          </p>
+          <p className="font-bold text-green-800 text-lg">{recolha.nome_usuario || 'Utilizador'}</p>
+          <p className="text-gray-400 text-xs">Entrega #{recolha.id_entrega}</p>
         </div>
-        <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-          recolha.status === 'agendada' ? 'bg-yellow-100 text-yellow-700' :
-          recolha.status === 'em_curso' ? 'bg-blue-100 text-blue-700' :
-          'bg-green-100 text-green-700'
+        {/* Badge de status com cor por estado */}
+        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+          recolha.status === 'pendente'  ? 'bg-yellow-100 text-yellow-700' :
+          recolha.status === 'aceita'    ? 'bg-blue-100 text-blue-700'     :
+          recolha.status === 'recolhida' ? 'bg-green-100 text-green-700'   :
+                                           'bg-gray-100 text-gray-500'
         }`}>
-          {recolha.status === 'agendada' ? '⏰ Agendada' :
-           recolha.status === 'em_curso' ? '🚗 Em curso' :
-           '✅ Concluída'}
+          {recolha.status === 'pendente'  ? 'Pendente'  :
+           recolha.status === 'aceita'    ? 'Aceite'    :
+           recolha.status === 'recolhida' ? 'Recolhida' : recolha.status}
         </span>
       </div>
 
-      {/* Detalhes */}
-      <div className="space-y-2 mb-4 text-sm text-gray-600">
+      {/* Detalhes: residuo, peso, endereco e data */}
+      <div className="space-y-2 text-sm text-gray-600 mb-4">
+
+        {/* Tipo de residuo e peso */}
         <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-green-600" />
-          <span>
-            {isHoje ? '🔥 HOJE às' : 'Data: '}
-            {data.toLocaleDateString('pt-AO', { weekday: 'short', month: 'short', day: 'numeric' })}
-          </span>
+          <Package size={14} className="text-green-500 shrink-0" />
+          <span>{recolha.tipo_residuo || 'Residuo'}</span>
+          {recolha.peso_total && (
+            <span className="text-green-600 font-medium">· {recolha.peso_total} kg</span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Clock size={16} className="text-green-600" />
-          <span>🕐 {recolha.hora_inicio.substring(0, 5)}</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <MapPin size={16} className="text-red-600 shrink-0 mt-0.5" />
-          <span className="text-xs leading-relaxed">📍 {recolha.referencia_local}</span>
-        </div>
+
+        {/* Endereco de recolha */}
+        {recolha.endereco_domicilio && (
+          <div className="flex items-start gap-2">
+            <MapPin size={14} className="text-green-500 shrink-0 mt-0.5" />
+            <span>{recolha.endereco_domicilio}</span>
+          </div>
+        )}
+
+        {/* Data e hora da entrega */}
+        {recolha.data_hora && (
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-green-500 shrink-0" />
+            <span className="text-xs text-gray-400">
+              {new Date(recolha.data_hora).toLocaleDateString('pt-AO', {
+                weekday: 'short', day: '2-digit', month: 'short',
+                hour: '2-digit', minute: '2-digit'
+              })}
+            </span>
+          </div>
+        )}
+
+        {/* Data de recolha proposta pela empresa */}
+        {recolha.data_recolha_proposta && (
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            <Calendar size={14} className="text-blue-500 shrink-0" />
+            <div>
+              <p className="text-blue-700 text-xs font-medium">Recolha marcada para</p>
+              <p className="text-blue-600 text-xs">
+                {new Date(recolha.data_recolha_proposta).toLocaleString('pt-AO', {
+                  weekday: 'short', day: '2-digit', month: 'short',
+                  hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Botões */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <button
-          onClick={onMapa}
-          className="bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-lg font-medium text-xs md:text-sm transition flex items-center justify-center gap-1"
-        >
-          📍 Mapa
-        </button>
-        
-        {recolha.status === 'agendada' && (
-          <>
-            <button
-              onClick={onIniciar}
-              className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium text-xs md:text-sm transition flex items-center justify-center gap-1"
-            >
-              ▶️ Iniciar
-            </button>
-            <button
-              onClick={onFalha}
-              className="bg-red-100 hover:bg-red-200 text-red-700 py-2 rounded-lg font-medium text-xs md:text-sm transition flex items-center justify-center gap-1"
-            >
-              ⚠️ Não posso
-            </button>
-          </>
-        )}
-        
-        {recolha.status === 'em_curso' && (
+      {/* Botoes de accao por status */}
+      <div className="flex gap-2">
+
+        {/* Entrega pendente — coletador pode aceitar */}
+        {recolha.status === 'pendente' && (
           <button
-            onClick={onConcluir}
-            className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium text-xs md:text-sm transition flex items-center justify-center gap-1"
-          >
-            <CheckCircle size={16} />
-            Concluir
+            onClick={onAceitar}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+            <CheckCircle size={14} /> Aceitar Recolha
           </button>
+        )}
+
+        {/* Entrega aceite — coletador pode marcar como recolhida */}
+        {recolha.status === 'aceita' && (
+          <button
+            onClick={onRecolher}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+            <Truck size={14} /> Marcar como Recolhida
+          </button>
+        )}
+
+        {/* Entrega ja recolhida — sem accoes */}
+        {recolha.status === 'recolhida' && (
+          <div className="flex-1 bg-green-50 border border-green-200 text-green-700 py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-1">
+            <CheckCircle size={14} /> Recolha Concluida
+          </div>
         )}
       </div>
     </div>

@@ -1,6 +1,3 @@
-// ============================================================
-//  api.js — Ficheiro central de comunicação com o backend
-//  Todas as chamadas ao servidor passam por aqui.
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -309,6 +306,10 @@ export const getConversoes = () => pedido('/residuos/conversoes');
 //  PUBLICAÇÕES — feed da Página Inicial
 // ============================================================
 
+// getFeed devolve { publicacoes, propostasEnviadas }
+// publicacoes    -> lista de publicacoes do feed
+// propostasEnviadas -> ids das publicacoes onde ESTA empresa ja enviou proposta
+//                     (so preenchido quando o utilizador e empresa)
 export const getFeed = () => pedido('/feed');
 
 export const criarPublicacao = (dados) =>
@@ -387,47 +388,3 @@ export const apagarEducacao = (id) =>
 
 export const getRelatoriosAdmin = (periodo = 'mes') =>
   pedido(`/admin/relatorios?periodo=${periodo}`);
-
-// ============================================================
-//  RECOLHAS AGENDADAS 
-// ============================================================
-
-// Empresa cria uma recolha proposta
-export const criarRecolhaAgendada = (dados) =>
-  pedido('/recolhas', { 
-    method: 'POST', 
-    body: JSON.stringify(dados)
-  });
-
-// Utilizador confirma/rejeita a recolha
-export const confirmarRecolha = (id_recolha, aceito = true, motivo = null) =>
-  pedido(`/recolhas/${id_recolha}/confirmar`, {
-    method: 'PATCH',
-    body: JSON.stringify({ aceito, motivo })
-  });
-
-// Coletador lista recolhas agendadas
-export const getRecolhasAgendadas = () =>
-  pedido('/coletador/recolhas/agendadas');
-
-// Coletador marca recolha como "em curso"
-export const iniciarRecolha = (id_recolha) =>
-  pedido(`/recolhas/${id_recolha}/iniciar`, { method: 'PATCH' });
-
-// Coletador marca como concluída
-export const concluirRecolha = (id_recolha, peso_real, observacoes = null) =>
-  pedido(`/recolhas/${id_recolha}/concluir`, {
-    method: 'PATCH',
-    body: JSON.stringify({ peso_real, observacoes })
-  });
-
-// Reportar falha de recolha (não compareceu)
-export const reportarFalhaRecolha = (id_recolha, motivo) =>
-  pedido(`/recolhas/${id_recolha}/falha`, {
-    method: 'POST',
-    body: JSON.stringify({ motivo })
-  });
-
-// Obter sugestões de datas disponíveis
-export const obterDatasSugeridas = (id_empresa) =>
-  pedido(`/recolhas/datas-sugeridas/${id_empresa}`);
