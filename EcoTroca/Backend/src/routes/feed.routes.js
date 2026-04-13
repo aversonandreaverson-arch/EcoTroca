@@ -1,14 +1,13 @@
 //  Regras de apagar por status:
-//    'disponivel'    → apaga livremente, sem penalização
-//    'em_negociacao' → apaga MAS recebe advertência automática
-//                      ao acumular 3 advertências → suspensão 7 dias
-//    'fechada'       → BLOQUEADO, negociação concluída
+//    'disponivel'    -> apaga livremente, sem penalizacao
+//    'em_negociacao' -> apaga MAS recebe advertencia automatica
+//    'fechada'       -> BLOQUEADO, negociacao concluida
 //
 //  Quem pode publicar:
-//    admin   → evento, educacao, noticia, aviso
-//    empresa → pedido_residuo, evento, educacao, noticia
-//    comum   → oferta_residuo
-//    coletor → não pode publicar
+//    admin   -> evento, educacao, noticia, aviso
+//    empresa -> pedido_residuo, evento, educacao, noticia
+//    comum   -> oferta_residuo
+//    coletor -> nao pode publicar
 
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
@@ -23,7 +22,7 @@ const TIPOS_PERMITIDOS = {
   coletor: [],
 };
 
-// ── GET /api/feed ─────────────────────────────────────────────
+// GET /api/feed
 router.get('/', auth, async (req, res) => {
   try {
     const [publicacoes] = await pool.query(`
@@ -96,89 +95,79 @@ router.get('/', auth, async (req, res) => {
       LIMIT 20
     `);
 
+    // Verifica quais publicacoes JA tiveram proposta enviada por ESTE utilizador
+    // Usado para bloquear o botao "Fazer Troca" apenas para a empresa que ja clicou
+    // Outras empresas ainda podem clicar — o bloqueio e individual por conta
+    let propostasEnviadas = [];
+    if (req.usuario.tipo_usuario === 'empresa') {
+      // Busca todas as notificacoes de proposta enviadas por este utilizador (empresa)
+      // id_usuario_remetente = quem enviou a proposta (a empresa autenticada)
+      const [notifs] = await pool.query(
+        `SELECT id_publicacao
+         FROM notificacao
+         WHERE id_usuario_remetente = ?
+           AND tipo = 'proposta'
+           AND id_publicacao IS NOT NULL`,
+        [req.usuario.id_usuario]
+      );
+      // Extrai apenas os ids das publicacoes onde ja enviou proposta
+      propostasEnviadas = notifs.map(n => n.id_publicacao);
+    }
+
     const tudo = [...publicacoes, ...eventos].sort(
       (a, b) => new Date(b.criado_em) - new Date(a.criado_em)
     );
 
-    res.json(tudo);
+    // Devolve o feed + a lista de ids onde esta empresa ja enviou proposta
+    // O frontend usa esta lista para bloquear o botao "Fazer Troca" por conta
+    res.json({ publicacoes: tudo, propostasEnviadas });
   } catch (err) {
     console.error('Erro ao carregar feed:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
-// ── POST /api/feed ────────────────────────────────────────────
+// POST /api/feed
 router.post('/', auth, async (req, res) => {
   try {
     const {
-      tipo_publicacao,
-      titulo,
-      descricao,
-      id_residuo,
-      quantidade_kg,
-      valor_proposto,
-      provincia,
-      imagem,
-      // Campos extras do modal completo da empresa
-      nome_unidade,
-      kg_por_unidade,
-      minimo_por_pessoa_kg,   // frontend envia como minimo_por_pessoa_kg
-      minimo_para_agendar,
-      observacoes,
-      com_coletador,
-      id_coletadores,
+      tipo_publicacao, titulo, descricao, id_residuo, quantidade_kg,
+      valor_proposto, provincia, imagem, nome_unidade, kg_por_unidade,
+      minimo_por_pessoa_kg, minimo_para_agendar, observacoes,
+      com_coletador, id_coletadores,
     } = req.body;
 
     const tipo_usuario = req.usuario.tipo_usuario;
-
     const tipo_autor = tipo_usuario === 'empresa' ? 'empresa'
                      : tipo_usuario === 'coletor' ? 'coletor'
                      : tipo_usuario === 'admin'   ? 'admin'
                      : 'utilizador';
 
     const permitidos = TIPOS_PERMITIDOS[tipo_usuario] || [];
-    if (!permitidos.includes(tipo_publicacao)) {
-      return res.status(403).json({
-        erro: `O teu perfil não pode publicar o tipo "${tipo_publicacao}".`
-      });
-    }
+    if (!permitidos.includes(tipo_publicacao))
+      return res.status(403).json({ erro: `O teu perfil nao pode publicar o tipo "${tipo_publicacao}".` });
 
-    if (!titulo?.trim()) {
-      return res.status(400).json({ erro: 'O título é obrigatório.' });
-    }
+    if (!titulo?.trim())
+      return res.status(400).json({ erro: 'O titulo e obrigatorio.' });
 
-    // Insiro com todos os campos disponíveis na tabela
     const [result] = await pool.query(
       `INSERT INTO publicacao
         (id_usuario, tipo_autor, tipo_publicacao, titulo, descricao,
          id_residuo, quantidade_kg, valor_proposto, provincia, imagem,
-         nome_unidade, kg_por_unidade, minimo_por_pessoa, minimo_para_agendar,
-         status)
+         nome_unidade, kg_por_unidade, minimo_por_pessoa, minimo_para_agendar, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disponivel')`,
       [
-        req.usuario.id_usuario,
-        tipo_autor,
-        tipo_publicacao,
-        titulo.trim(),
-        descricao            || null,
-        id_residuo           || null,
-        quantidade_kg        || null,
-        valor_proposto       || null,
-        provincia            || null,
-        imagem               || null,
-        nome_unidade         || null,
-        kg_por_unidade       || null,
-        minimo_por_pessoa_kg || null,   // guarda na coluna minimo_por_pessoa
-        minimo_para_agendar  || null,
+        req.usuario.id_usuario, tipo_autor, tipo_publicacao, titulo.trim(),
+        descricao || null, id_residuo || null, quantidade_kg || null,
+        valor_proposto || null, provincia || null, imagem || null,
+        nome_unidade || null, kg_por_unidade || null,
+        minimo_por_pessoa_kg || null, minimo_para_agendar || null,
       ]
     );
 
     const id_publicacao = result.insertId;
 
-    // Se a empresa enviou coletadores, registo a associação
     if (com_coletador && Array.isArray(id_coletadores) && id_coletadores.length > 0) {
-      // Verifico se a tabela publicacao_coletador existe antes de inserir
-      // Se não existir, ignoro silenciosamente (feature opcional)
       try {
         for (const id_coletador of id_coletadores) {
           await pool.query(
@@ -186,25 +175,22 @@ router.post('/', auth, async (req, res) => {
             [id_publicacao, id_coletador]
           );
         }
-      } catch {
-        // Tabela publicacao_coletador pode não existir — ignora silenciosamente
-      }
+      } catch { /* tabela pode nao existir */ }
     }
 
-    res.status(201).json({ mensagem: 'Publicação criada com sucesso.', id_publicacao });
+    res.status(201).json({ mensagem: 'Publicacao criada com sucesso.', id_publicacao });
   } catch (err) {
-    console.error('Erro ao criar publicação:', err);
+    console.error('Erro ao criar publicacao:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
-// ── PUT /api/feed/:id ─────────────────────────────────────────
+// PUT /api/feed/:id
 router.put('/:id', auth, async (req, res) => {
   try {
     const {
-      titulo, descricao, id_residuo, quantidade_kg,
-      valor_proposto, provincia, imagem,
-      nome_unidade, kg_por_unidade,
+      titulo, descricao, id_residuo, quantidade_kg, valor_proposto,
+      provincia, imagem, nome_unidade, kg_por_unidade,
       minimo_por_pessoa_kg, minimo_para_agendar,
     } = req.body;
 
@@ -212,12 +198,11 @@ router.put('/:id', auth, async (req, res) => {
       'SELECT id_usuario FROM publicacao WHERE id_publicacao = ? AND eliminado = 0',
       [req.params.id]
     );
-
-    if (!rows.length) return res.status(404).json({ erro: 'Publicação não encontrada.' });
+    if (!rows.length) return res.status(404).json({ erro: 'Publicacao nao encontrada.' });
 
     const eAdmin = req.usuario.tipo_usuario === 'admin';
     const eAutor = rows[0].id_usuario === req.usuario.id_usuario;
-    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissão.' });
+    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissao.' });
 
     await pool.query(
       `UPDATE publicacao SET
@@ -227,108 +212,76 @@ router.put('/:id', auth, async (req, res) => {
         minimo_por_pessoa = ?, minimo_para_agendar = ?
        WHERE id_publicacao = ?`,
       [
-        titulo?.trim()       || null,
-        descricao            || null,
-        id_residuo           || null,
-        quantidade_kg        || null,
-        valor_proposto       || null,
-        provincia            || null,
-        imagem               || null,
-        nome_unidade         || null,
-        kg_por_unidade       || null,
-        minimo_por_pessoa_kg || null,
-        minimo_para_agendar  || null,
+        titulo?.trim() || null, descricao || null, id_residuo || null,
+        quantidade_kg || null, valor_proposto || null, provincia || null,
+        imagem || null, nome_unidade || null, kg_por_unidade || null,
+        minimo_por_pessoa_kg || null, minimo_para_agendar || null,
         req.params.id,
       ]
     );
 
-    res.json({ mensagem: 'Publicação actualizada.' });
+    res.json({ mensagem: 'Publicacao actualizada.' });
   } catch (err) {
-    console.error('Erro ao editar publicação:', err);
+    console.error('Erro ao editar publicacao:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
-// ── DELETE /api/feed/:id ──────────────────────────────────────
+// DELETE /api/feed/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT id_usuario, status FROM publicacao WHERE id_publicacao = ? AND eliminado = 0',
       [req.params.id]
     );
-
-    if (!rows.length) return res.status(404).json({ erro: 'Publicação não encontrada.' });
+    if (!rows.length) return res.status(404).json({ erro: 'Publicacao nao encontrada.' });
 
     const publicacao = rows[0];
-    const eAdmin     = req.usuario.tipo_usuario === 'admin';
-    const eAutor     = publicacao.id_usuario === req.usuario.id_usuario;
+    const eAdmin = req.usuario.tipo_usuario === 'admin';
+    const eAutor = publicacao.id_usuario === req.usuario.id_usuario;
+    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissao.' });
 
-    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissão.' });
-
-    if (publicacao.status === 'fechada' && !eAdmin) {
-      return res.status(403).json({
-        erro: 'Esta publicação já tem uma negociação concluída e não pode ser removida.'
-      });
-    }
+    if (publicacao.status === 'fechada' && !eAdmin)
+      return res.status(403).json({ erro: 'Esta publicacao ja tem uma negociacao concluida e nao pode ser removida.' });
 
     if (publicacao.status === 'em_negociacao' && !eAdmin) {
       await pool.query(
         'UPDATE usuario SET advertencias = advertencias + 1 WHERE id_usuario = ?',
         [publicacao.id_usuario]
       );
-
-      const [u] = await pool.query(
-        'SELECT advertencias FROM usuario WHERE id_usuario = ?',
-        [publicacao.id_usuario]
-      );
-
+      const [u] = await pool.query('SELECT advertencias FROM usuario WHERE id_usuario = ?', [publicacao.id_usuario]);
       if (u[0].advertencias >= 3) {
         const suspensaoAte = new Date();
         suspensaoAte.setDate(suspensaoAte.getDate() + 7);
-        await pool.query(
-          'UPDATE usuario SET suspenso_ate = ? WHERE id_usuario = ?',
-          [suspensaoAte, publicacao.id_usuario]
-        );
+        await pool.query('UPDATE usuario SET suspenso_ate = ? WHERE id_usuario = ?', [suspensaoAte, publicacao.id_usuario]);
       }
-
       await pool.query(
-        `INSERT INTO notificacao (id_usuario, titulo, mensagem)
-         VALUES (?, '⚠️ Advertência aplicada', ?)`,
-        [
-          publicacao.id_usuario,
-          'Removeste uma publicação que estava em negociação. Esta acção resultou numa advertência. Ao acumular 3 advertências a tua conta será suspensa por 7 dias.'
-        ]
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem) VALUES (?, 'Advertencia aplicada', ?)`,
+        [publicacao.id_usuario, 'Removeste uma publicacao que estava em negociacao. Esta accao resultou numa advertencia.']
       );
     }
 
-    await pool.query(
-      'UPDATE publicacao SET eliminado = 1 WHERE id_publicacao = ?',
-      [req.params.id]
-    );
+    await pool.query('UPDATE publicacao SET eliminado = 1 WHERE id_publicacao = ?', [req.params.id]);
 
-    const mensagem = publicacao.status === 'em_negociacao'
-      ? 'Publicação removida. Foi aplicada uma advertência à tua conta.'
-      : 'Publicação removida com sucesso.';
-
-    res.json({ mensagem });
+    res.json({
+      mensagem: publicacao.status === 'em_negociacao'
+        ? 'Publicacao removida. Foi aplicada uma advertencia a tua conta.'
+        : 'Publicacao removida com sucesso.'
+    });
   } catch (err) {
-    console.error('Erro ao apagar publicação:', err);
+    console.error('Erro ao apagar publicacao:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
-// ── PATCH /api/feed/:id/status 
+// PATCH /api/feed/:id/status
 router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
     const statusValidos = ['disponivel', 'em_negociacao', 'fechada'];
-    if (!statusValidos.includes(status)) {
-      return res.status(400).json({ erro: 'Status inválido.' });
-    }
-    await pool.query(
-      'UPDATE publicacao SET status = ? WHERE id_publicacao = ?',
-      [status, req.params.id]
-    );
+    if (!statusValidos.includes(status))
+      return res.status(400).json({ erro: 'Status invalido.' });
+    await pool.query('UPDATE publicacao SET status = ? WHERE id_publicacao = ?', [status, req.params.id]);
     res.json({ mensagem: `Status actualizado para "${status}".` });
   } catch (err) {
     res.status(500).json({ erro: err.message });
