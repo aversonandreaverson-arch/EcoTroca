@@ -2,6 +2,7 @@
 //    'disponivel'    -> apaga livremente, sem penalizacao
 //    'em_negociacao' -> apaga MAS recebe advertencia automatica
 //    'fechada'       -> BLOQUEADO, negociacao concluida
+//    'expirada'      -> expirou apos 7 dias sem interesse (Regra 7)
 //
 //  Quem pode publicar:
 //    admin   -> evento, educacao, noticia, aviso
@@ -60,6 +61,7 @@ router.get('/', auth, async (req, res) => {
       LEFT JOIN usuario u ON p.id_usuario = u.id_usuario
       LEFT JOIN residuo r ON p.id_residuo = r.id_residuo
       WHERE p.eliminado = 0
+        AND p.status != 'expirada'
       ORDER BY p.criado_em DESC
       LIMIT 50
     `);
@@ -96,12 +98,9 @@ router.get('/', auth, async (req, res) => {
     `);
 
     // Verifica quais publicacoes JA tiveram proposta enviada por ESTE utilizador
-    // Usado para bloquear o botao "Fazer Troca" apenas para a empresa que ja clicou
-    // Outras empresas ainda podem clicar — o bloqueio e individual por conta
+    // Bloqueio individual por empresa — outras empresas nao sao afectadas
     let propostasEnviadas = [];
     if (req.usuario.tipo_usuario === 'empresa') {
-      // Busca todas as notificacoes de proposta enviadas por este utilizador (empresa)
-      // id_usuario_remetente = quem enviou a proposta (a empresa autenticada)
       const [notifs] = await pool.query(
         `SELECT id_publicacao
          FROM notificacao
@@ -110,7 +109,6 @@ router.get('/', auth, async (req, res) => {
            AND id_publicacao IS NOT NULL`,
         [req.usuario.id_usuario]
       );
-      // Extrai apenas os ids das publicacoes onde ja enviou proposta
       propostasEnviadas = notifs.map(n => n.id_publicacao);
     }
 
@@ -118,8 +116,6 @@ router.get('/', auth, async (req, res) => {
       (a, b) => new Date(b.criado_em) - new Date(a.criado_em)
     );
 
-    // Devolve o feed + a lista de ids onde esta empresa ja enviou proposta
-    // O frontend usa esta lista para bloquear o botao "Fazer Troca" por conta
     res.json({ publicacoes: tudo, propostasEnviadas });
   } catch (err) {
     console.error('Erro ao carregar feed:', err);
@@ -278,7 +274,8 @@ router.delete('/:id', auth, async (req, res) => {
 router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
-    const statusValidos = ['disponivel', 'em_negociacao', 'fechada'];
+    // expirada adicionada aos status validos para o job poder actualizar
+    const statusValidos = ['disponivel', 'em_negociacao', 'fechada', 'expirada'];
     if (!statusValidos.includes(status))
       return res.status(400).json({ erro: 'Status invalido.' });
     await pool.query('UPDATE publicacao SET status = ? WHERE id_publicacao = ?', [status, req.params.id]);
