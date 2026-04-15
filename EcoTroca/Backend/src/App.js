@@ -16,8 +16,8 @@ import feedRoutes          from './routes/feed.routes.js';
 import perfilPublicoRoutes from './routes/perfilpublico.routes.js';
 import residuoRoutes       from './routes/residuo.routes.js';
 import pesquisaRoutes      from './routes/pesquisa.routes.js';
-/* import recolhasRoutes      from './routes/recolhas.routes.js'; 
- */
+import confirmarColetadorRoutes from './routes/confirmar_coletador.routes.js';
+
 const app = express();
 
 // ── CORS — permite pedidos do frontend 
@@ -51,8 +51,8 @@ app.use('/api/feed',           feedRoutes);
 app.use('/api/perfilpublico',  perfilPublicoRoutes);
 app.use('/api/residuos',       residuoRoutes);
 app.use('/api/pesquisa',       pesquisaRoutes);
-/* app.use('/api',                recolhasRoutes); 
- */
+app.use('/api/coletadores',    confirmarColetadorRoutes);
+
 // ── Rota de teste ──
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
 
