@@ -2,6 +2,7 @@
 //  Pagina inicial do coletador — ve o feed de publicacoes,
 //  pesquisa empresas/utilizadores/coletadores e ve oportunidades.
 //  Coletador nao publica — so le o feed.
+// ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -64,11 +65,14 @@ export default function PaginaInicialColetador() {
   }, []);
 
   // Carrega feed e empresas em paralelo
+  // getFeed pode devolver array simples ou { publicacoes, propostasEnviadas }
+  // extraimos sempre o array antes de guardar no estado
   const loadData = useCallback(async () => {
     setCarregando(true);
     try {
-      const [f, e] = await Promise.all([getFeed(), getEmpresas()]);
-      setFeed(f    || []);
+      const [feedDados, e] = await Promise.all([getFeed(), getEmpresas()]);
+      const publicacoes = Array.isArray(feedDados) ? feedDados : (feedDados?.publicacoes || []);
+      setFeed(publicacoes);
       setEmpresas(e || []);
     } catch (err) {
       console.error(err);
