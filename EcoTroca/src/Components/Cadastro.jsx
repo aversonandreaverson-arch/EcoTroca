@@ -1,63 +1,46 @@
-import React, { useState } from "react";
-import { User, Truck, Building2, ChevronDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { User, Truck, Building2, ChevronDown, Check, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { registar } from "../api.js";
+import { registar, getEmpresas } from "../api.js";
 
-// ── Provincias e municipios disponiveis ──────────────────────
-// Por agora so Luanda e Icolo e Bengo — expandir quando necessario
 const PROVINCIAS_MUNICIPIOS = {
-  "Luanda": [
-    "Luanda", "Viana", "Cacuaco", "Cazenga", "Belas",
-    "Icolo e Bengo", "Quilamba Quiaxi"
-  ],
-  "Icolo e Bengo": [
-    "Catete", "Calumbo", "Cassoneca", "Mucari", "Ngangula"
-  ],
+  "Luanda": ["Luanda", "Viana", "Cacuaco", "Cazenga", "Belas", "Icolo e Bengo", "Quilamba Quiaxi"],
+  "Icolo e Bengo": ["Catete", "Calumbo", "Cassoneca", "Mucari", "Ngangula"],
 };
-
-// Lista de provincias para o primeiro dropdown
 const PROVINCIAS = Object.keys(PROVINCIAS_MUNICIPIOS);
 
-// ── Validacoes ───────────────────────────────────────────────
 const validarNome = (nome) => {
   if (!nome.trim()) return "Nome e obrigatorio.";
   if (nome.trim().length < 3) return "Nome deve ter pelo menos 3 caracteres.";
-  if (!/^[a-zA-ZA-y\s]+$/.test(nome)) return "Nome nao pode conter numeros ou caracteres especiais.";
   return null;
 };
-
 const validarTelefone = (tel) => {
   const limpo = tel.replace(/\s/g, "");
   if (!limpo) return "Telefone e obrigatorio.";
   if (!/^[9][0-9]{8}$/.test(limpo)) return "Telefone invalido. Deve ter 9 digitos e comecar por 9.";
   return null;
 };
-
 const validarEmail = (email) => {
   if (!email) return null;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : "Email invalido.";
 };
-
 const validarBI = (bi) => {
   if (!bi) return null;
   if (!/^[0-9]{9}[A-Z]{2}[0-9]{3}$/.test(bi.toUpperCase())) return "BI invalido. Formato: 000000000LA000";
   return null;
 };
-
 const validarDataNascimento = (data) => {
   if (!data) return "Data de nascimento e obrigatoria.";
   const nascimento = new Date(data);
   const hoje = new Date();
   const idade = hoje.getFullYear() - nascimento.getFullYear();
-  const aniversarioPassou =
-    hoje.getMonth() > nascimento.getMonth() ||
+  const aniversarioPassou = hoje.getMonth() > nascimento.getMonth() ||
     (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() >= nascimento.getDate());
   const idadeReal = aniversarioPassou ? idade : idade - 1;
   if (idadeReal < 18) return "Tens de ter pelo menos 18 anos para te registar.";
   if (idadeReal > 100) return "Data de nascimento invalida.";
   return null;
 };
-
 const validarSenha = (senha) => {
   if (!senha) return "Senha e obrigatoria.";
   if (senha.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
@@ -66,7 +49,6 @@ const validarSenha = (senha) => {
   return null;
 };
 
-// ── Card de tipo de conta ────────────────────────────────────
 const Tipo = ({ ativo, onClick, Icon, label }) => (
   <div onClick={onClick}
     className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center transition ${
@@ -77,7 +59,6 @@ const Tipo = ({ ativo, onClick, Icon, label }) => (
   </div>
 );
 
-// ── Input generico ───────────────────────────────────────────
 const Campo = ({ label, obrigatorio, type = "text", hint, value, onChange, erro }) => (
   <div className="flex flex-col">
     <label className="text-green-700 mb-1 text-sm sm:text-base">
@@ -91,8 +72,6 @@ const Campo = ({ label, obrigatorio, type = "text", hint, value, onChange, erro 
   </div>
 );
 
-// ── Dropdown generico ────────────────────────────────────────
-// Substituicao dos inputs de texto para provincia e municipio
 const Dropdown = ({ label, obrigatorio, value, onChange, opcoes, placeholder, erro, disabled }) => (
   <div className="flex flex-col">
     <label className="text-green-700 mb-1 text-sm sm:text-base">
@@ -105,23 +84,31 @@ const Dropdown = ({ label, obrigatorio, value, onChange, opcoes, placeholder, er
         } ${erro ? "border-red-400 focus:ring-red-400" : "focus:ring-green-500"}`}>
         <option value="">{placeholder || "Seleccionar..."}</option>
         {opcoes.map(op => (
-          <option key={op} value={op}>{op}</option>
+          <option key={typeof op === 'object' ? op.value : op}
+            value={typeof op === 'object' ? op.value : op}>
+            {typeof op === 'object' ? op.label : op}
+          </option>
         ))}
       </select>
-      {/* Icone de seta no dropdown */}
       <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
     </div>
     {erro && <p className="text-red-500 text-xs mt-1">{erro}</p>}
   </div>
 );
 
-// ── Componente principal ─────────────────────────────────────
 const Cadastro = () => {
   const navigate = useNavigate();
   const [tipo,       setTipo]       = useState("comum");
   const [erro,       setErro]       = useState("");
   const [erros,      setErros]      = useState({});
   const [carregando, setCarregando] = useState(false);
+
+  // Estados especificos do coletador
+  // pertenceEmpresa: null = ainda nao respondeu, true = sim, false = nao
+  const [pertenceEmpresa,    setPertenceEmpresa]    = useState(null);
+  const [empresas,           setEmpresas]           = useState([]);
+  const [empresaSelecionada, setEmpresaSelecionada] = useState("");
+  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
 
   const [form, setForm] = useState({
     nome: "", telefone: "", provincia: "", municipio: "",
@@ -130,21 +117,37 @@ const Cadastro = () => {
     email: "", senha: "", confirmar_senha: "",
   });
 
-  // Actualiza campo e limpa o erro correspondente
+  // Quando o coletador diz que pertence a uma empresa,
+  // carrega a lista de todas as empresas registadas na plataforma
+  useEffect(() => {
+    if (tipo === "coletor" && pertenceEmpresa === true) {
+      setCarregandoEmpresas(true);
+      getEmpresas()
+        .then(dados => setEmpresas(dados || []))
+        .catch(err => console.error("Erro ao carregar empresas:", err))
+        .finally(() => setCarregandoEmpresas(false));
+    }
+  }, [tipo, pertenceEmpresa]);
+
+  // Quando muda o tipo de conta, reseta as opcoes do coletador
+  const handleTipo = (novoTipo) => {
+    setTipo(novoTipo);
+    setPertenceEmpresa(null);
+    setEmpresaSelecionada("");
+    setErros({});
+    setErro("");
+  };
+
   const atualizar = (campo) => (e) => {
     const valor = e.target.value;
     setForm(prev => {
       const novo = { ...prev, [campo]: valor };
-      // Quando muda a provincia, limpa o municipio
-      // para nao ficar municipio de outra provincia seleccionado
       if (campo === "provincia") novo.municipio = "";
       return novo;
     });
     setErros(prev => ({ ...prev, [campo]: null }));
   };
 
-  // Municipios disponiveis para a provincia seleccionada
-  // Se nenhuma provincia seleccionada, lista vazia — municipio fica desactivado
   const municipiosDisponiveis = form.provincia
     ? (PROVINCIAS_MUNICIPIOS[form.provincia] || [])
     : [];
@@ -170,6 +173,14 @@ const Cadastro = () => {
     if (tipo === "empresa") {
       if (!form.horario_abertura)   e.horario_abertura   = "Horario de abertura e obrigatorio.";
       if (!form.horario_fechamento) e.horario_fechamento = "Horario de fechamento e obrigatorio.";
+    }
+    // Coletador que pertence a empresa tem de seleccionar a empresa
+    if (tipo === "coletor" && pertenceEmpresa === true && !empresaSelecionada) {
+      e.empresa = "Selecciona a empresa a que pertences.";
+    }
+    // Coletador tem de responder se pertence a empresa ou nao
+    if (tipo === "coletor" && pertenceEmpresa === null) {
+      e.pertence = "Indica se pertences a alguma empresa.";
     }
     const filtrado = Object.fromEntries(Object.entries(e).filter(([, v]) => v));
     setErros(filtrado);
@@ -198,11 +209,34 @@ const Cadastro = () => {
           horario_abertura:   form.horario_abertura,
           horario_fechamento: form.horario_fechamento,
         }),
+        // Dados especificos do coletador
+        ...(tipo === "coletor" && {
+          // Se pertence a empresa: dependente + id_empresa + conta inactiva ate confirmacao
+          // Se nao pertence: independente + conta activa imediatamente
+          tipo_coletador: pertenceEmpresa ? "dependente" : "independente",
+          id_empresa:     pertenceEmpresa ? parseInt(empresaSelecionada) : null,
+          // Coletador dependente fica inactivo ate a empresa confirmar
+          // Coletador independente fica activo imediatamente
+          ativo:          pertenceEmpresa ? false : true,
+        }),
       };
       const resultado = await registar(dados);
-      if (resultado.tipo_usuario === "coletor")      navigate("/ColetadorDashboard");
-      else if (resultado.tipo_usuario === "empresa") navigate("/DashboardEmpresa");
-      else                                           navigate("/PaginaInicial");
+
+      if (tipo === "coletor" && pertenceEmpresa) {
+        // Conta criada mas inactiva — mostra mensagem e vai para o login
+        // O coletador so pode entrar depois da empresa confirmar
+        navigate("/Login", {
+          state: {
+            mensagem: `A tua conta foi criada! A empresa foi notificada e ira confirmar que trabalhas para ela. Recebes uma notificacao quando a conta estiver activa.`
+          }
+        });
+      } else if (resultado.tipo_usuario === "coletor") {
+        navigate("/ColetadorDashboard");
+      } else if (resultado.tipo_usuario === "empresa") {
+        navigate("/DashboardEmpresa");
+      } else {
+        navigate("/PaginaInicial");
+      }
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -221,10 +255,100 @@ const Cadastro = () => {
 
         {/* Seleccao do tipo de conta */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Tipo ativo={tipo === "comum"}   onClick={() => setTipo("comum")}   Icon={User}      label="Usuario" />
-          <Tipo ativo={tipo === "coletor"} onClick={() => setTipo("coletor")} Icon={Truck}     label="Coletador" />
-          <Tipo ativo={tipo === "empresa"} onClick={() => setTipo("empresa")} Icon={Building2} label="Empresa" />
+          <Tipo ativo={tipo === "comum"}   onClick={() => handleTipo("comum")}   Icon={User}      label="Usuario" />
+          <Tipo ativo={tipo === "coletor"} onClick={() => handleTipo("coletor")} Icon={Truck}     label="Coletador" />
+          <Tipo ativo={tipo === "empresa"} onClick={() => handleTipo("empresa")} Icon={Building2} label="Empresa" />
         </div>
+
+        {/* ── Pergunta especifica do coletador ── */}
+        {/* Aparece logo apos seleccionar "Coletador" antes dos outros campos */}
+        {tipo === "coletor" && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-2xl p-5">
+            <p className="text-green-800 font-semibold text-sm mb-1">Pertences a alguma empresa?</p>
+            <p className="text-green-600 text-xs mb-4">
+              Se trabalhares para uma empresa registada na plataforma, a tua conta so ficara activa
+              apos a empresa confirmar que trabalhas para ela.
+            </p>
+
+            {/* Botoes Sim / Nao */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={() => { setPertenceEmpresa(true); setEmpresaSelecionada(""); }}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition border ${
+                  pertenceEmpresa === true
+                    ? "bg-green-700 text-white border-green-700"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-green-50"
+                }`}>
+                <Check size={16} /> Sim, pertenco
+              </button>
+              <button
+                onClick={() => { setPertenceEmpresa(false); setEmpresaSelecionada(""); }}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition border ${
+                  pertenceEmpresa === false
+                    ? "bg-gray-700 text-white border-gray-700"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                }`}>
+                <X size={16} /> Nao, sou independente
+              </button>
+            </div>
+
+            {/* Erro se nao respondeu */}
+            {erros.pertence && (
+              <p className="text-red-500 text-xs mb-3">{erros.pertence}</p>
+            )}
+
+            {/* Lista de empresas — so aparece se clicou "Sim" */}
+            {pertenceEmpresa === true && (
+              <div>
+                {carregandoEmpresas ? (
+                  <p className="text-green-600 text-xs text-center py-2">A carregar empresas...</p>
+                ) : (
+                  <div>
+                    <label className="text-green-700 text-sm font-medium block mb-2">
+                      Selecciona a tua empresa <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={empresaSelecionada}
+                        onChange={e => { setEmpresaSelecionada(e.target.value); setErros(prev => ({ ...prev, empresa: null })); }}
+                        className={`w-full border rounded-xl p-3 pr-8 text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-green-400 ${
+                          erros.empresa ? "border-red-400" : "border-gray-200"
+                        }`}>
+                        <option value="">Seleccionar empresa...</option>
+                        {empresas.map(e => (
+                          <option key={e.id_empresa} value={e.id_empresa}>
+                            {e.nome} {e.provincia ? `— ${e.provincia}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
+                    </div>
+                    {erros.empresa && <p className="text-red-500 text-xs mt-1">{erros.empresa}</p>}
+
+                    {/* Aviso sobre activacao da conta */}
+                    {empresaSelecionada && (
+                      <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                        <p className="text-yellow-700 text-xs font-medium">
+                          A tua conta ficara inactiva ate a empresa confirmar que trabalhas para ela.
+                          Recebes uma notificacao quando estiver activa.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Confirmacao coletador independente */}
+            {pertenceEmpresa === false && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-blue-700 text-xs font-medium">
+                  A tua conta ficara activa imediatamente. Poderas aceitar entregas de qualquer utilizador da plataforma.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="space-y-4">
           <Campo label={tipo === "empresa" ? "Nome da empresa" : "Nome completo"} obrigatorio
@@ -233,28 +357,14 @@ const Cadastro = () => {
           <Campo label="Telefone" obrigatorio value={form.telefone} onChange={atualizar("telefone")}
             hint="Ex: 923456789" erro={erros.telefone} />
 
-          {/* Provincia e Municipio — dropdowns em vez de texto livre */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Dropdown de provincia — so Luanda e Icolo e Bengo */}
-            <Dropdown
-              label="Provincia" obrigatorio
-              value={form.provincia}
-              onChange={atualizar("provincia")}
-              opcoes={PROVINCIAS}
-              placeholder="Seleccionar provincia"
-              erro={erros.provincia}
-            />
-            {/* Dropdown de municipio — depende da provincia seleccionada */}
-            {/* Fica desactivado ate a provincia estar seleccionada */}
-            <Dropdown
-              label="Municipio" obrigatorio
-              value={form.municipio}
-              onChange={atualizar("municipio")}
-              opcoes={municipiosDisponiveis}
+            <Dropdown label="Provincia" obrigatorio value={form.provincia}
+              onChange={atualizar("provincia")} opcoes={PROVINCIAS}
+              placeholder="Seleccionar provincia" erro={erros.provincia} />
+            <Dropdown label="Municipio" obrigatorio value={form.municipio}
+              onChange={atualizar("municipio")} opcoes={municipiosDisponiveis}
               placeholder={form.provincia ? "Seleccionar municipio" : "Primeiro selecciona a provincia"}
-              erro={erros.municipio}
-              disabled={!form.provincia}
-            />
+              erro={erros.municipio} disabled={!form.provincia} />
           </div>
 
           <Campo label="Bairro" obrigatorio value={form.bairro} onChange={atualizar("bairro")} erro={erros.bairro} />
@@ -270,8 +380,8 @@ const Cadastro = () => {
 
           {tipo === "empresa" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Campo label="Horario de abertura"   type="time" obrigatorio
-                value={form.horario_abertura}   onChange={atualizar("horario_abertura")}   erro={erros.horario_abertura} />
+              <Campo label="Horario de abertura" type="time" obrigatorio
+                value={form.horario_abertura} onChange={atualizar("horario_abertura")} erro={erros.horario_abertura} />
               <Campo label="Horario de fechamento" type="time" obrigatorio
                 value={form.horario_fechamento} onChange={atualizar("horario_fechamento")} erro={erros.horario_fechamento} />
             </div>
