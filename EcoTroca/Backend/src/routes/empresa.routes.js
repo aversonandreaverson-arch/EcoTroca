@@ -187,6 +187,7 @@ router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
 
     const { nome_utilizador, nome_empresa } = entregas[0];
 
+    // Notifica o utilizador com a data marcada
     await pool.query(
       "INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo) VALUES (?, 'Data de recolha marcada', ?, 'geral')",
       [
@@ -194,6 +195,31 @@ router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
         `A empresa ${nome_empresa} marcou a recolha para ${dataFormatada}.${observacoes ? ` Nota: ${observacoes}` : ''} Certifica-te de estar disponivel.`,
       ]
     );
+
+    // Notifica cada coletador designado com os detalhes da recolha
+    // id_coletadores e um array de ids enviado pelo frontend
+    const id_coletadores = req.body.id_coletadores || [];
+    if (id_coletadores.length > 0) {
+      for (const id_col of id_coletadores) {
+        // Busca o id_usuario do coletador para enviar a notificacao
+        const [colRows] = await pool.query(
+          `SELECT c.id_coletador, u.id_usuario, u.nome
+           FROM coletador c
+           INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+           WHERE c.id_coletador = ? AND c.id_empresa = ?`,
+          [id_col, id_empresa]
+        );
+        if (colRows.length > 0) {
+          await pool.query(
+            "INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo) VALUES (?, 'Nova recolha designada', ?, 'geral')",
+            [
+              colRows[0].id_usuario,
+              `Foste designado para fazer a recolha de ${nome_utilizador} em ${dataFormatada}. Local: ${entregas[0].id_usuario ? 'ver detalhes na app' : 'a confirmar'}.${observacoes ? ` Nota da empresa: ${observacoes}` : ''}`,
+            ]
+          );
+        }
+      }
+    }
 
     res.json({ mensagem: `Data proposta. ${nome_utilizador} foi notificado.`, data_recolha, data_formatada: dataFormatada });
   } catch (err) {
