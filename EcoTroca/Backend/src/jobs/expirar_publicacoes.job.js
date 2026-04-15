@@ -23,7 +23,7 @@ export const iniciarJobExpiracoes = () => {
 
     try {
 
-      // ── 1. AVISO 24H ANTES ───────────────────────────────
+      // ── 1. AVISO 24H ANTES 
       // Busca publicacoes com exactamente 6 dias de vida
       // que ainda estao disponiveis (sem interesse de nenhuma empresa)
       // e que ainda nao receberam o aviso de expiracao
@@ -33,8 +33,8 @@ export const iniciarJobExpiracoes = () => {
          INNER JOIN usuario u ON u.id_usuario = p.id_usuario
          WHERE p.eliminado = 0
            AND p.status = 'disponivel'
-           AND p.criado_em <= NOW() - INTERVAL 6 DAY
-           AND p.criado_em >  NOW() - INTERVAL 7 DAY
+           AND p.criado_em <= NOW() - INTERVAL 5 DAY
+           AND p.criado_em >  NOW() - INTERVAL 6 DAY
            AND p.aviso_expiracao_enviado = 0`
       );
 
@@ -60,7 +60,7 @@ export const iniciarJobExpiracoes = () => {
 
       console.log(`[JOB] ${aExpirarAmanha.length} avisos de expiracao enviados.`);
 
-      // ── 2. EXPIRAR PUBLICACOES COM 7 DIAS ────────────────
+      // ── 2. EXPIRAR PUBLICACOES COM 7 DIAS 
       // Busca publicacoes com 7 ou mais dias de vida
       // que ainda estao disponiveis (sem interesse)
       const [aExpirar] = await pool.query(
