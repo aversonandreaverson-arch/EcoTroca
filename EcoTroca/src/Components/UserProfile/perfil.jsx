@@ -4,21 +4,15 @@
 //    Nível 3 — EcoDefensor   (300–599 pts)
 //    Nível 4 — EcoMestre     (600–999 pts)
 //    Nível 5 — EcoLenda      (1000+ pts)
+//
+//  Modo privado:  /Perfil          → próprio utilizador, mostra Editar + Definições
+//  Modo público:  /Perfil/:id      → outro utilizador, só mostra dados públicos
 
 import { useState, useEffect } from "react";
-import { Edit, Settings, Star, MapPin, ArrowLeft, Phone, Mail, Recycle, Package } from "lucide-react";
+import { Edit, Settings, Star, MapPin, ArrowLeft, Phone, Mail, Recycle, Package, CheckCircle, TrendingUp } from "lucide-react";
 import Header from "./Header";
 import { useNavigate, useParams } from "react-router-dom";
-import { getPerfil, getPontuacao, getPerfilPublico } from "../../api.js";
-
-// Configuracao dos niveis — cor e icone por nivel
-const NIVEIS = [
-  { nome: "EcoIniciante", cor: "bg-gray-500",   limite: 100,  base: 0    },
-  { nome: "EcoAmigo",     cor: "bg-green-500",  limite: 300,  base: 100  },
-  { nome: "EcoDefensor",  cor: "bg-blue-500",   limite: 600,  base: 300  },
-  { nome: "EcoMestre",    cor: "bg-purple-500", limite: 1000, base: 600  },
-  { nome: "EcoLenda",     cor: "bg-orange-500", limite: 1500, base: 1000 },
-];
+import { getPerfil, getPontuacao, getPerfilPublico, getMinhasEntregas } from "../../api.js";
 
 export default function Perfil() {
   const navigate    = useNavigate();
@@ -27,6 +21,7 @@ export default function Perfil() {
 
   const [perfil,     setPerfil]     = useState(null);
   const [pontuacao,  setPontuacao]  = useState(null);
+  const [entregas,   setEntregas]   = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState('');
 
@@ -41,9 +36,14 @@ export default function Perfil() {
             total_entregas: dados.perfil.total_entregas || 0,
           }});
         } else {
-          const [p, pts] = await Promise.all([getPerfil(), getPontuacao()]);
+          const [p, pts, minhasEntregas] = await Promise.all([
+            getPerfil(),
+            getPontuacao(),
+            getMinhasEntregas(),
+          ]);
           setPerfil(p);
           setPontuacao(pts);
+          setEntregas(minhasEntregas || []);
         }
       } catch (err) {
         setErro(err.message);
@@ -85,11 +85,23 @@ export default function Perfil() {
                     totalPontos < 600  ? 2 :
                     totalPontos < 1000 ? 3 : 4;
 
+  const NIVEIS = [
+    { nome: "EcoIniciante", limite: 100,  base: 0    },
+    { nome: "EcoAmigo",     limite: 300,  base: 100  },
+    { nome: "EcoDefensor",  limite: 600,  base: 300  },
+    { nome: "EcoMestre",    limite: 1000, base: 600  },
+    { nome: "EcoLenda",     limite: 1500, base: 1000 },
+  ];
+
   const nivelCfg  = NIVEIS[nivelIdx];
   const progresso = Math.min(100, Math.round(
     ((totalPontos - nivelCfg.base) / (nivelCfg.limite - nivelCfg.base)) * 100
   ));
-  const proxNivel = NIVEIS[Math.min(nivelIdx + 1, 4)].nome;
+
+  // KPIs das entregas — so no modo privado
+  const entregasConcluidas = entregas.filter(e => e.status === 'coletada');
+  const totalDinheiro = entregasConcluidas
+    .reduce((acc, e) => acc + parseFloat(e.valor_utilizador || 0), 0);
 
   return (
     <div className="min-h-screen bg-green-100 pt-24 pb-12">
@@ -105,7 +117,7 @@ export default function Perfil() {
           </button>
         )}
 
-        {/* Banner do perfil */}
+        {/* Banner do perfil — igual ao da empresa mas verde */}
         <div className="bg-green-700 text-white rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
           <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />
           <div className="absolute -bottom-6 right-20 w-24 h-24 bg-white/5 rounded-full" />
@@ -120,9 +132,9 @@ export default function Perfil() {
               <h2 className="text-xl font-bold truncate">{perfil.nome}</h2>
 
               {/* Badge de nivel */}
-              <div className={`inline-flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full text-xs font-semibold ${nivelCfg.cor} bg-opacity-80`}>
+              <div className="inline-flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full text-xs font-semibold bg-white/20">
                 <Star size={11} className="fill-white" />
-                {nivelCfg.nome} — Nível {nivelIdx + 1}
+                {nivelCfg.nome} — Nivel {nivelIdx + 1}
               </div>
 
               {/* Localizacao */}
@@ -134,7 +146,7 @@ export default function Perfil() {
               )}
             </div>
 
-            {/* Botoes editar — so no modo privado */}
+            {/* Botoes — so no modo privado */}
             {!modoPublico && (
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={() => navigate("/Editar")}
@@ -153,7 +165,7 @@ export default function Perfil() {
           <div className="relative mt-4">
             <div className="flex justify-between text-xs text-white/70 mb-1">
               <span>{totalPontos} pontos</span>
-              <span>{progresso}% para {proxNivel}</span>
+              <span>{progresso}% para {NIVEIS[Math.min(nivelIdx + 1, 4)].nome}</span>
             </div>
             <div className="w-full bg-white/20 rounded-full h-2">
               <div className="bg-white h-2 rounded-full transition-all duration-500"
@@ -162,33 +174,50 @@ export default function Perfil() {
           </div>
         </div>
 
-        {/* Cards de estatisticas */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="bg-white rounded-2xl shadow-sm p-4 text-center border border-green-100">
-            <p className="text-2xl font-bold text-green-700">{totalPontos}</p>
-            <p className="text-xs text-gray-400 mt-0.5 flex items-center justify-center gap-1">
-              <Star size={10} className="text-yellow-500" /> Pontos
-            </p>
+        {/* KPIs — so no modo privado */}
+        {!modoPublico && (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
+              <Package size={20} className="text-green-600 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-green-700">{entregas.filter(e => !e.id_publicacao && e.status !== 'cancelada').length}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Residuos</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
+              <Recycle size={20} className="text-blue-600 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-blue-700">{entregasConcluidas.length}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Concluidas</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
+              <TrendingUp size={20} className="text-orange-500 mx-auto mb-1" />
+              <p className="text-xl font-bold text-orange-600">
+                {totalDinheiro >= 1000 ? `${(totalDinheiro/1000).toFixed(1)}k` : totalDinheiro.toFixed(0)}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Kz ganhos</p>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-4 text-center border border-green-100">
-            <p className="text-2xl font-bold text-green-700">{totalTrocas}</p>
-            <p className="text-xs text-gray-400 mt-0.5 flex items-center justify-center gap-1">
-              <Recycle size={10} className="text-green-500" /> Entregas
-            </p>
+        )}
+
+        {/* KPIs publicos — so no modo publico */}
+        {modoPublico && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
+              <Star size={20} className="text-yellow-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-green-700">{totalPontos}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Pontos</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4 text-center">
+              <CheckCircle size={20} className="text-green-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-green-700">{totalTrocas}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Entregas</p>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-4 text-center border border-green-100">
-            <p className="text-2xl font-bold text-green-700">{nivelIdx + 1}</p>
-            <p className="text-xs text-gray-400 mt-0.5 flex items-center justify-center gap-1">
-              <Package size={10} className="text-blue-500" /> Nivel
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Contactos — so no modo privado */}
         {!modoPublico && (perfil.email || perfil.telefone) && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 border border-green-100 mb-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-5 mb-4">
             <h3 className="text-green-800 font-semibold text-sm mb-3">Contactos</h3>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {perfil.email && (
                 <div className="flex items-center gap-2 text-gray-600 text-sm">
                   <Mail size={14} className="text-green-500 shrink-0" />
@@ -207,7 +236,7 @@ export default function Perfil() {
 
         {/* Data de registo — so no modo publico */}
         {modoPublico && perfil.data_criacao && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 border border-green-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-5">
             <p className="text-gray-400 text-sm">
               Membro desde {new Date(perfil.data_criacao).toLocaleDateString('pt-AO', {
                 month: 'long', year: 'numeric'
