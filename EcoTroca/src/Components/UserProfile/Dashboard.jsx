@@ -1,4 +1,4 @@
-//  Dashboard.jsx - Painel do utilizador comum
+
 //  SEPARACAO DE ENTREGAS:
 //    - "Meus Residuos"       -> entregas sem id_publicacao (criadas pelo utilizador)
 //    - "Pedidos em curso"    -> entregas com id_publicacao (participacoes em pedidos de empresa)
@@ -7,6 +7,7 @@
 //    - getPerfil()          -> GET /api/usuarios/perfil
 //    - getPontuacao()       -> GET /api/usuarios/pontuacao
 //    - getMinhasEntregas()  -> GET /api/entregas
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -86,8 +87,10 @@ export default function Dashboard() {
   const participacoes = entregas.filter(e => e.status !== "cancelada" && e.id_publicacao);
 
   const totalRecolhidas = entregas.filter(e => e.status === "coletada").length;
-  const totalDinheiro   = entregas
-    .filter(e => e.status === "coletada" && e.tipo_recompensa === "dinheiro")
+  // Calcula dinheiro ganho em todas as entregas coletadas com valor preenchido
+  // tipo_recompensa pode ser dinheiro, saldo ou pontos
+  const totalDinheiro = entregas
+    .filter(e => e.status === "coletada" && parseFloat(e.valor_utilizador || 0) > 0)
     .reduce((acc, e) => acc + parseFloat(e.valor_utilizador || 0), 0);
 
   const calcularProgresso = () => {
