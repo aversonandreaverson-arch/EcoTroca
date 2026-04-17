@@ -1,10 +1,5 @@
-
 const BASE_URL = 'http://localhost:3000/api';
 
-// ── Função base para todas as chamadas 
-// Adiciona o token JWT automaticamente em cada pedido.
-// Se o servidor devolver 401 (token expirado/inválido),
-// limpa o localStorage e redireciona para o login.
 const pedido = async (endpoint, opcoes = {}) => {
   const token = localStorage.getItem('token');
   const headers = {
@@ -14,7 +9,6 @@ const pedido = async (endpoint, opcoes = {}) => {
   };
   const resposta = await fetch(`${BASE_URL}${endpoint}`, { ...opcoes, headers });
 
-  // Token expirado ou inválido — força novo login
   if (resposta.status === 401) {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
@@ -23,8 +17,6 @@ const pedido = async (endpoint, opcoes = {}) => {
   }
 
   const dados = await resposta.json();
-
-  // Erro do servidor — lança para o componente tratar com try/catch
   if (!resposta.ok) throw new Error(dados.erro || 'Erro no servidor');
   return dados;
 };
@@ -33,8 +25,6 @@ const pedido = async (endpoint, opcoes = {}) => {
 //  AUTENTICAÇÃO
 // ============================================================
 
-// Faz login, guarda o token e os dados do utilizador no localStorage.
-// Guarda: nome, tipo, tipo_usuario e id — todos usados nos componentes.
 export const login = async (emailOuTelefone, senha) => {
   const dados = await pedido('/auth/login', {
     method: 'POST',
@@ -50,43 +40,39 @@ export const login = async (emailOuTelefone, senha) => {
   return dados;
 };
 
-// Regista um novo utilizador e entra directamente na plataforma.
-// O backend devolve token JWT — conta activa imediatamente (ativo=1).
-// Se tiver email, recebe mensagem de boas-vindas em segundo plano.
 export const registar = async (dadosFormulario) => {
   const dados = await pedido('/auth/registar', {
     method: 'POST',
     body: JSON.stringify(dadosFormulario),
   });
-  localStorage.setItem('token', dados.token);
-  localStorage.setItem('usuario', JSON.stringify({
-    id:           dados.id_usuario,
-    nome:         dados.nome,
-    tipo:         dados.tipo_usuario,
-    tipo_usuario: dados.tipo_usuario,
-  }));
+  // Coletador dependente nao recebe token — conta inactiva ate empresa confirmar
+  // So guarda sessao se vier token na resposta
+  if (dados.token) {
+    localStorage.setItem('token', dados.token);
+    localStorage.setItem('usuario', JSON.stringify({
+      id:           dados.id_usuario,
+      nome:         dados.nome,
+      tipo:         dados.tipo_usuario,
+      tipo_usuario: dados.tipo_usuario,
+    }));
+  }
   return dados;
 };
 
-// Reenvia o email de confirmação — usado quando o link de 24h expirou
 export const reenviarConfirmacao = (email) =>
   pedido('/auth/reenviarConfirmacao', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 
-// Remove sessão local e redireciona para o login
 export const logout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('usuario');
   window.location.href = '/Login';
 };
 
-// Verifica se existe token guardado — não valida no servidor
 export const estaAutenticado = () => !!localStorage.getItem('token');
 
-// Devolve os dados do utilizador guardados localmente após o login.
-// Contém: id, nome, tipo, tipo_usuario
 export const getUtilizadorLocal = () => {
   const dados = localStorage.getItem('usuario');
   return dados ? JSON.parse(dados) : null;
@@ -127,9 +113,6 @@ export const getCarteira = () => pedido('/usuarios/carteira');
 
 export const getMinhasEntregas = () => pedido('/entregas');
 
-// Utilizador participa num pedido de empresa directamente do feed
-// Cria entrega ligada ao pedido (id_publicacao) e notifica a empresa automaticamente
-// dados: { id_empresa, id_publicacao, tipo_entrega, endereco_domicilio, tipo_recompensa, residuos }
 export const participarEmPedido = (dados) =>
   pedido('/entregas', { method: 'POST', body: JSON.stringify(dados) });
 
@@ -169,8 +152,6 @@ export const atualizarEmpresa = (dados) =>
 
 export const getEntregasEmpresa = () => pedido('/empresas/minhas/entregas');
 
-// Aceita entrega com o peso real registado pela empresa
-// peso_real → kg efectivos pesados no momento da recepção dos resíduos
 export const aceitarEntregaEmpresa = (id, peso_real) =>
   pedido(`/empresas/minhas/entregas/${id}/aceitar`, {
     method: 'POST',
@@ -183,10 +164,6 @@ export const rejeitarEntregaEmpresa = (id, motivo, pede_foto, pede_limpeza) =>
     body: JSON.stringify({ motivo, pede_foto, pede_limpeza }),
   });
 
-
-// Empresa propoe data de recolha ao utilizador
-// Utilizador recebe notificacao automaticamente com a data formatada
-// dados: { data_recolha: '2026-04-10T09:00', observacoes: '...' }
 export const proporDataRecolha = (id_entrega, dados) =>
   pedido(`/empresas/minhas/entregas/${id_entrega}/propor-data`, {
     method: 'POST',
@@ -213,41 +190,45 @@ export const criarEventoEmpresa = (dados) =>
 //  RECOLHAS AGENDADAS
 // ============================================================
 
-// Lista todas as recolhas agendadas da empresa com coletadores e total de entregas
 export const getRecolhasEmpresa = () =>
   pedido('/empresas/minhas/recolhas');
 
-// Detalhe de uma recolha — coletadores + entregas associadas
 export const getRecolha = (id) =>
   pedido(`/empresas/minhas/recolhas/${id}`);
 
-// Cria nova recolha agendada — notifica automaticamente todos os utilizadores
-// dados: { data_recolha, observacoes, ids_coletadores: [], ids_entregas: [] }
 export const criarRecolha = (dados) =>
   pedido('/empresas/minhas/recolhas', {
     method: 'POST',
     body: JSON.stringify(dados),
   });
 
-// Actualiza o status de uma recolha: agendada | em_curso | concluida | cancelada
-// Quando concluída ou cancelada, notifica os utilizadores envolvidos
 export const actualizarStatusRecolha = (id, status) =>
   pedido(`/empresas/minhas/recolhas/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 
-// Lista entregas com acordo mas ainda sem recolha agendada
-// Devolve também { atingiu_limiar, sugestao } para alertar a empresa
 export const getAcordosPendentes = () =>
   pedido('/empresas/minhas/acordos-pendentes');
 
-// Actualiza o limiar de acordos que dispara a sugestão de recolha em lote
 export const actualizarLimiar = (limiar_recolha) =>
   pedido('/empresas/minhas/limiar', {
     method: 'PUT',
     body: JSON.stringify({ limiar_recolha }),
   });
+
+// ============================================================
+//  CONFIRMACAO DE COLETADORES DEPENDENTES
+// ============================================================
+
+export const getColetadoresPendentes = () =>
+  pedido('/coletadores/pendentes');
+
+export const confirmarColetador = (id) =>
+  pedido(`/coletadores/${id}/confirmar`, { method: 'POST' });
+
+export const recusarColetador = (id) =>
+  pedido(`/coletadores/${id}/recusar`, { method: 'POST' });
 
 // ============================================================
 //  EVENTOS
@@ -299,17 +280,12 @@ export const recusarProposta = (id) =>
 
 export const getResiduos = () => pedido('/residuos');
 
-// Conversoes padrao por tipo — sugeridas automaticamente no modal
 export const getConversoes = () => pedido('/residuos/conversoes');
 
 // ============================================================
-//  PUBLICAÇÕES — feed da Página Inicial
+//  PUBLICAÇÕES — feed
 // ============================================================
 
-// getFeed devolve { publicacoes, propostasEnviadas }
-// publicacoes    -> lista de publicacoes do feed
-// propostasEnviadas -> ids das publicacoes onde ESTA empresa ja enviou proposta
-//                     (so preenchido quando o utilizador e empresa)
 export const getFeed = () => pedido('/feed');
 
 export const criarPublicacao = (dados) =>
@@ -334,7 +310,6 @@ export const getPerfilPublico = (tipo, id) => pedido(`/perfilpublico/${tipo}/${i
 export const getEmpresas = () => pedido('/empresas');
 export const pesquisar   = (q) => pedido(`/pesquisa?q=${encodeURIComponent(q)}`);
 export const getEmpresaPorId = (id) => pedido(`/empresas/${id}`);
-
 export const getEmpresa = (id) => pedido(`/empresas/${id}`);
 
 // ============================================================

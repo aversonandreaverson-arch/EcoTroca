@@ -36,12 +36,12 @@ router.get('/pendentes', auth, async (req, res) => {
       `SELECT c.id_coletador, c.tipo,
               u.id_usuario, u.nome, u.telefone, u.email,
               u.provincia, u.municipio, u.bairro,
-              u.criado_em
+              u.data_criacao
        FROM coletador c
        INNER JOIN usuario u ON u.id_usuario = c.id_usuario
        WHERE c.id_empresa = ?
          AND u.ativo = FALSE
-       ORDER BY u.criado_em DESC`,
+       ORDER BY u.data_criacao DESC`,
       [id_empresa]
     );
 
