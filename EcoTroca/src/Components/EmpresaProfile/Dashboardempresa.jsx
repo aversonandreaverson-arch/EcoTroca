@@ -18,6 +18,7 @@ import {
   Bell, Package2, MapPin, Trash2
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
+import ColetadoresPendentes from './ColetadoresPendentes.jsx';
 import {
   getEntregasEmpresa,
   getEventosEmpresa,
@@ -581,6 +582,9 @@ export default function DashboardEmpresa() {
 
       {/* ── Erro global ── */}
       {erro && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 mb-6 text-sm">{erro}</div>}
+
+      {/* Coletadores dependentes a aguardar confirmacao da empresa */}
+      <ColetadoresPendentes />
 
       {/* ── KPIs linha 1: pendentes, aceites, rejeitadas, total kg ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
