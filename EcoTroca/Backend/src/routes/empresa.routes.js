@@ -15,8 +15,8 @@ const getIdEmpresa = async (id_usuario) => {
   return rows[0];
 };
 
-// GET /api/empresas
-router.get('/', auth, async (req, res) => {
+// GET /api/empresas — publica, sem autenticacao (usada no Cadastro)
+router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT e.id_empresa, e.nome, e.telefone, e.email,
