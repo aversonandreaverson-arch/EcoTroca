@@ -12,10 +12,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp, PlusCircle, Pencil, Trash2,
-  Package, Recycle, Star, Banknote, LogOut, Building2, CheckCircle, Clock
+  Package, Recycle, Star, Banknote, LogOut, Building2, CheckCircle, Clock, CreditCard
 } from "lucide-react";
 import Header from "./Header";
-import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout } from "../../api.js";
+import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira } from "../../api.js";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [entregas,   setEntregas]   = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState("");
+  const [carteira,   setCarteira]   = useState(null);
 
   useEffect(() => { carregar(); }, []);
 
@@ -32,14 +33,16 @@ export default function Dashboard() {
   const carregar = async () => {
     try {
       setCarregando(true);
-      const [perfil, pts, minhasEntregas] = await Promise.all([
+      const [perfil, pts, minhasEntregas, dadosCarteira] = await Promise.all([
         getPerfil(),
         getPontuacao(),
         getMinhasEntregas(),
+        getCarteira(),
       ]);
       setUsuario(perfil);
       setPontuacao(pts);
       setEntregas(minhasEntregas);
+      setCarteira(dadosCarteira);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -89,9 +92,14 @@ export default function Dashboard() {
   const totalRecolhidas = entregas.filter(e => e.status === "coletada").length;
   // Calcula dinheiro ganho em todas as entregas coletadas com valor preenchido
   // tipo_recompensa pode ser dinheiro, saldo ou pontos
+  // Dinheiro sacavel — entregas com tipo_recompensa = 'dinheiro'
   const totalDinheiro = entregas
-    .filter(e => e.status === "coletada" && parseFloat(e.valor_utilizador || 0) > 0)
+    .filter(e => e.status === "coletada" && e.tipo_recompensa === "dinheiro" && parseFloat(e.valor_utilizador || 0) > 0)
     .reduce((acc, e) => acc + parseFloat(e.valor_utilizador || 0), 0);
+
+  // Saldo na plataforma — entregas com tipo_recompensa = 'saldo'
+  // Usa carteira.saldo do backend que e a fonte de verdade
+  const totalSaldo = parseFloat(carteira?.saldo || 0);
 
   const calcularProgresso = () => {
     const p = totalPontos;
@@ -126,7 +134,7 @@ export default function Dashboard() {
         </div>
 
         {/* Estatisticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
           <div className="bg-white rounded-2xl shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-gray-400 text-sm">Residuos publicados</p>
@@ -148,12 +156,25 @@ export default function Dashboard() {
             </div>
             <p className="text-2xl font-bold text-orange-400">{totalPontos}</p>
           </div>
+        </div>
+
+        {/* Cards financeiros — dinheiro e saldo separados */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-gray-400 text-sm">Dinheiro ganho</p>
               <Banknote size={20} className="text-green-600" />
             </div>
-            <p className="text-2xl font-bold text-gray-800">{totalDinheiro.toFixed(0)} Kz</p>
+            <p className="text-2xl font-bold text-green-700">{totalDinheiro.toFixed(0)} Kz</p>
+            <p className="text-xs text-gray-400 mt-1">Sacavel</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-gray-400 text-sm">Saldo na plataforma</p>
+              <CreditCard size={20} className="text-blue-500" />
+            </div>
+            <p className="text-2xl font-bold text-blue-600">{totalSaldo.toFixed(0)} Kz</p>
+            <p className="text-xs text-gray-400 mt-1">So na app</p>
           </div>
         </div>
 
