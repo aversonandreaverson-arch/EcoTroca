@@ -60,6 +60,8 @@ router.get('/minhas/entregas', auth, async (req, res) => {
          en.observacoes_empresa,
          en.valor_utilizador,
          en.valor_coletador,
+         en.latitude,
+         en.longitude,
          u.nome AS nome_usuario, u.telefone AS telefone_usuario,
          GROUP_CONCAT(r.tipo ORDER BY r.tipo SEPARATOR ', ') AS tipos_residuos
        FROM entrega en

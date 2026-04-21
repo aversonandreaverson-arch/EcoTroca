@@ -98,7 +98,7 @@ const HeaderEmpresa = () => {
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-4">
 
-        <h1 className="text-xl font-bold text-green-700">🏭 EcoTroca — Empresa</h1>
+        <h1 className="text-xl font-bold text-green-700"> EcoTroca — Empresa</h1>
 
         <ul className="hidden md:flex items-center gap-6 text-green-700 font-medium text-sm">
           {links.map((link) => (
