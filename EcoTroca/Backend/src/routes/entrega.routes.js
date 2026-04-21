@@ -10,7 +10,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/entregas 
+// ── GET /api/entregas ─────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -49,14 +49,17 @@ router.post('/', auth, async (req, res) => {
       imagem,
       id_empresa,      // empresa destino (quando vem do NovoResiduo?empresa=X)
       id_publicacao,   // pedido específico da empresa (quando vem de um pedido)
+      latitude,        // coordenadas GPS do mapa Leaflet
+      longitude,
     } = req.body;
 
     // Insiro a entrega principal
     const [result] = await pool.query(
       `INSERT INTO entrega
         (id_usuario, tipo_entrega, endereco_domicilio, id_ponto,
-         tipo_recompensa, observacoes, data_hora, id_empresa, id_publicacao)
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+         tipo_recompensa, observacoes, data_hora, id_empresa, id_publicacao,
+         latitude, longitude)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)`,
       [
         req.usuario.id_usuario,
         tipo_entrega,
@@ -66,6 +69,8 @@ router.post('/', auth, async (req, res) => {
         observacoes   || null,
         id_empresa    || null,
         id_publicacao || null,
+        latitude      || null,
+        longitude     || null,
       ]
     );
 
