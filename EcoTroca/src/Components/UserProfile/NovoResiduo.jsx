@@ -1,35 +1,56 @@
 
-//  NovoResiduo.jsx
 //  MODOS:
 //    /NovoResiduo              -> oferta geral (sem empresa destino)
 //    /NovoResiduo?empresa=3    -> oferta directa a empresa 3
 //    /EditarResiduo/:id        -> edicao de entrega existente
 //
-//  FLUXO:
-//    1. Tipo de residuo
-//    2. Qualidade com intervalo de preco
-//    3. Como entregar:
-//       a) "Levo eu"         -> tipo_entrega = ponto_recolha
-//       b) "Em casa"         -> tipo_entrega = domicilio (empresa vai buscar)
-//       c) "Chamar coletador"-> tipo_entrega = coletador (coletador independente vai buscar)
-//    4. Endereco obrigatorio + referencia opcional
-//    5. Forma de recompensa (dinheiro, saldo ou pontos)
-//    6. Upload de foto (opcional)
-//    7. Observacoes (opcional)
+//  MAPA LEAFLET:
+//    Utilizador clica no mapa para escolher a localizacao exacta
+//    As coordenadas (latitude, longitude) sao guardadas com a entrega
+//    O endereco e preenchido automaticamente via Nominatim (OpenStreetMap)
+//    Empresa e coletador podem ver a localizacao no mapa nas suas apps
 
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
 import {
   Recycle, FileText, Wrench, Wine,
   Home, MapPin, Banknote, CreditCard, Star as StarIcon,
   ThumbsDown, Smile, ThumbsUp, Star,
-  ImagePlus, X, AlertCircle, Building2, Truck
+  ImagePlus, X, AlertCircle, Building2, Truck, Navigation
 } from "lucide-react";
 import { criarEntrega, editarEntrega, getEntrega, getResiduos, getEmpresaPorId } from "../../api.js";
 import Header from "./Header";
 
-// Icones por tipo de residuo
+// Corrige icone padrao do Leaflet que quebra com Vite/Webpack
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+// Icone verde personalizado para o marcador do utilizador
+const iconeVerde = new L.Icon({
+  iconUrl:       "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize:      [25, 41],
+  iconAnchor:    [12, 41],
+  popupAnchor:   [1, -34],
+  shadowSize:    [41, 41],
+});
+
+// Componente interno que captura cliques no mapa
+function CapturarClique({ onClicar }) {
+  useMapEvents({
+    click(e) {
+      onClicar(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
 const ICONE_TIPO = {
   Plastico: <Recycle  size={20} className="mx-auto mb-1 text-green-600"  />,
   Papel:    <FileText size={20} className="mx-auto mb-1 text-yellow-600" />,
@@ -38,10 +59,7 @@ const ICONE_TIPO = {
 };
 
 const LABEL_TIPO = {
-  Plastico: "Plastico",
-  Papel:    "Papel",
-  Metal:    "Metal",
-  Vidro:    "Vidro",
+  Plastico: "Plastico", Papel: "Papel", Metal: "Metal", Vidro: "Vidro",
 };
 
 const QUALIDADE_CONFIG = {
@@ -51,27 +69,14 @@ const QUALIDADE_CONFIG = {
   excelente: { icone: <Star       size={14} className="text-orange-400" />, label: "Excelente" },
 };
 
-// As 3 opcoes de entrega com descricao clara
 const OPCOES_ENTREGA = [
-  {
-    valor:    "ponto_recolha",
-    icone:    <MapPin size={20} className="mx-auto mb-1 text-green-600" />,
-    titulo:   "Levo eu",
-    descricao:"Entrego no ponto da empresa",
-  },
-  {
-    valor:    "domicilio",
-    icone:    <Home size={20} className="mx-auto mb-1 text-blue-500" />,
-    titulo:   "Em casa",
-    descricao:"A empresa vem buscar",
-  },
-  {
-    valor:    "coletador",
-    icone:    <Truck size={20} className="mx-auto mb-1 text-orange-500" />,
-    titulo:   "Coletador",
-    descricao:"Chamo um coletador independente",
-  },
+  { valor: "ponto_recolha", icone: <MapPin size={20} className="mx-auto mb-1 text-green-600" />, titulo: "Levo eu",    descricao: "Entrego no ponto da empresa" },
+  { valor: "domicilio",     icone: <Home   size={20} className="mx-auto mb-1 text-blue-500"  />, titulo: "Em casa",   descricao: "A empresa vem buscar"        },
+  { valor: "coletador",     icone: <Truck  size={20} className="mx-auto mb-1 text-orange-500"/>, titulo: "Coletador", descricao: "Chamo um coletador"          },
 ];
+
+// Centro padrao do mapa — Luanda, Angola
+const CENTRO_PADRAO = [-8.8368, 13.2343];
 
 export default function NovoResiduo() {
   const navigate       = useNavigate();
@@ -79,27 +84,26 @@ export default function NovoResiduo() {
   const [searchParams] = useSearchParams();
   const modoEdicao     = !!id;
 
-  // Parametros da URL quando vem de pedido de empresa
   const idEmpresaUrl    = searchParams.get("empresa");
   const idPublicacaoUrl = searchParams.get("pub");
   const modoEmpresa     = !!idEmpresaUrl;
 
-  // Nome da empresa para o banner
-  const [nomeEmpresa, setNomeEmpresa] = useState("");
-
-  // Residuos da BD
+  const [nomeEmpresa,           setNomeEmpresa]           = useState("");
   const [todosResiduos,         setTodosResiduos]         = useState([]);
   const [tiposUnicos,           setTiposUnicos]           = useState([]);
   const [qualidadesDisponiveis, setQualidadesDisponiveis] = useState([]);
+  const [tipoSelecionado,       setTipoSelecionado]       = useState("");
+  const [idResiduo,             setIdResiduo]             = useState("");
+  const [recompensa,            setRecompensa]            = useState("dinheiro");
+  const [tipoEntrega,           setTipoEntrega]           = useState("ponto_recolha");
+  const [endereco,              setEndereco]              = useState("");
+  const [referencia,            setReferencia]            = useState("");
+  const [observacoes,           setObservacoes]           = useState("");
 
-  // Campos do formulario
-  const [tipoSelecionado, setTipoSelecionado] = useState("");
-  const [idResiduo,       setIdResiduo]       = useState("");
-  const [recompensa,      setRecompensa]      = useState("dinheiro");
-  const [tipoEntrega,     setTipoEntrega]     = useState("ponto_recolha"); // padrao: levo eu
-  const [endereco,        setEndereco]        = useState("");
-  const [referencia,      setReferencia]      = useState("");
-  const [observacoes,     setObservacoes]     = useState("");
+  // Estados do mapa
+  const [posicao,           setPosicao]           = useState(null);   // [lat, lng] escolhido
+  const [aObterLocalizacao, setAObterLocalizacao] = useState(false);  // spinner GPS
+  const [erroMapa,          setErroMapa]          = useState("");     // erro de geocodificacao
 
   // Upload de imagem
   const [imagemBase64,  setImagemBase64]  = useState("");
@@ -107,11 +111,9 @@ export default function NovoResiduo() {
   const [erroImagem,    setErroImagem]    = useState("");
   const inputFicheiroRef = useRef(null);
 
-  // Estado geral
   const [erro,       setErro]       = useState("");
   const [carregando, setCarregando] = useState(false);
 
-  // Carregamento inicial
   useEffect(() => {
     const carregar = async () => {
       try {
@@ -119,23 +121,23 @@ export default function NovoResiduo() {
         setTodosResiduos(dados);
         setTiposUnicos([...new Set(dados.map(r => r.tipo))]);
 
-        // Se vier de pedido de empresa, carrega o nome para o banner
         if (modoEmpresa && idEmpresaUrl) {
           try {
             const empresa = await getEmpresaPorId(idEmpresaUrl);
             setNomeEmpresa(empresa.nome || "Empresa");
-          } catch {
-            setNomeEmpresa("Empresa #" + idEmpresaUrl);
-          }
+          } catch { setNomeEmpresa("Empresa #" + idEmpresaUrl); }
         }
 
-        // Em modo edicao, pre-preenche com os dados existentes
         if (modoEdicao) {
           const entrega = await getEntrega(id);
           setTipoEntrega(entrega.tipo_entrega    || "ponto_recolha");
           setEndereco(entrega.endereco_domicilio || "");
           setRecompensa(entrega.tipo_recompensa  || "dinheiro");
           setObservacoes(entrega.observacoes     || "");
+          // Restaura posicao no mapa se existir
+          if (entrega.latitude && entrega.longitude) {
+            setPosicao([parseFloat(entrega.latitude), parseFloat(entrega.longitude)]);
+          }
           if (entrega.tipo_residuo) {
             setTipoSelecionado(entrega.tipo_residuo);
             setQualidadesDisponiveis(dados.filter(r => r.tipo === entrega.tipo_residuo));
@@ -150,14 +152,61 @@ export default function NovoResiduo() {
     carregar();
   }, []);
 
-  // Selecciona tipo e actualiza qualidades
+  // Quando o utilizador clica no mapa — obtem endereco via Nominatim (gratuito)
+  const handleClicarMapa = useCallback(async (lat, lng) => {
+    setPosicao([lat, lng]);
+    setErroMapa("");
+    try {
+      // Nominatim e o geocodificador do OpenStreetMap — gratuito e sem API key
+      const resposta = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt`,
+        { headers: { "Accept-Language": "pt" } }
+      );
+      const dados = await resposta.json();
+      if (dados.display_name) {
+        // Monta endereco legivel a partir dos componentes
+        const addr = dados.address || {};
+        const partes = [
+          addr.road || addr.pedestrian || addr.street,
+          addr.house_number,
+          addr.suburb || addr.neighbourhood || addr.quarter,
+          addr.city || addr.town || addr.village || addr.municipality,
+        ].filter(Boolean);
+        setEndereco(partes.join(", ") || dados.display_name);
+      }
+    } catch {
+      setErroMapa("Nao foi possivel obter o endereco. Podes escreve-lo manualmente.");
+    }
+  }, []);
+
+  // Obtem localizacao GPS do dispositivo
+  const obterLocalizacaoGPS = () => {
+    if (!navigator.geolocation) {
+      setErroMapa("O teu dispositivo nao suporta GPS.");
+      return;
+    }
+    setAObterLocalizacao(true);
+    setErroMapa("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        handleClicarMapa(latitude, longitude);
+        setAObterLocalizacao(false);
+      },
+      () => {
+        setErroMapa("Nao foi possivel obter a localizacao GPS. Clica no mapa para escolher.");
+        setAObterLocalizacao(false);
+      },
+      { timeout: 10000 }
+    );
+  };
+
   const handleTipo = (tipo) => {
     setTipoSelecionado(tipo);
     setIdResiduo("");
     setQualidadesDisponiveis(todosResiduos.filter(r => r.tipo === tipo));
   };
 
-  // Upload de imagem — converte para base64
   const handleImagem = (e) => {
     const ficheiro = e.target.files[0];
     if (!ficheiro) return;
@@ -165,10 +214,7 @@ export default function NovoResiduo() {
     if (!ficheiro.type.startsWith("image/")) { setErroImagem("Selecciona um ficheiro de imagem valido."); return; }
     setErroImagem("");
     const leitor = new FileReader();
-    leitor.onload = (ev) => {
-      setImagemBase64(ev.target.result);
-      setImagemPreview(ev.target.result);
-    };
+    leitor.onload = (ev) => { setImagemBase64(ev.target.result); setImagemPreview(ev.target.result); };
     leitor.readAsDataURL(ficheiro);
   };
 
@@ -177,12 +223,10 @@ export default function NovoResiduo() {
     if (inputFicheiroRef.current) inputFicheiroRef.current.value = "";
   };
 
-  // Submete o formulario
   const handlePublicar = async () => {
     if (!idResiduo) { setErro("Selecciona o tipo e a qualidade do residuo."); return; }
-    // Endereco obrigatorio quando nao vai ao ponto de recolha
-    if (tipoEntrega !== "ponto_recolha" && !endereco.trim()) {
-      setErro("O endereco e obrigatorio para o coletador ou empresa saber onde ir buscar."); return;
+    if (tipoEntrega !== "ponto_recolha" && !posicao && !endereco.trim()) {
+      setErro("Escolhe a localizacao no mapa ou escreve o endereco."); return;
     }
 
     try {
@@ -191,18 +235,20 @@ export default function NovoResiduo() {
       const dados = {
         tipo_entrega:       tipoEntrega,
         endereco_domicilio: endereco.trim() || null,
+        // Coordenadas do mapa — permitem mostrar rota para empresa e coletador
+        latitude:           posicao ? posicao[0] : null,
+        longitude:          posicao ? posicao[1] : null,
         id_ponto:           null,
         tipo_recompensa:    recompensa,
         observacoes:        observacoes || null,
         imagem:             imagemBase64 || null,
         residuos: [{
           id_residuo: parseInt(idResiduo),
-          peso_kg:    0,   // peso real so e registado pela empresa ao aceitar
+          peso_kg:    0,
           quantidade: 1,
         }],
       };
 
-      // Se for oferta directa a empresa, liga ao pedido
       if (modoEmpresa && idEmpresaUrl) {
         dados.id_empresa    = parseInt(idEmpresaUrl);
         dados.id_publicacao = idPublicacaoUrl ? parseInt(idPublicacaoUrl) : null;
@@ -222,7 +268,6 @@ export default function NovoResiduo() {
     }
   };
 
-  // O endereco so e obrigatorio quando nao vai ao ponto de recolha
   const enderecoObrigatorio = tipoEntrega !== "ponto_recolha";
 
   return (
@@ -238,7 +283,6 @@ export default function NovoResiduo() {
           A publicacao expira em 7 dias se nao houver interesse.
         </p>
 
-        {/* Banner quando e oferta directa a empresa */}
         {modoEmpresa && nomeEmpresa && (
           <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
             <Building2 size={18} className="text-green-600 shrink-0" />
@@ -258,9 +302,7 @@ export default function NovoResiduo() {
             {tiposUnicos.map(tipo => (
               <div key={tipo} onClick={() => handleTipo(tipo)}
                 className={`border rounded-xl p-3 cursor-pointer transition text-center text-sm font-medium ${
-                  tipoSelecionado === tipo
-                    ? "border-green-500 bg-green-50 text-green-700"
-                    : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                  tipoSelecionado === tipo ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 hover:bg-gray-50 text-gray-600"
                 }`}>
                 {ICONE_TIPO[tipo] || <Recycle size={20} className="mx-auto mb-1 text-gray-400" />}
                 {LABEL_TIPO[tipo] || tipo}
@@ -284,9 +326,7 @@ export default function NovoResiduo() {
                       idResiduo == r.id_residuo ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"
                     }`}>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        {cfg.icone} {cfg.label}
-                      </span>
+                      <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">{cfg.icone} {cfg.label}</span>
                       {r.preco_min && r.preco_max && (
                         <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-lg border border-green-200">
                           {r.preco_min} - {r.preco_max} Kz/kg
@@ -301,18 +341,14 @@ export default function NovoResiduo() {
           </div>
         )}
 
-        {/* Passo 3: Como preferes entregar — 3 opcoes */}
+        {/* Passo 3: Como entregar */}
         <div className="mb-4">
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            Como preferes entregar?
-          </label>
+          <label className="block mb-2 text-sm font-medium text-gray-700">Como preferes entregar?</label>
           <div className="grid grid-cols-3 gap-2">
             {OPCOES_ENTREGA.map(op => (
               <div key={op.valor} onClick={() => setTipoEntrega(op.valor)}
                 className={`border rounded-xl p-3 cursor-pointer transition text-center text-sm ${
-                  tipoEntrega === op.valor
-                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
-                    : "hover:bg-gray-50 text-gray-600 border-gray-200"
+                  tipoEntrega === op.valor ? "border-green-500 bg-green-50 text-green-700 font-medium" : "hover:bg-gray-50 text-gray-600 border-gray-200"
                 }`}>
                 {op.icone}
                 <p className="font-medium text-xs">{op.titulo}</p>
@@ -320,84 +356,117 @@ export default function NovoResiduo() {
               </div>
             ))}
           </div>
-
-          {/* Aviso quando escolhe coletador independente */}
           {tipoEntrega === "coletador" && (
             <div className="mt-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
               <p className="text-orange-700 text-xs font-medium">Coletador independente</p>
-              <p className="text-orange-600 text-xs mt-0.5">
-                O sistema vai notificar coletadores proximos. Um coletador ira aceitar e ir buscar ao teu endereco.
-                A comissao do coletador sera descontada do teu pagamento (30%).
-              </p>
+              <p className="text-orange-600 text-xs mt-0.5">O sistema vai notificar coletadores proximos. A comissao do coletador sera descontada (30%).</p>
             </div>
           )}
-
-          {/* Aviso quando escolhe ponto de recolha */}
           {tipoEntrega === "ponto_recolha" && (
             <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
               <p className="text-blue-700 text-xs font-medium">Ponto de recolha</p>
-              <p className="text-blue-600 text-xs mt-0.5">
-                Leva os residuos directamente ao ponto de recolha da empresa. 
-                Receberas o pagamento total sem comissao de coletador.
-              </p>
+              <p className="text-blue-600 text-xs mt-0.5">Leva os residuos directamente ao ponto da empresa. Receberas o pagamento total.</p>
             </div>
           )}
         </div>
 
-        {/* Passo 4: Endereco */}
+        {/* Passo 4: Localizacao no mapa */}
         <div className="mb-4">
           <label className="block mb-1 text-sm font-medium text-gray-700">
-            Endereco {enderecoObrigatorio ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(opcional)</span>}
+            Localizacao {enderecoObrigatorio ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(opcional)</span>}
           </label>
-          {/* Descricao muda consoante a opcao de entrega */}
-          <p className="text-gray-400 text-xs mb-1">
+          <p className="text-gray-400 text-xs mb-2">
             {tipoEntrega === "ponto_recolha"
-              ? "Teu endereco para contacto (opcional)"
+              ? "Opcional — indica onde te encontras para facilitar contacto"
               : tipoEntrega === "coletador"
-                ? "Endereco onde o coletador vai buscar os residuos"
-                : "Endereco onde a empresa vai buscar os residuos"
+                ? "Clica no mapa para marcar onde o coletador vai buscar os residuos"
+                : "Clica no mapa para marcar onde a empresa vai buscar os residuos"
             }
           </p>
-          <input type="text" placeholder="Ex: Rua da Missao, No 45, Ingombota"
-            value={endereco} onChange={(e) => setEndereco(e.target.value)}
-            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
-        </div>
 
-        <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-gray-700">
-            Referencia (opcional)
-          </label>
-          <input type="text" placeholder="Ex: Perto do mercado, portao azul"
-            value={referencia} onChange={(e) => setReferencia(e.target.value)}
-            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+          {/* Botao GPS */}
+          <button onClick={obterLocalizacaoGPS} disabled={aObterLocalizacao}
+            className="flex items-center gap-2 text-xs text-green-700 border border-green-300 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-xl mb-2 transition disabled:opacity-60">
+            <Navigation size={13} className={aObterLocalizacao ? "animate-spin" : ""} />
+            {aObterLocalizacao ? "A obter localizacao..." : "Usar a minha localizacao actual (GPS)"}
+          </button>
+
+          {/* Mapa Leaflet */}
+          <div className="rounded-xl overflow-hidden border border-gray-200 mb-2" style={{ height: "220px" }}>
+            <MapContainer
+              center={posicao || CENTRO_PADRAO}
+              zoom={posicao ? 16 : 13}
+              style={{ height: "100%", width: "100%" }}
+              key={posicao ? posicao.join(",") : "default"}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              />
+              <CapturarClique onClicar={handleClicarMapa} />
+              {posicao && <Marker position={posicao} icon={iconeVerde} />}
+            </MapContainer>
+          </div>
+
+          {/* Indicacao de localizacao escolhida */}
+          {posicao ? (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 mb-2">
+              <MapPin size={13} className="text-green-600 shrink-0" />
+              <p className="text-green-700 text-xs">
+                Localizacao marcada — {posicao[0].toFixed(5)}, {posicao[1].toFixed(5)}
+              </p>
+              <button onClick={() => { setPosicao(null); setEndereco(""); }}
+                className="ml-auto text-gray-400 hover:text-red-500 transition">
+                <X size={13} />
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-400 text-xs text-center py-1">
+              Clica no mapa para marcar a localizacao
+            </p>
+          )}
+
+          {erroMapa && (
+            <p className="text-orange-500 text-xs flex items-center gap-1 mt-1">
+              <AlertCircle size={12} /> {erroMapa}
+            </p>
+          )}
+
+          {/* Endereco textual — preenchido automaticamente ou manualmente */}
+          <div className="mt-2">
+            <label className="block mb-1 text-xs text-gray-500">Endereco (preenchido automaticamente ou escreve manualmente)</label>
+            <input type="text" placeholder="Ex: Rua da Missao, No 45, Ingombota"
+              value={endereco} onChange={(e) => setEndereco(e.target.value)}
+              className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+          </div>
+
+          {/* Referencia */}
+          <div className="mt-2">
+            <label className="block mb-1 text-xs text-gray-500">Referencia (opcional)</label>
+            <input type="text" placeholder="Ex: Perto do mercado, portao azul"
+              value={referencia} onChange={(e) => setReferencia(e.target.value)}
+              className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+          </div>
         </div>
 
         {/* Passo 5: Forma de recompensa */}
         <div className="mb-4">
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            Forma de Recompensa
-          </label>
+          <label className="block mb-2 text-sm font-medium text-gray-700">Forma de Recompensa</label>
           <div className="grid grid-cols-3 gap-2">
             <div onClick={() => setRecompensa("dinheiro")}
-              className={`border rounded-xl p-3 cursor-pointer transition text-center ${
-                recompensa === "dinheiro" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"
-              }`}>
+              className={`border rounded-xl p-3 cursor-pointer transition text-center ${recompensa === "dinheiro" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"}`}>
               <Banknote size={18} className="mx-auto mb-1 text-green-600" />
               <p className="font-medium text-xs text-gray-700">Dinheiro</p>
               <p className="text-xs text-gray-400">Sacavel</p>
             </div>
             <div onClick={() => setRecompensa("saldo")}
-              className={`border rounded-xl p-3 cursor-pointer transition text-center ${
-                recompensa === "saldo" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"
-              }`}>
+              className={`border rounded-xl p-3 cursor-pointer transition text-center ${recompensa === "saldo" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"}`}>
               <CreditCard size={18} className="mx-auto mb-1 text-blue-500" />
               <p className="font-medium text-xs text-gray-700">Saldo</p>
               <p className="text-xs text-gray-400">Na carteira</p>
             </div>
             <div onClick={() => setRecompensa("pontos")}
-              className={`border rounded-xl p-3 cursor-pointer transition text-center ${
-                recompensa === "pontos" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"
-              }`}>
+              className={`border rounded-xl p-3 cursor-pointer transition text-center ${recompensa === "pontos" ? "border-green-500 bg-green-50" : "hover:bg-gray-50 border-gray-200"}`}>
               <StarIcon size={18} className="mx-auto mb-1 text-yellow-500" />
               <p className="font-medium text-xs text-gray-700">Pontos</p>
               <p className="text-xs text-gray-400">Nivel e premios</p>
@@ -407,16 +476,11 @@ export default function NovoResiduo() {
 
         {/* Passo 6: Upload de foto */}
         <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-gray-700">
-            Foto do Residuo (opcional)
-          </label>
+          <label className="block mb-1 text-sm font-medium text-gray-700">Foto do Residuo (opcional)</label>
           {imagemPreview ? (
             <div className="relative w-full h-40 rounded-xl overflow-hidden border border-green-200">
               <img src={imagemPreview} alt="Preview" className="w-full h-full object-cover" />
-              <button onClick={removerImagem}
-                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition">
-                <X size={14} />
-              </button>
+              <button onClick={removerImagem} className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition"><X size={14} /></button>
             </div>
           ) : (
             <div onClick={() => inputFicheiroRef.current?.click()}
@@ -427,32 +491,23 @@ export default function NovoResiduo() {
             </div>
           )}
           <input ref={inputFicheiroRef} type="file" accept="image/*" onChange={handleImagem} className="hidden" />
-          {erroImagem && (
-            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-              <AlertCircle size={12} /> {erroImagem}
-            </p>
-          )}
+          {erroImagem && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={12} /> {erroImagem}</p>}
         </div>
 
         {/* Passo 7: Observacoes */}
         <div className="mb-5">
-          <label className="block mb-1 text-sm font-medium text-gray-700">
-            Observacoes (opcional)
-          </label>
+          <label className="block mb-1 text-sm font-medium text-gray-700">Observacoes (opcional)</label>
           <textarea placeholder="Estado do residuo, limpeza, embalagem..."
             value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
-            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm resize-none"
-            rows={3} />
+            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm resize-none" rows={3} />
         </div>
 
-        {/* Erro geral */}
         {erro && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
             <AlertCircle size={14} /> {erro}
           </p>
         )}
 
-        {/* Botoes */}
         <div className="flex gap-3">
           <button onClick={() => navigate("/Dashboard")}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl transition flex-1 text-sm font-medium">
@@ -460,17 +515,9 @@ export default function NovoResiduo() {
           </button>
           <button onClick={handlePublicar} disabled={carregando}
             className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-3 rounded-xl transition flex-1 text-sm font-medium">
-            {carregando
-              ? "A guardar..."
-              : modoEdicao
-                ? "Guardar Alteracoes"
-                : modoEmpresa
-                  ? "Enviar Oferta"
-                  : "Publicar Residuo"
-            }
+            {carregando ? "A guardar..." : modoEdicao ? "Guardar Alteracoes" : modoEmpresa ? "Enviar Oferta" : "Publicar Residuo"}
           </button>
         </div>
-
       </div>
     </div>
   );

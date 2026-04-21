@@ -1,21 +1,10 @@
-//  FLUXO COMPLETO DE TROCA:
-//    1. Utilizador publica oferta → empresa clica "Fazer Troca" na PaginaInicial
-//    2. Utilizador aceita a proposta → entrega criada com status 'pendente'
-//    3. Empresa ve a entrega aqui → marca a data de recolha + designa coletador(es)
-//    4. Coletador(es) designado(s) recebem notificacao com detalhes da recolha
-//    5. Utilizador aparece com os residuos no dia marcado
-//    6. Empresa pesa os residuos → clica "Aceitar" → introduz peso real
-//    7. Sistema calcula e processa o pagamento automaticamente
-//    8. Entrega passa para status 'coletada' → aparece como "Troca Concluida"
-//
-//  REGRA 16 — A empresa e responsavel pelo pagamento do utilizador
-//  REGRA 17 — Empresa pode rejeitar residuos danificados ou sujos
-
 import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 import {
   CheckCircle, XCircle, Package, User, MapPin,
   Clock, Scale, AlertCircle, X, Leaf, CalendarCheck,
-  Truck, Users
+  Truck, Users, Map
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
 import {
@@ -26,42 +15,57 @@ import {
   getColetadoresEmpresa,
 } from '../../api.js';
 
+// Corrige icone padrao do Leaflet com Vite
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Icone vermelho para marcar a localizacao do utilizador
+const iconeVermelho = new L.Icon({
+  iconUrl:       'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize:      [25, 41],
+  iconAnchor:    [12, 41],
+  popupAnchor:   [1, -34],
+  shadowSize:    [41, 41],
+});
+
 export default function EntregasEmpresa() {
 
-  // Lista de entregas e estado geral
   const [entregas,    setEntregas]    = useState([]);
   const [filtro,      setFiltro]      = useState('pendente');
   const [carregando,  setCarregando]  = useState(true);
   const [erro,        setErro]        = useState('');
-
-  // Coletadores dependentes da empresa — para designar na data de recolha
   const [coletadores, setColetadores] = useState([]);
 
-  // Modal aceitar — peso real
+  // Modal mapa — localizacao do utilizador
+  const [modalMapa, setModalMapa] = useState(null);
+
+  // Modal aceitar
   const [modalAceitar, setModalAceitar] = useState(null);
   const [pesoReal,     setPesoReal]     = useState('');
   const [erroAceitar,  setErroAceitar]  = useState('');
 
-  // Modal rejeitar — motivo obrigatorio
+  // Modal rejeitar
   const [modalRejeitar, setModalRejeitar] = useState(null);
   const [motivo,        setMotivo]        = useState('');
   const [erroRejeitar,  setErroRejeitar]  = useState('');
 
-  // Modal propor data — com seleccao de coletadores dependentes
-  const [modalData,           setModalData]           = useState(null);
-  const [dataRecolha,         setDataRecolha]         = useState('');
-  const [obsEmpresa,          setObsEmpresa]          = useState('');
-  const [erroData,            setErroData]            = useState('');
-  const [propondo,            setPropondo]            = useState(false);
-  // Coletadores seleccionados para esta recolha — pode ser mais de um (Regra 16)
-  const [coletadoresSel,      setColetadoresSel]      = useState([]);
+  // Modal data
+  const [modalData,      setModalData]      = useState(null);
+  const [dataRecolha,    setDataRecolha]    = useState('');
+  const [obsEmpresa,     setObsEmpresa]     = useState('');
+  const [erroData,       setErroData]       = useState('');
+  const [propondo,       setPropondo]       = useState(false);
+  const [coletadoresSel, setColetadoresSel] = useState([]);
 
-  // Estado de accao em curso — evita duplo clique
   const [acaoEmCurso, setAcaoEmCurso] = useState(null);
 
   useEffect(() => {
     carregar();
-    // Carrega coletadores dependentes da empresa para o modal de data
     getColetadoresEmpresa()
       .then(dados => setColetadores((dados || []).filter(c => c.tipo === 'dependente')))
       .catch(console.error);
@@ -83,10 +87,8 @@ export default function EntregasEmpresa() {
     ? entregas
     : entregas.filter(e => e.status === filtro);
 
-  // Estimativa de pagamento em tempo real no modal de aceitar
   const calcularEstimativa = (peso, valorKg) => {
-    const p   = parseFloat(peso);
-    const vkg = parseFloat(valorKg);
+    const p = parseFloat(peso), vkg = parseFloat(valorKg);
     if (!p || !vkg || p <= 0 || vkg <= 0) return null;
     const valorTotal      = p * vkg;
     const valorUtilizador = (valorTotal * 0.70) - 50;
@@ -105,94 +107,47 @@ export default function EntregasEmpresa() {
     ? calcularEstimativa(pesoReal, entregaAceitar.valor_por_kg || entregaAceitar.preco_min)
     : null;
 
-  const abrirModalAceitar = (idEntrega) => {
-    setModalAceitar(idEntrega);
-    setPesoReal('');
-    setErroAceitar('');
+  const abrirModalAceitar = (id) => { setModalAceitar(id); setPesoReal(''); setErroAceitar(''); };
+  const abrirModalData    = (id) => { setModalData(id); setDataRecolha(''); setObsEmpresa(''); setErroData(''); setColetadoresSel([]); };
+  const toggleColetador   = (id) => setColetadoresSel(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+
+  // Abre modal do mapa para uma entrega especifica
+  const abrirMapa = (entrega) => {
+    setModalMapa(entrega);
   };
 
-  // Abre modal de data e reseta seleccao de coletadores
-  const abrirModalData = (idEntrega) => {
-    setModalData(idEntrega);
-    setDataRecolha('');
-    setObsEmpresa('');
-    setErroData('');
-    setColetadoresSel([]); // limpa coletadores de uma utilizacao anterior
-  };
-
-  // Liga/desliga coletador na seleccao — empresa pode designar mais de um
-  const toggleColetador = (id) => {
-    setColetadoresSel(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    );
-  };
-
-  // Confirma aceitacao com o peso real
   const handleAceitar = async () => {
-    if (!pesoReal || parseFloat(pesoReal) <= 0) {
-      setErroAceitar('Introduz o peso real dos residuos em kg.');
-      return;
-    }
+    if (!pesoReal || parseFloat(pesoReal) <= 0) { setErroAceitar('Introduz o peso real dos residuos em kg.'); return; }
     try {
-      setAcaoEmCurso(modalAceitar);
-      setErroAceitar('');
+      setAcaoEmCurso(modalAceitar); setErroAceitar('');
       await aceitarEntregaEmpresa(modalAceitar, parseFloat(pesoReal));
-      setModalAceitar(null);
-      setPesoReal('');
+      setModalAceitar(null); setPesoReal('');
       await carregar();
-    } catch (err) {
-      setErroAceitar(err.message);
-    } finally {
-      setAcaoEmCurso(null);
-    }
+    } catch (err) { setErroAceitar(err.message); }
+    finally { setAcaoEmCurso(null); }
   };
 
-  // Confirma rejeicao com motivo obrigatorio (Regra 17)
   const handleRejeitar = async () => {
-    if (!motivo.trim()) {
-      setErroRejeitar('O motivo da rejeicao e obrigatorio. O utilizador vai receber esta mensagem.');
-      return;
-    }
+    if (!motivo.trim()) { setErroRejeitar('O motivo da rejeicao e obrigatorio.'); return; }
     try {
-      setAcaoEmCurso(modalRejeitar);
-      setErroRejeitar('');
+      setAcaoEmCurso(modalRejeitar); setErroRejeitar('');
       await rejeitarEntregaEmpresa(modalRejeitar, motivo, false, false);
-      setModalRejeitar(null);
-      setMotivo('');
-      setErroRejeitar('');
+      setModalRejeitar(null); setMotivo(''); setErroRejeitar('');
       await carregar();
-    } catch (err) {
-      setErro(err.message);
-    } finally {
-      setAcaoEmCurso(null);
-    }
+    } catch (err) { setErro(err.message); }
+    finally { setAcaoEmCurso(null); }
   };
 
-  // Propoe data de recolha e designa coletadores dependentes
-  // Os coletadores seleccionados recebem notificacao com os detalhes
   const handleProporData = async () => {
     if (!dataRecolha) { setErroData('Selecciona a data e hora da recolha.'); return; }
     if (new Date(dataRecolha) <= new Date()) { setErroData('A data tem de ser no futuro.'); return; }
     try {
-      setPropondo(true);
-      setErroData('');
-      // Envia data, nota e coletadores seleccionados ao backend
-      // Backend notifica o utilizador com a data e notifica cada coletador designado
-      await proporDataRecolha(modalData, {
-        data_recolha:  dataRecolha,
-        observacoes:   obsEmpresa || null,
-        id_coletadores: coletadoresSel, // array de ids dos coletadores designados
-      });
-      setModalData(null);
-      setDataRecolha('');
-      setObsEmpresa('');
-      setColetadoresSel([]);
+      setPropondo(true); setErroData('');
+      await proporDataRecolha(modalData, { data_recolha: dataRecolha, observacoes: obsEmpresa || null, id_coletadores: coletadoresSel });
+      setModalData(null); setDataRecolha(''); setObsEmpresa(''); setColetadoresSel([]);
       await carregar();
-    } catch (err) {
-      setErroData(err.message);
-    } finally {
-      setPropondo(false);
-    }
+    } catch (err) { setErroData(err.message); }
+    finally { setPropondo(false); }
   };
 
   return (
@@ -210,7 +165,7 @@ export default function EntregasEmpresa() {
         </div>
       )}
 
-      {/* Filtros de status */}
+      {/* Filtros */}
       <div className="flex gap-2 flex-wrap mb-6">
         {[
           { val: 'pendente',  label: 'Pendentes'         },
@@ -221,9 +176,7 @@ export default function EntregasEmpresa() {
         ].map(({ val, label }) => (
           <button key={val} onClick={() => setFiltro(val)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              filtro === val
-                ? 'bg-green-600 text-white shadow'
-                : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'
+              filtro === val ? 'bg-green-600 text-white shadow' : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'
             }`}>
             {label}
           </button>
@@ -242,7 +195,6 @@ export default function EntregasEmpresa() {
           {entregasFiltradas.map(e => (
             <div key={e.id_entrega} className="bg-white rounded-2xl shadow-sm border border-green-100 p-5">
 
-              {/* Cabecalho: tipo de residuo + badge */}
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="font-bold text-green-700 text-lg">{e.tipos_residuos || 'Residuo'}</p>
@@ -254,53 +206,47 @@ export default function EntregasEmpresa() {
                   e.status === 'coletada'  ? 'bg-blue-100 text-blue-700'     :
                                              'bg-red-100 text-red-700'
                 }`}>
-                  {e.status === 'pendente'  ? 'Pendente'        :
-                   e.status === 'aceita'    ? 'Aceite'          :
-                   e.status === 'coletada'  ? 'Troca Concluida' : 'Rejeitada'}
+                  {e.status === 'pendente' ? 'Pendente' : e.status === 'aceita' ? 'Aceite' : e.status === 'coletada' ? 'Troca Concluida' : 'Rejeitada'}
                 </span>
               </div>
 
-              {/* Detalhes */}
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex items-center gap-2">
                   <User size={14} className="text-green-500 shrink-0" />
                   <span>{e.nome_usuario}</span>
                   {e.telefone_usuario && <span className="text-gray-400">· {e.telefone_usuario}</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={14} className="text-green-500 shrink-0" />
-                  <span>{e.endereco_domicilio || 'Ponto de recolha'}</span>
-                </div>
+
+                {/* Endereco clicavel — abre o mapa */}
+                <button onClick={() => abrirMapa(e)}
+                  className="flex items-center gap-2 w-full text-left hover:bg-green-50 rounded-lg px-1 py-0.5 transition group">
+                  <MapPin size={14} className="text-green-500 shrink-0 group-hover:text-green-700" />
+                  <span className="text-green-700 underline underline-offset-2 text-sm group-hover:text-green-900">
+                    {e.endereco_domicilio || 'Ver localização no mapa'}
+                  </span>
+                  <Map size={12} className="text-green-400 ml-auto shrink-0" />
+                </button>
+
                 <div className="flex items-center gap-2">
                   <Package size={14} className="text-green-500 shrink-0" />
                   <span>{e.peso_total ? `${e.peso_total} kg` : 'Peso a registar'}</span>
-                  {e.valor_total && (
-                    <span className="font-medium text-green-600 ml-2">
-                      · {parseFloat(e.valor_total).toFixed(0)} Kz
-                    </span>
-                  )}
+                  {e.valor_total && <span className="font-medium text-green-600 ml-2">· {parseFloat(e.valor_total).toFixed(0)} Kz</span>}
                 </div>
                 {e.data_hora && (
                   <div className="flex items-center gap-2">
                     <Clock size={14} className="text-green-500 shrink-0" />
                     <span className="text-xs text-gray-400">
-                      {new Date(e.data_hora).toLocaleDateString('pt-AO', {
-                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                      })}
+                      {new Date(e.data_hora).toLocaleDateString('pt-AO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 )}
-                {e.observacoes && (
-                  <p className="text-xs italic text-gray-500 bg-gray-50 p-2 rounded-lg">"{e.observacoes}"</p>
-                )}
-                {/* Coletadores designados — mostra quem foi designado para esta recolha */}
+                {e.observacoes && <p className="text-xs italic text-gray-500 bg-gray-50 p-2 rounded-lg">"{e.observacoes}"</p>}
                 {e.nome_coletadores && (
                   <div className="flex items-center gap-2">
                     <Truck size={14} className="text-green-500 shrink-0" />
                     <span className="text-xs text-gray-500">Coletador: {e.nome_coletadores}</span>
                   </div>
                 )}
-                {/* Resumo de pagamento apos conclusao */}
                 {e.valor_utilizador && (
                   <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 mt-2">
                     <p className="text-green-700 text-xs font-medium">Pagamento processado</p>
@@ -312,7 +258,7 @@ export default function EntregasEmpresa() {
                 )}
               </div>
 
-              {/* Botao Marcar Data + designar coletador — so para pendentes */}
+              {/* Marcar data */}
               {e.status === 'pendente' && (
                 <div className="mt-2 mb-3">
                   {e.data_recolha_proposta ? (
@@ -321,16 +267,10 @@ export default function EntregasEmpresa() {
                       <div>
                         <p className="text-blue-700 text-xs font-medium">Recolha marcada</p>
                         <p className="text-blue-600 text-xs">
-                          {new Date(e.data_recolha_proposta).toLocaleString('pt-AO', {
-                            weekday: 'short', day: '2-digit', month: 'short',
-                            hour: '2-digit', minute: '2-digit'
-                          })}
+                          {new Date(e.data_recolha_proposta).toLocaleString('pt-AO', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
-                      <button onClick={() => abrirModalData(e.id_entrega)}
-                        className="ml-auto text-blue-500 text-xs underline shrink-0">
-                        Alterar
-                      </button>
+                      <button onClick={() => abrirModalData(e.id_entrega)} className="ml-auto text-blue-500 text-xs underline shrink-0">Alterar</button>
                     </div>
                   ) : (
                     <button onClick={() => abrirModalData(e.id_entrega)}
@@ -341,14 +281,21 @@ export default function EntregasEmpresa() {
                 </div>
               )}
 
-              {/* Botoes Aceitar e Rejeitar — so para pendentes */}
+              {/* Aceitar e Rejeitar */}
               {e.status === 'pendente' && (
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => abrirModalAceitar(e.id_entrega)}
-                    disabled={acaoEmCurso === e.id_entrega}
-                    className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
-                    <CheckCircle size={14} /> Aceitar
-                  </button>
+                  {e.data_recolha_proposta ? (
+                    <button onClick={() => abrirModalAceitar(e.id_entrega)}
+                      disabled={acaoEmCurso === e.id_entrega}
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+                      <CheckCircle size={14} /> Aceitar
+                    </button>
+                  ) : (
+                    <div title="Marca primeiro a data de recolha"
+                      className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
+                      <CheckCircle size={14} /> Marcar data 1°
+                    </div>
+                  )}
                   <button onClick={() => setModalRejeitar(e.id_entrega)}
                     disabled={acaoEmCurso === e.id_entrega}
                     className="bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
@@ -362,254 +309,218 @@ export default function EntregasEmpresa() {
       )}
 
       {/* ═══════════════════════════════════════════════════════
-          MODAL PROPOR DATA DE RECOLHA
-          Empresa marca a data E designa coletador(es) dependentes
-          Todos os designados recebem notificacao com os detalhes
-          Utilizador tambem e notificado com a data marcada
+          MODAL MAPA — Localizacao do utilizador
+          Empresa ve no mapa onde ir buscar os residuos
+          Se nao ha coordenadas GPS, mostra so o endereco textual
       ═══════════════════════════════════════════════════════ */}
+      {modalMapa && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl">
+
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
+                <MapPin size={20} /> Localizacao da Entrega #{modalMapa.id_entrega}
+              </h3>
+              <button onClick={() => setModalMapa(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+
+            {/* Info do utilizador */}
+            <div className="bg-gray-50 rounded-xl p-3 mb-4 flex items-center gap-3">
+              <User size={16} className="text-green-600 shrink-0" />
+              <div>
+                <p className="text-gray-800 text-sm font-medium">{modalMapa.nome_usuario}</p>
+                {modalMapa.endereco_domicilio && (
+                  <p className="text-gray-500 text-xs mt-0.5">{modalMapa.endereco_domicilio}</p>
+                )}
+                {modalMapa.telefone_usuario && (
+                  <p className="text-gray-400 text-xs">Tel: {modalMapa.telefone_usuario}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Mapa — so se tiver coordenadas GPS */}
+            {modalMapa.latitude && modalMapa.longitude ? (
+              <>
+                <div className="rounded-xl overflow-hidden border border-gray-200 mb-3" style={{ height: '280px' }}>
+                  <MapContainer
+                    center={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]}
+                    zoom={16}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    />
+                    <Marker
+                      position={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]}
+                      icon={iconeVermelho}
+                    >
+                      <Popup>
+                        <strong>{modalMapa.nome_usuario}</strong><br />
+                        {modalMapa.endereco_domicilio || 'Localizacao do utilizador'}
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+
+                {/* Botao para abrir no Google Maps */}
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${modalMapa.latitude},${modalMapa.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-sm font-medium transition mb-3">
+                  <Map size={16} /> Abrir rota no Google Maps
+                </a>
+              </>
+            ) : (
+              /* Sem coordenadas GPS — mostra aviso */
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4 text-center">
+                <MapPin size={32} className="mx-auto mb-2 text-yellow-400" />
+                <p className="text-yellow-700 text-sm font-medium">Sem localizacao GPS</p>
+                <p className="text-yellow-600 text-xs mt-1">
+                  O utilizador nao marcou a localizacao no mapa. Usa o endereco textual para navegar.
+                </p>
+                {modalMapa.endereco_domicilio && (
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(modalMapa.endereco_domicilio + ', Angola')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium transition">
+                    <Map size={13} /> Pesquisar no Google Maps
+                  </a>
+                )}
+              </div>
+            )}
+
+            <button onClick={() => setModalMapa(null)}
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PROPOR DATA */}
       {modalData && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
-                <CalendarCheck size={20} /> Marcar Data de Recolha
-              </h3>
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><CalendarCheck size={20} /> Marcar Data de Recolha</h3>
               <button onClick={() => setModalData(null)}><X size={20} className="text-gray-400" /></button>
             </div>
-
-            <p className="text-gray-500 text-sm mb-4">
-              O utilizador sera notificado com a data. Se designares coletadores, eles tambem recebem notificacao.
-            </p>
-
-            {/* Data e hora */}
+            <p className="text-gray-500 text-sm mb-4">O utilizador sera notificado com a data. Se designares coletadores, eles tambem recebem notificacao.</p>
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">
-                Data e hora da recolha <span className="text-red-500">*</span>
-              </label>
-              <input type="datetime-local" value={dataRecolha}
-                onChange={e => setDataRecolha(e.target.value)}
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Data e hora da recolha <span className="text-red-500">*</span></label>
+              <input type="datetime-local" value={dataRecolha} onChange={e => setDataRecolha(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
             </div>
-
-            {/* Nota opcional para o utilizador */}
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">
-                Nota para o utilizador (opcional)
-              </label>
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Nota para o utilizador (opcional)</label>
               <textarea value={obsEmpresa} onChange={e => setObsEmpresa(e.target.value)}
-                placeholder="Ex: Traz os residuos ensacados. Vem ao portao principal."
-                rows={2}
+                placeholder="Ex: Traz os residuos ensacados." rows={2}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
             </div>
-
-            {/* Designar coletadores dependentes — so aparece se a empresa tiver coletadores */}
             {coletadores.length > 0 && (
               <div className="mb-4">
                 <label className="text-gray-700 text-sm font-semibold block mb-1 flex items-center gap-2">
-                  <Users size={15} className="text-green-600" />
-                  Designar coletador(es) para esta recolha (opcional)
+                  <Users size={15} className="text-green-600" /> Designar coletador(es) (opcional)
                 </label>
-                <p className="text-gray-400 text-xs mb-3">
-                  Os coletadores seleccionados recebem notificacao com os detalhes da recolha.
-                  Podes designar mais de um.
-                </p>
                 <div className="space-y-2">
                   {coletadores.map(c => {
                     const sel = coletadoresSel.includes(c.id_coletador);
                     return (
-                      <div key={c.id_coletador}
-                        onClick={() => toggleColetador(c.id_coletador)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
-                          sel
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:bg-gray-50'
-                        }`}>
-                        {/* Avatar com inicial */}
-                        <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                          {c.nome?.charAt(0).toUpperCase()}
-                        </div>
+                      <div key={c.id_coletador} onClick={() => toggleColetador(c.id_coletador)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${sel ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">{c.nome?.charAt(0).toUpperCase()}</div>
                         <div className="min-w-0 flex-1">
                           <p className="text-gray-800 text-sm font-medium truncate">{c.nome}</p>
                           {c.telefone && <p className="text-gray-400 text-xs">{c.telefone}</p>}
                         </div>
-                        {/* Circulo de seleccao */}
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          sel ? 'border-green-500 bg-green-500' : 'border-gray-300'
-                        }`}>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${sel ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
                           {sel && <CheckCircle size={12} className="text-white" />}
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                {/* Confirmacao de quantos foram seleccionados */}
-                {coletadoresSel.length > 0 && (
-                  <p className="text-green-600 text-xs mt-2 font-medium">
-                    {coletadoresSel.length} coletador{coletadoresSel.length > 1 ? 'es' : ''} seleccionado{coletadoresSel.length > 1 ? 's' : ''}
-                  </p>
-                )}
               </div>
             )}
-
-            {/* Aviso se nao tem coletadores */}
             {coletadores.length === 0 && (
               <div className="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                <p className="text-gray-500 text-xs">
-                  Nao tens coletadores dependentes na equipa. O utilizador ira ao local da empresa.
-                  Podes adicionar coletadores em <strong>Gestao de Coletadores</strong>.
-                </p>
+                <p className="text-gray-500 text-xs">Nao tens coletadores dependentes. O utilizador ira ao local da empresa.</p>
               </div>
             )}
-
-            {erroData && (
-              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-                <AlertCircle size={14} /> {erroData}
-              </p>
-            )}
-
+            {erroData && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><AlertCircle size={14} /> {erroData}</p>}
             <div className="flex gap-3">
-              <button onClick={() => setModalData(null)}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">
-                Cancelar
-              </button>
+              <button onClick={() => setModalData(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">Cancelar</button>
               <button onClick={handleProporData} disabled={propondo}
                 className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
-                <CalendarCheck size={16} />
-                {propondo ? 'A enviar...' : 'Confirmar Data'}
+                <CalendarCheck size={16} /> {propondo ? 'A enviar...' : 'Confirmar Data'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          MODAL ACEITAR — REGISTAR PESO REAL
-          Empresa pesa na balanca e introduz o valor exacto
-          Backend calcula pagamento automaticamente (Regra 16)
-      ═══════════════════════════════════════════════════════ */}
+      {/* MODAL ACEITAR */}
       {modalAceitar && entregaAceitar && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
-
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
-                <Scale size={20} /> Registar Peso Real
-              </h3>
-              <button onClick={() => setModalAceitar(null)}>
-                <X size={20} className="text-gray-400 hover:text-gray-600" />
-              </button>
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><Scale size={20} /> Registar Peso Real</h3>
+              <button onClick={() => setModalAceitar(null)}><X size={20} className="text-gray-400" /></button>
             </div>
-
             <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
               <p className="text-green-800 font-medium text-sm">{entregaAceitar.tipos_residuos || 'Residuo'}</p>
               <p className="text-green-600 text-xs mt-0.5">Entrega #{entregaAceitar.id_entrega} · {entregaAceitar.nome_usuario}</p>
             </div>
-
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">
-                Peso real dos residuos <span className="text-red-500">*</span>
-              </label>
-              <p className="text-gray-400 text-xs mb-2">
-                Pesa os residuos e introduz o valor exacto para calcular o pagamento.
-              </p>
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Peso real dos residuos <span className="text-red-500">*</span></label>
+              <p className="text-gray-400 text-xs mb-2">Pesa os residuos e introduz o valor exacto.</p>
               <div className="relative">
-                <input type="number" min="0.1" step="0.1" value={pesoReal}
-                  onChange={e => setPesoReal(e.target.value)} placeholder="Ex: 12.5"
+                <input type="number" min="0.1" step="0.1" value={pesoReal} onChange={e => setPesoReal(e.target.value)} placeholder="Ex: 12.5"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <span className="absolute right-4 top-3 text-gray-400 text-sm">kg</span>
               </div>
             </div>
-
-            {/* Preview do pagamento em tempo real */}
             {estimativa && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 space-y-2">
-                <p className="text-gray-700 text-xs font-semibold flex items-center gap-1">
-                  <Leaf size={12} className="text-green-600" /> Resumo do pagamento
-                </p>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Valor total ({pesoReal} kg)</span>
-                  <span className="font-medium text-gray-700">{estimativa.valorTotal} Kz</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Utilizador recebe (70% - 50 Kz)</span>
-                  <span className="font-bold text-green-700">{estimativa.valorUtilizador} Kz</span>
-                </div>
-                {entregaAceitar.id_coletador && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Coletador recebe (30%)</span>
-                    <span className="font-medium text-blue-600">{estimativa.valorColetador} Kz</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-xs border-t border-gray-200 pt-2">
-                  <span className="text-gray-400">Comissao EcoTroca (10% + 50 Kz)</span>
-                  <span className="text-gray-500">{estimativa.comissao} Kz</span>
-                </div>
+                <p className="text-gray-700 text-xs font-semibold flex items-center gap-1"><Leaf size={12} className="text-green-600" /> Resumo do pagamento</p>
+                <div className="flex justify-between text-xs"><span className="text-gray-500">Valor total ({pesoReal} kg)</span><span className="font-medium text-gray-700">{estimativa.valorTotal} Kz</span></div>
+                <div className="flex justify-between text-xs"><span className="text-gray-500">Utilizador recebe (70% - 50 Kz)</span><span className="font-bold text-green-700">{estimativa.valorUtilizador} Kz</span></div>
+                {entregaAceitar.id_coletador && <div className="flex justify-between text-xs"><span className="text-gray-500">Coletador recebe (30%)</span><span className="font-medium text-blue-600">{estimativa.valorColetador} Kz</span></div>}
+                <div className="flex justify-between text-xs border-t border-gray-200 pt-2"><span className="text-gray-400">Comissao EcoTroca (10% + 50 Kz)</span><span className="text-gray-500">{estimativa.comissao} Kz</span></div>
               </div>
             )}
-
-            {erroAceitar && (
-              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-                <AlertCircle size={14} /> {erroAceitar}
-              </p>
-            )}
-
+            {erroAceitar && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><AlertCircle size={14} /> {erroAceitar}</p>}
             <div className="flex gap-3">
-              <button onClick={() => setModalAceitar(null)}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">
-                Cancelar
-              </button>
+              <button onClick={() => setModalAceitar(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition text-sm">Cancelar</button>
               <button onClick={handleAceitar} disabled={acaoEmCurso === modalAceitar}
                 className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm">
-                <CheckCircle size={16} />
-                {acaoEmCurso === modalAceitar ? 'A processar...' : 'Confirmar e Pagar'}
+                <CheckCircle size={16} /> {acaoEmCurso === modalAceitar ? 'A processar...' : 'Confirmar e Pagar'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          MODAL REJEITAR — Regra 17
-          Motivo obrigatorio — utilizador vai receber esta mensagem
-          Empresa pode rejeitar residuos danificados ou sujos
-      ═══════════════════════════════════════════════════════ */}
+      {/* MODAL REJEITAR */}
       {modalRejeitar && (
         <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl p-6 w-full max-w-md">
-
-            <h3 className="text-xl font-bold text-red-600 mb-4">
-              Rejeitar Entrega #{modalRejeitar}
-            </h3>
-
+            <h3 className="text-xl font-bold text-red-600 mb-4">Rejeitar Entrega #{modalRejeitar}</h3>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Motivo da rejeicao <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo da rejeicao <span className="text-red-500">*</span></label>
               <p className="text-gray-400 text-xs mb-2">O utilizador vai receber esta mensagem.</p>
               <textarea value={motivo} onChange={e => setMotivo(e.target.value)}
-                placeholder="Ex: Residuos misturados com lixo organico, plastico sujo..."
-                rows={3}
+                placeholder="Ex: Residuos misturados com lixo organico..." rows={3}
                 className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
             </div>
-
-            {erroRejeitar && (
-              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-                <AlertCircle size={14} /> {erroRejeitar}
-              </p>
-            )}
-
+            {erroRejeitar && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><AlertCircle size={14} /> {erroRejeitar}</p>}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => {
-                  setModalRejeitar(null);
-                  setMotivo('');
-                  setErro('');
-                  setErroRejeitar('');
-                }}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl font-medium transition">
-                Cancelar
-              </button>
+              <button onClick={() => { setModalRejeitar(null); setMotivo(''); setErro(''); setErroRejeitar(''); }}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl font-medium transition">Cancelar</button>
               <button onClick={handleRejeitar} disabled={acaoEmCurso === modalRejeitar}
                 className="bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white py-2 rounded-xl font-medium transition">
                 {acaoEmCurso === modalRejeitar ? 'A rejeitar...' : 'Confirmar Rejeicao'}
