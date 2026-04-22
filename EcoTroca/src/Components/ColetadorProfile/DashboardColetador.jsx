@@ -10,7 +10,7 @@
 //    - Trabalha para uma empresa especifica
 //    - Ve as recolhas designadas pela empresa
 //    - Nao recebe dinheiro — e pago pela empresa fora da plataforma
-//    - Nao pode aceitar pedidos por conta propria
+//    - Nao pode aceitar pedidos por conta propria 
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -59,9 +59,12 @@ export default function DashboardColetador() {
       setNotifs(recolhasDesignadas);
 
       // Determina o tipo do coletador a partir dos dados do perfil
+      // O backend agora devolve tipo_coletador e nome_empresa para coletadores
       if (dadosPerfil?.tipo_coletador === 'dependente') {
         setTipoColetador('dependente');
         setNomeEmpresa(dadosPerfil.nome_empresa || 'a tua empresa');
+      } else {
+        setTipoColetador('independente');
       }
 
     } catch (err) {
@@ -111,7 +114,7 @@ export default function DashboardColetador() {
             </h2>
             <p className="opacity-80 text-sm">
               {tipoColetador === 'dependente'
-                ? `Coletador Dependente — ${nomeEmpresa}`
+                ? `Coletador da empresa ${nomeEmpresa}`
                 : 'Coletador Independente — EcoTroca Angola'
               }
             </p>
