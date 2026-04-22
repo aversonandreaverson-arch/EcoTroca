@@ -105,12 +105,12 @@ export default function DashboardColetador() {
 
       {/* Banner do perfil — cor diferente por tipo */}
       <div className={`text-white rounded-2xl p-6 shadow-lg mb-6 ${
-        tipoColetador === 'dependente' ? 'bg-purple-700' : 'bg-green-700'
+        tipoColetador === 'dependente' ? 'bg-green-700' : 'bg-green-500'
       }`}>
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold mb-1">
-              Ola, {perfil?.nome || "Coletador"}!
+               {perfil?.nome || "Coletador"}!
             </h2>
             <p className="opacity-80 text-sm">
               {tipoColetador === 'dependente'
@@ -137,7 +137,7 @@ export default function DashboardColetador() {
           <div className="mt-4 bg-white/20 rounded-xl p-3">
             <p className="text-xs font-medium flex items-center gap-2">
               <Building2 size={14} />
-              As tuas recolhas sao designadas por {nomeEmpresa}. Aguarda as ordens no sino de notificacoes.
+              As tuas recolhas sao designadas por {nomeEmpresa}. Aguarda as ordens no sino de notificações.
             </p>
           </div>
         )}
@@ -146,10 +146,10 @@ export default function DashboardColetador() {
       {/* Notificacoes de recolhas designadas — so para coletador dependente */}
       {tipoColetador === 'dependente' && notifs.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5 mb-6">
-          <h3 className="text-purple-700 font-bold text-base mb-4 flex items-center gap-2">
-            <Bell size={18} className="text-purple-500" />
+          <h3 className="text-green-700 font-bold text-base mb-4 flex items-center gap-2">
+            <Bell size={18} className="text-green-500" />
             Recolhas Designadas pela Empresa
-            <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-purple-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">
               {notifs.length}
             </span>
           </h3>
@@ -157,7 +157,7 @@ export default function DashboardColetador() {
             {notifs.map(n => (
               <div key={n.id_notificacao}
                 className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-purple-800 font-semibold text-sm mb-1">{n.titulo}</p>
+                <p className="text-green-800 font-semibold text-sm mb-1">{n.titulo}</p>
                 <p className="text-gray-600 text-xs leading-relaxed">{n.mensagem}</p>
                 <p className="text-gray-400 text-xs mt-2">
                   {new Date(n.data).toLocaleDateString('pt-AO', {
