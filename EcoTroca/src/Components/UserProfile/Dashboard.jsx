@@ -7,6 +7,7 @@
 //    - getPerfil()          -> GET /api/usuarios/perfil
 //    - getPontuacao()       -> GET /api/usuarios/pontuacao
 //    - getMinhasEntregas()  -> GET /api/entregas
+// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +16,7 @@ import {
   Package, Recycle, Star, Banknote, LogOut, Building2, CheckCircle, Clock, CreditCard, X, AlertCircle
 } from "lucide-react";
 import Header from "./Header";
-import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira, criarAvaliacao, getAvaliacoesEntrega } from "../../api.js";
+import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira, criarAvaliacao, getAvaliacoesEntrega, getMedalhasMinhas } from "../../api.js";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [erroAval,        setErroAval]        = useState('');
   const [jaAvaliou,       setJaAvaliou]       = useState({});    // { id_entrega: [tipos] }
   const [carteira,   setCarteira]   = useState(null);
+  const [medalhas,   setMedalhas]   = useState([]);
 
   useEffect(() => { carregar(); }, []);
 
@@ -41,16 +43,18 @@ export default function Dashboard() {
   const carregar = async () => {
     try {
       setCarregando(true);
-      const [perfil, pts, minhasEntregas, dadosCarteira] = await Promise.all([
+      const [perfil, pts, minhasEntregas, dadosCarteira, minhasMedalhas] = await Promise.all([
         getPerfil(),
         getPontuacao(),
         getMinhasEntregas(),
         getCarteira(),
+        getMedalhasMinhas(),
       ]);
       setUsuario(perfil);
       setPontuacao(pts);
       setEntregas(minhasEntregas);
       setCarteira(dadosCarteira);
+      setMedalhas(minhasMedalhas || []);
 
       // Verifica quais entregas concluidas ja foram avaliadas
       const entregasConcluidas = minhasEntregas.filter(e => e.status === 'coletada');
@@ -236,6 +240,26 @@ export default function Dashboard() {
             <p className="text-xs text-gray-400 mt-1">So na app</p>
           </div>
         </div>
+
+        {/* Medalhas — só aparece se tiver medalhas */}
+        {medalhas.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
+            <h3 className="text-green-800 font-bold text-base mb-3 flex items-center gap-2">
+              🏅 As minhas Medalhas
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {medalhas.map((m, i) => {
+                const ICONES = { primeira_avaliacao: "🌱", "5_estrelas_10x": "⭐", "5_estrelas_50x": "🏆", media_5_estrelas: "💎" };
+                return (
+                  <div key={i} className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+                    <span className="text-3xl">{ICONES[m.tipo] || "🏅"}</span>
+                    <p className="text-gray-800 text-xs font-semibold mt-1">{m.nome}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* SECCAO 1: Meus Residuos - publicados pelo proprio utilizador */}
         <div className="flex items-center justify-between mb-4">
