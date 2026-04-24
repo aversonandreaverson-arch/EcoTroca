@@ -6,6 +6,7 @@ import { getNotificacoes, marcarNotificacaoLida, aceitarProposta, recusarPropost
 const links = [
   { label: "Pagina Inicial", to: "/PaginaInicial" },
   { label: "Dashboard",      to: "/Dashboard"     },
+  { label: "Rankings",       to: "/Rankings"      },
   { label: "Eventos",        to: "/Eventos"        },
   { label: "Noticias",       to: "/Noticias"       },
   { label: "Educacao",       to: "/Educacao"       },
