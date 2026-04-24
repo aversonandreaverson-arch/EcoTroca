@@ -7,7 +7,6 @@
 //    - getPerfil()          -> GET /api/usuarios/perfil
 //    - getPontuacao()       -> GET /api/usuarios/pontuacao
 //    - getMinhasEntregas()  -> GET /api/entregas
-// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -134,8 +133,13 @@ export default function Dashboard() {
   );
 
   // Estatisticas
-  const nivel       = pontuacao?.recompensa?.nivel       || "iniciante";
   const totalPontos = pontuacao?.pontuacao?.pontos_total || 0;
+
+  // Nivel calculado directamente dos pontos reais — nao depende da tabela recompensausuario
+  const nivel = totalPontos < 500   ? 'EcoIniciante' :
+                totalPontos < 1500  ? 'EcoAmigo'     :
+                totalPontos < 4000  ? 'EcoDefensor'  :
+                totalPontos < 10000 ? 'EcoMestre'    : 'EcoLenda';
 
   // SEPARACAO: residuos proprios vs participacoes em pedidos de empresa
   // id_publicacao preenchido = participacao num pedido de empresa
@@ -157,10 +161,11 @@ export default function Dashboard() {
 
   const calcularProgresso = () => {
     const p = totalPontos;
-    if (p >= 1000) return 100;
-    if (p >= 500)  return Math.round(((p - 500) / 500) * 100);
-    if (p >= 100)  return Math.round(((p - 100) / 400) * 100);
-    return Math.round((p / 100) * 100);
+    if (p >= 10000) return 100;
+    if (p >= 4000)  return Math.round(((p - 4000)  / 6000) * 100); // EcoMestre → EcoLenda
+    if (p >= 1500)  return Math.round(((p - 1500)  / 2500) * 100); // EcoDefensor → EcoMestre
+    if (p >= 500)   return Math.round(((p - 500)   / 1000) * 100); // EcoAmigo → EcoDefensor
+    return Math.round((p / 500) * 100);                             // EcoIniciante → EcoAmigo
   };
   const progresso = calcularProgresso();
 
@@ -173,7 +178,7 @@ export default function Dashboard() {
         {/* Card de nivel e progresso */}
         <div className="bg-green-700 text-white rounded-2xl p-6 mb-6 shadow">
           <div className="flex items-start justify-between mb-1">
-            <p className="text-green-300 text-sm capitalize">EcoAmigo - Nivel {nivel}</p>
+            <p className="text-green-300 text-sm">{nivel} — {totalPontos} pontos</p>
             <button onClick={logout}
               className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs transition"
               title="Terminar sessao">
