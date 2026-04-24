@@ -161,10 +161,10 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
       [id_usuario]
     );
     const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
-    const nivel = totalPts < 100  ? 'EcoIniciante' :
-                  totalPts < 300  ? 'EcoAmigo'     :
-                  totalPts < 600  ? 'EcoDefensor'  :
-                  totalPts < 1000 ? 'EcoMestre'    : 'EcoLenda';
+    const nivel = totalPts < 500   ? 'EcoIniciante' :
+                  totalPts < 1500  ? 'EcoAmigo'     :
+                  totalPts < 4000  ? 'EcoDefensor'  :
+                  totalPts < 10000 ? 'EcoMestre'    : 'EcoLenda';
 
     await pool.query(
       `UPDATE recompensausuario SET pontos_totais = ?, nivel = ? WHERE id_usuario = ?`,
@@ -177,10 +177,10 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
       [id_usuario]
     );
     const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
-    const nivel = totalPts < 100  ? 'EcoIniciante' :
-                  totalPts < 300  ? 'EcoAmigo'     :
-                  totalPts < 600  ? 'EcoDefensor'  :
-                  totalPts < 1000 ? 'EcoMestre'    : 'EcoLenda';
+    const nivel = totalPts < 500   ? 'EcoIniciante' :
+                  totalPts < 1500  ? 'EcoAmigo'     :
+                  totalPts < 4000  ? 'EcoDefensor'  :
+                  totalPts < 10000 ? 'EcoMestre'    : 'EcoLenda';
 
     await pool.query(
       `UPDATE recompensausuario SET pontos_totais = ?, nivel = ? WHERE id_usuario = ?`,
