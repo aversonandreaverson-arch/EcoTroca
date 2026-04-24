@@ -7,6 +7,7 @@
 //    - getPerfil()          -> GET /api/usuarios/perfil
 //    - getPontuacao()       -> GET /api/usuarios/pontuacao
 //    - getMinhasEntregas()  -> GET /api/entregas
+// ============================================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -416,7 +417,7 @@ export default function Dashboard() {
         )}
 
       </div>
-    </div>
+
       {/* Modal de Avaliação */}
       {modalAvaliacao && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
