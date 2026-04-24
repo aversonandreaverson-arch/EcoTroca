@@ -80,17 +80,17 @@ export default function Perfil() {
   const totalPontos = pontuacao?.pontuacao?.total_pontos   || 0;
   const totalTrocas = pontuacao?.pontuacao?.total_entregas || 0;
 
-  const nivelIdx  = totalPontos < 100  ? 0 :
-                    totalPontos < 300  ? 1 :
-                    totalPontos < 600  ? 2 :
-                    totalPontos < 1000 ? 3 : 4;
+  const nivelIdx  = totalPontos < 500   ? 0 :
+                    totalPontos < 1500  ? 1 :
+                    totalPontos < 4000  ? 2 :
+                    totalPontos < 10000 ? 3 : 4;
 
   const NIVEIS = [
-    { nome: "EcoIniciante", limite: 100,  base: 0    },
-    { nome: "EcoAmigo",     limite: 300,  base: 100  },
-    { nome: "EcoDefensor",  limite: 600,  base: 300  },
-    { nome: "EcoMestre",    limite: 1000, base: 600  },
-    { nome: "EcoLenda",     limite: 1500, base: 1000 },
+    { nome: "EcoIniciante", limite: 500,   base: 0     },
+    { nome: "EcoAmigo",     limite: 1500,  base: 500   },
+    { nome: "EcoDefensor",  limite: 4000,  base: 1500  },
+    { nome: "EcoMestre",    limite: 10000, base: 4000  },
+    { nome: "EcoLenda",     limite: 15000, base: 10000 },
   ];
 
   const nivelCfg  = NIVEIS[nivelIdx];
