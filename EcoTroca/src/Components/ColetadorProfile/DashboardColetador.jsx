@@ -11,7 +11,6 @@
 //    - Ve as recolhas designadas pela empresa
 //    - Nao recebe dinheiro — e pago pela empresa fora da plataforma
 //    - Nao pode aceitar pedidos por conta propria
-// ============================================================
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
