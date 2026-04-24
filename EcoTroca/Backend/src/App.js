@@ -17,7 +17,7 @@ import residuoRoutes            from './routes/residuo.routes.js';
 import pesquisaRoutes           from './routes/pesquisa.routes.js';
 import confirmarColetadorRoutes from './routes/confirmar_coletador.routes.js';
 import avaliacaoRoutes          from './routes/avaliacao.routes.js';
-
+import rankingRoutes           from './routes/ranking.routes.js';
 const app = express();
 
 app.use(cors({
@@ -50,6 +50,7 @@ app.use('/api/residuos',       residuoRoutes);
 app.use('/api/pesquisa',       pesquisaRoutes);
 app.use('/api/coletadores',    confirmarColetadorRoutes);
 app.use('/api/avaliacoes',     avaliacaoRoutes);
+app.use('/api/ranking',        rankingRoutes);
 
 app.get('/', (req, res) => res.json({ mensagem: 'EcoTroca API funcionando!' }));
 
