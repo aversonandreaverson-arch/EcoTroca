@@ -363,3 +363,16 @@ export const apagarEducacao = (id) =>
 
 export const getRelatoriosAdmin = (periodo = 'mes') =>
   pedido(`/admin/relatorios?periodo=${periodo}`);
+
+// ── AVALIAÇÕES ────────────────────────────────────────────────
+export const criarAvaliacao = (dados) =>
+  pedido('/avaliacoes', { method: 'POST', body: JSON.stringify(dados) });
+
+export const getAvaliacoesMinhas = () =>
+  pedido('/avaliacoes/minhas');
+
+export const getAvaliacoesEntrega = (id_entrega) =>
+  pedido(`/avaliacoes/entrega/${id_entrega}`);
+
+export const getAvaliacoesUtilizador = (id_usuario) =>
+  pedido(`/avaliacoes/utilizador/${id_usuario}`);
