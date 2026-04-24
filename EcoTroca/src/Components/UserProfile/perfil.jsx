@@ -8,7 +8,7 @@
 //  Modo privado:  /Perfil          → próprio utilizador, mostra Editar + Definições
 //  Modo público:  /Perfil/:id      → outro utilizador, só mostra dados públicos
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Edit, Settings, Star, MapPin, ArrowLeft, Phone, Mail, Recycle, Package, CheckCircle, TrendingUp } from "lucide-react";
 import Header from "./Header";
 import { useNavigate, useParams } from "react-router-dom";
@@ -234,6 +234,9 @@ export default function Perfil() {
           </div>
         )}
 
+        {/* Avaliações — visíveis no modo público */}
+        {modoPublico && <SecaoAvaliacoes idUtilizador={id} />}
+
         {/* Data de registo — so no modo publico */}
         {modoPublico && perfil.data_criacao && (
           <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-5">
@@ -244,6 +247,68 @@ export default function Perfil() {
             </p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Componente de avaliações — reutilizável nos 3 perfis
+function SecaoAvaliacoes({ idUtilizador }) {
+  const [dados,      setDados]      = React.useState(null);
+  const [carregando, setCarregando] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!idUtilizador) return;
+    import('../../api.js').then(({ getAvaliacoesUtilizador }) => {
+      getAvaliacoesUtilizador(idUtilizador)
+        .then(r => { setDados(r); setCarregando(false); })
+        .catch(() => setCarregando(false));
+    });
+  }, [idUtilizador]);
+
+  if (carregando || !dados || dados.total === 0) return null;
+
+  const estrelas = parseFloat(dados.media || 0);
+  const cheias   = Math.floor(estrelas);
+  const meia     = estrelas - cheias >= 0.5;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-yellow-100 p-5 mb-4">
+      <h3 className="text-green-800 font-semibold text-sm mb-3 flex items-center gap-2">
+        <Star size={15} className="text-yellow-500" /> Avaliações
+      </h3>
+      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+        <span className="text-4xl font-bold text-yellow-500">{estrelas.toFixed(1)}</span>
+        <div>
+          <div className="flex gap-0.5">
+            {[1,2,3,4,5].map(n => (
+              <Star key={n} size={18}
+                className={n <= cheias ? "text-yellow-400 fill-yellow-400" :
+                  (n === cheias + 1 && meia) ? "text-yellow-400 fill-yellow-200" :
+                  "text-gray-200"} />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">{dados.total} avaliação{dados.total !== 1 ? "ões" : ""}</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {dados.avaliacoes.slice(0, 3).map((a, i) => (
+          <div key={i} className="bg-gray-50 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-700 text-xs font-medium">{a.nome_avaliador}</p>
+              <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(n => (
+                  <Star key={n} size={11}
+                    className={n <= a.nota ? "text-yellow-400 fill-yellow-400" : "text-gray-200"} />
+                ))}
+              </div>
+            </div>
+            {a.comentario && <p className="text-gray-500 text-xs leading-relaxed">"{a.comentario}"</p>}
+            <p className="text-gray-300 text-xs mt-1">
+              {new Date(a.criado_em).toLocaleDateString("pt-AO", { day: "2-digit", month: "short", year: "numeric" })}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );
