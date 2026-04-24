@@ -19,7 +19,7 @@
 
 import pool from '../config/database.js';
 
-// ── processarPagamento 
+// ── processarPagamento ────────────────────────────────────────
 // Chamado quando a empresa aceita uma entrega e regista o peso real.
 // peso_real -> peso efectivo pesado pela empresa no momento da recepcao.
 export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
@@ -126,14 +126,65 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
       'UPDATE carteira SET saldo = saldo + ? WHERE id_usuario = ?',
       [valor_utilizador, id_usuario]
     );
-  } else {
-    // Pontos — converte Kz em pontos (1 Kz = 1 ponto)
-    const pontos = Math.floor(valor_utilizador);
+  } else if (tipo_recompensa === 'pontos') {
+    // Pontos — multiplica por 2 (bónus por abdicar do dinheiro)
+    const pontos = Math.floor(peso * 10 * 2);
     await pool.query(
       `UPDATE pontuacaousuario
        SET total_pontos = total_pontos + ?, total_entregas = total_entregas + 1
        WHERE id_usuario = ?`,
       [pontos, id_usuario]
+    );
+  }
+
+  // ── Pontos automáticos — atribuídos em TODAS as entregas ──
+  // Independentemente da recompensa escolhida, o utilizador ganha pontos
+  // Dinheiro → pontos base (×1)
+  // Saldo    → pontos base × 1.5 (bónus por ficar na plataforma)
+  // Pontos   → já tratado acima com ×2
+  if (tipo_recompensa !== 'pontos') {
+    const multiplicador = tipo_recompensa === 'saldo' ? 1.5 : 1;
+    const pontosAuto    = Math.floor(peso * 10 * multiplicador);
+
+    // Actualiza pontuacaousuario
+    await pool.query(
+      `UPDATE pontuacaousuario
+       SET total_pontos   = total_pontos + ?,
+           total_entregas = total_entregas + 1
+       WHERE id_usuario = ?`,
+      [pontosAuto, id_usuario]
+    );
+
+    // Actualiza recompensausuario — calcula o nivel automaticamente
+    const totalPontos_r = await pool.query(
+      'SELECT total_pontos FROM pontuacaousuario WHERE id_usuario = ?',
+      [id_usuario]
+    );
+    const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
+    const nivel = totalPts < 100  ? 'EcoIniciante' :
+                  totalPts < 300  ? 'EcoAmigo'     :
+                  totalPts < 600  ? 'EcoDefensor'  :
+                  totalPts < 1000 ? 'EcoMestre'    : 'EcoLenda';
+
+    await pool.query(
+      `UPDATE recompensausuario SET pontos_totais = ?, nivel = ? WHERE id_usuario = ?`,
+      [totalPts, nivel, id_usuario]
+    );
+  } else {
+    // Para quem escolheu pontos, também actualiza o nível
+    const totalPontos_r = await pool.query(
+      'SELECT total_pontos FROM pontuacaousuario WHERE id_usuario = ?',
+      [id_usuario]
+    );
+    const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
+    const nivel = totalPts < 100  ? 'EcoIniciante' :
+                  totalPts < 300  ? 'EcoAmigo'     :
+                  totalPts < 600  ? 'EcoDefensor'  :
+                  totalPts < 1000 ? 'EcoMestre'    : 'EcoLenda';
+
+    await pool.query(
+      `UPDATE recompensausuario SET pontos_totais = ?, nivel = ? WHERE id_usuario = ?`,
+      [totalPts, nivel, id_usuario]
     );
   }
 
