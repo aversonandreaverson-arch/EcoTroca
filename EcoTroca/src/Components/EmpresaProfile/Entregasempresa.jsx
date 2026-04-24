@@ -4,7 +4,7 @@ import L from 'leaflet';
 import {
   CheckCircle, XCircle, Package, User, MapPin,
   Clock, Scale, AlertCircle, X, Leaf, CalendarCheck,
-  Truck, Users, Map
+  Truck, Users, Map, Star
 } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
 import {
@@ -13,9 +13,10 @@ import {
   rejeitarEntregaEmpresa,
   proporDataRecolha,
   getColetadoresEmpresa,
+  criarAvaliacao,
+  getAvaliacoesEntrega,
 } from '../../api.js';
 
-// Corrige icone padrao do Leaflet com Vite
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -23,14 +24,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Icone vermelho para marcar a localizacao do utilizador
 const iconeVermelho = new L.Icon({
   iconUrl:       'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize:      [25, 41],
-  iconAnchor:    [12, 41],
-  popupAnchor:   [1, -34],
-  shadowSize:    [41, 41],
+  iconSize:      [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
 export default function EntregasEmpresa() {
@@ -41,41 +38,52 @@ export default function EntregasEmpresa() {
   const [erro,        setErro]        = useState('');
   const [coletadores, setColetadores] = useState([]);
 
-  // Modal mapa — localizacao do utilizador
-  const [modalMapa, setModalMapa] = useState(null);
-
-  // Modal aceitar
-  const [modalAceitar, setModalAceitar] = useState(null);
-  const [pesoReal,     setPesoReal]     = useState('');
-  const [erroAceitar,  setErroAceitar]  = useState('');
-
-  // Modal rejeitar
-  const [modalRejeitar, setModalRejeitar] = useState(null);
-  const [motivo,        setMotivo]        = useState('');
-  const [erroRejeitar,  setErroRejeitar]  = useState('');
-
-  // Modal data
+  const [modalMapa,      setModalMapa]      = useState(null);
+  const [modalAceitar,   setModalAceitar]   = useState(null);
+  const [pesoReal,       setPesoReal]       = useState('');
+  const [erroAceitar,    setErroAceitar]    = useState('');
+  const [modalRejeitar,  setModalRejeitar]  = useState(null);
+  const [motivo,         setMotivo]         = useState('');
+  const [erroRejeitar,   setErroRejeitar]   = useState('');
   const [modalData,      setModalData]      = useState(null);
   const [dataRecolha,    setDataRecolha]    = useState('');
   const [obsEmpresa,     setObsEmpresa]     = useState('');
   const [erroData,       setErroData]       = useState('');
   const [propondo,       setPropondo]       = useState(false);
   const [coletadoresSel, setColetadoresSel] = useState([]);
+  const [acaoEmCurso,    setAcaoEmCurso]    = useState(null);
 
-  const [acaoEmCurso, setAcaoEmCurso] = useState(null);
+  // Modal avaliação
+  const [modalAvaliacao, setModalAvaliacao] = useState(null); // { entrega, alvo: 'utilizador'|'coletador' }
+  const [notaAvaliacao,  setNotaAvaliacao]  = useState(0);
+  const [comentario,     setComentario]     = useState('');
+  const [enviandoAval,   setEnviandoAval]   = useState(false);
+  const [erroAval,       setErroAval]       = useState('');
+  const [jaAvaliou,      setJaAvaliou]      = useState({}); // { id_entrega: [tipos] }
 
   useEffect(() => {
-    carregar();
+    carregarTudo();
     getColetadoresEmpresa()
       .then(dados => setColetadores((dados || []).filter(c => c.tipo === 'dependente')))
       .catch(console.error);
   }, []);
 
-  const carregar = async () => {
+  const carregarTudo = async () => {
     try {
       setErro('');
       const dados = await getEntregasEmpresa();
       setEntregas(dados);
+
+      // Verifica quais entregas concluidas ja foram avaliadas
+      const concluidas = dados.filter(e => e.status === 'coletada');
+      const avalMap = {};
+      await Promise.all(concluidas.map(async e => {
+        try {
+          const r = await getAvaliacoesEntrega(e.id_entrega);
+          avalMap[e.id_entrega] = r.ja_avaliou || [];
+        } catch { avalMap[e.id_entrega] = []; }
+      }));
+      setJaAvaliou(avalMap);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -83,22 +91,26 @@ export default function EntregasEmpresa() {
     }
   };
 
-  const entregasFiltradas = filtro === 'todos'
-    ? entregas
-    : entregas.filter(e => e.status === filtro);
+  const carregar = async () => {
+    try {
+      setErro('');
+      const dados = await getEntregasEmpresa();
+      setEntregas(dados);
+    } catch (err) { setErro(err.message); }
+    finally { setCarregando(false); }
+  };
+
+  const entregasFiltradas = filtro === 'todos' ? entregas : entregas.filter(e => e.status === filtro);
 
   const calcularEstimativa = (peso, valorKg) => {
     const p = parseFloat(peso), vkg = parseFloat(valorKg);
     if (!p || !vkg || p <= 0 || vkg <= 0) return null;
-    const valorTotal      = p * vkg;
-    const valorUtilizador = (valorTotal * 0.70) - 50;
-    const valorColetador  = valorTotal * 0.30;
-    const comissao        = (valorTotal * 0.10) + 50;
+    const valorTotal = p * vkg;
     return {
       valorTotal:      valorTotal.toFixed(0),
-      valorUtilizador: Math.max(0, valorUtilizador).toFixed(0),
-      valorColetador:  valorColetador.toFixed(0),
-      comissao:        comissao.toFixed(0),
+      valorUtilizador: Math.max(0, (valorTotal * 0.70) - 50).toFixed(0),
+      valorColetador:  (valorTotal * 0.30).toFixed(0),
+      comissao:        ((valorTotal * 0.10) + 50).toFixed(0),
     };
   };
 
@@ -111,9 +123,44 @@ export default function EntregasEmpresa() {
   const abrirModalData    = (id) => { setModalData(id); setDataRecolha(''); setObsEmpresa(''); setErroData(''); setColetadoresSel([]); };
   const toggleColetador   = (id) => setColetadoresSel(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
 
-  // Abre modal do mapa para uma entrega especifica
-  const abrirMapa = (entrega) => {
-    setModalMapa(entrega);
+  // Abre modal de avaliação
+  const abrirAvaliacao = (entrega, alvo) => {
+    setModalAvaliacao({ entrega, alvo });
+    setNotaAvaliacao(0);
+    setComentario('');
+    setErroAval('');
+  };
+
+  // Envia avaliação
+  const handleAvaliar = async () => {
+    if (notaAvaliacao === 0) { setErroAval('Selecciona uma nota de 1 a 5 estrelas.'); return; }
+    try {
+      setEnviandoAval(true); setErroAval('');
+      const { entrega, alvo } = modalAvaliacao;
+
+      // id_avaliado depende do alvo
+      const id_avaliado = alvo === 'utilizador'
+        ? entrega.id_usuario
+        : entrega.id_coletador_usuario; // id_usuario do coletador
+
+      await criarAvaliacao({
+        id_entrega:    entrega.id_entrega,
+        id_avaliado,
+        tipo_avaliado: alvo,
+        nota:          notaAvaliacao,
+        comentario:    comentario || null,
+      });
+
+      setJaAvaliou(prev => ({
+        ...prev,
+        [entrega.id_entrega]: [...(prev[entrega.id_entrega] || []), alvo]
+      }));
+      setModalAvaliacao(null);
+    } catch (err) {
+      setErroAval(err.message);
+    } finally {
+      setEnviandoAval(false);
+    }
   };
 
   const handleAceitar = async () => {
@@ -214,11 +261,8 @@ export default function EntregasEmpresa() {
                 <div className="flex items-center gap-2">
                   <User size={14} className="text-green-500 shrink-0" />
                   <span>{e.nome_usuario}</span>
-                  {e.telefone_usuario && <span className="text-gray-400">· {e.telefone_usuario}</span>}
                 </div>
-
-                {/* Endereco clicavel — abre o mapa */}
-                <button onClick={() => abrirMapa(e)}
+                <button onClick={() => setModalMapa(e)}
                   className="flex items-center gap-2 w-full text-left hover:bg-green-50 rounded-lg px-1 py-0.5 transition group">
                   <MapPin size={14} className="text-green-500 shrink-0 group-hover:text-green-700" />
                   <span className="text-green-700 underline underline-offset-2 text-sm group-hover:text-green-900">
@@ -226,7 +270,6 @@ export default function EntregasEmpresa() {
                   </span>
                   <Map size={12} className="text-green-400 ml-auto shrink-0" />
                 </button>
-
                 <div className="flex items-center gap-2">
                   <Package size={14} className="text-green-500 shrink-0" />
                   <span>{e.peso_total ? `${e.peso_total} kg` : 'Peso a registar'}</span>
@@ -257,6 +300,37 @@ export default function EntregasEmpresa() {
                   </div>
                 )}
               </div>
+
+              {/* Botões de avaliação — só para entregas concluídas */}
+              {e.status === 'coletada' && (
+                <div className="space-y-2 mb-3">
+                  {/* Avaliar utilizador */}
+                  {!(jaAvaliou[e.id_entrega] || []).includes('utilizador') ? (
+                    <button onClick={() => abrirAvaliacao(e, 'utilizador')}
+                      className="w-full flex items-center justify-center gap-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-xl text-sm font-medium transition">
+                      <Star size={13} /> Avaliar utilizador
+                    </button>
+                  ) : (
+                    <p className="text-center text-green-600 text-xs flex items-center justify-center gap-1">
+                      <CheckCircle size={12} /> Utilizador avaliado
+                    </p>
+                  )}
+
+                  {/* Avaliar coletador — só se houver coletador */}
+                  {e.nome_coletadores && (
+                    !(jaAvaliou[e.id_entrega] || []).includes('coletor') ? (
+                      <button onClick={() => abrirAvaliacao(e, 'coletor')}
+                        className="w-full flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl text-sm font-medium transition">
+                        <Star size={13} /> Avaliar coletador
+                      </button>
+                    ) : (
+                      <p className="text-center text-green-600 text-xs flex items-center justify-center gap-1">
+                        <CheckCircle size={12} /> Coletador avaliado
+                      </p>
+                    )
+                  )}
+                </div>
+              )}
 
               {/* Marcar data */}
               {e.status === 'pendente' && (
@@ -291,8 +365,7 @@ export default function EntregasEmpresa() {
                       <CheckCircle size={14} /> Aceitar
                     </button>
                   ) : (
-                    <div title="Marca primeiro a data de recolha"
-                      className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
+                    <div className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
                       <CheckCircle size={14} /> Marcar data 1°
                     </div>
                   )}
@@ -308,94 +381,120 @@ export default function EntregasEmpresa() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          MODAL MAPA — Localizacao do utilizador
-          Empresa ve no mapa onde ir buscar os residuos
-          Se nao ha coordenadas GPS, mostra so o endereco textual
-      ═══════════════════════════════════════════════════════ */}
+      {/* MODAL AVALIAÇÃO */}
+      {modalAvaliacao && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
+                <Star size={20} /> Avaliar {modalAvaliacao.alvo === 'utilizador' ? 'Utilizador' : 'Coletador'}
+              </h3>
+              <button onClick={() => setModalAvaliacao(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+
+            <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
+              <p className="text-green-800 text-sm font-medium">
+                {modalAvaliacao.alvo === 'utilizador' ? modalAvaliacao.entrega.nome_usuario : modalAvaliacao.entrega.nome_coletadores}
+              </p>
+              <p className="text-green-600 text-xs mt-0.5">Entrega #{modalAvaliacao.entrega.id_entrega}</p>
+            </div>
+
+            {/* Estrelas */}
+            <div className="mb-4">
+              <label className="text-gray-700 text-sm font-medium block mb-2">
+                Como foi a experiência? <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setNotaAvaliacao(n)} className="transition transform hover:scale-110">
+                    <Star size={36} className={n <= notaAvaliacao ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} />
+                  </button>
+                ))}
+              </div>
+              {notaAvaliacao > 0 && (
+                <p className="text-center text-sm mt-2 text-gray-600">
+                  {notaAvaliacao === 1 ? 'Muito má' : notaAvaliacao === 2 ? 'Má' : notaAvaliacao === 3 ? 'Razoável' : notaAvaliacao === 4 ? 'Boa' : 'Excelente'}
+                </p>
+              )}
+            </div>
+
+            {/* Comentário */}
+            <div className="mb-4">
+              <label className="text-gray-600 text-sm block mb-1">Comentário (opcional)</label>
+              <textarea value={comentario} onChange={e => setComentario(e.target.value)}
+                placeholder="Os resíduos estavam conforme publicado? A pessoa foi pontual?"
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
+            </div>
+
+            {erroAval && (
+              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} /> {erroAval}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setModalAvaliacao(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">
+                Cancelar
+              </button>
+              <button onClick={handleAvaliar} disabled={enviandoAval}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2">
+                <Star size={16} /> {enviandoAval ? 'A enviar...' : 'Enviar Avaliação'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MAPA */}
       {modalMapa && (
         <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
           <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-lg shadow-xl">
-
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
                 <MapPin size={20} /> Localizacao da Entrega #{modalMapa.id_entrega}
               </h3>
               <button onClick={() => setModalMapa(null)}><X size={20} className="text-gray-400" /></button>
             </div>
-
-            {/* Info do utilizador */}
             <div className="bg-gray-50 rounded-xl p-3 mb-4 flex items-center gap-3">
               <User size={16} className="text-green-600 shrink-0" />
               <div>
                 <p className="text-gray-800 text-sm font-medium">{modalMapa.nome_usuario}</p>
-                {modalMapa.endereco_domicilio && (
-                  <p className="text-gray-500 text-xs mt-0.5">{modalMapa.endereco_domicilio}</p>
-                )}
-                {modalMapa.telefone_usuario && (
-                  <p className="text-gray-400 text-xs">Tel: {modalMapa.telefone_usuario}</p>
-                )}
+                {modalMapa.endereco_domicilio && <p className="text-gray-500 text-xs mt-0.5">{modalMapa.endereco_domicilio}</p>}
               </div>
             </div>
-
-            {/* Mapa — so se tiver coordenadas GPS */}
             {modalMapa.latitude && modalMapa.longitude ? (
               <>
                 <div className="rounded-xl overflow-hidden border border-gray-200 mb-3" style={{ height: '280px' }}>
-                  <MapContainer
-                    center={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]}
-                    zoom={16}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
-                    <Marker
-                      position={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]}
-                      icon={iconeVermelho}
-                    >
-                      <Popup>
-                        <strong>{modalMapa.nome_usuario}</strong><br />
-                        {modalMapa.endereco_domicilio || 'Localizacao do utilizador'}
-                      </Popup>
+                  <MapContainer center={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]} zoom={16} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
+                    <Marker position={[parseFloat(modalMapa.latitude), parseFloat(modalMapa.longitude)]} icon={iconeVermelho}>
+                      <Popup><strong>{modalMapa.nome_usuario}</strong><br />{modalMapa.endereco_domicilio || 'Localizacao do utilizador'}</Popup>
                     </Marker>
                   </MapContainer>
                 </div>
-
-                {/* Botao para abrir no Google Maps */}
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${modalMapa.latitude},${modalMapa.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href={`https://www.google.com/maps/dir/?api=1&destination=${modalMapa.latitude},${modalMapa.longitude}`}
+                  target="_blank" rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-sm font-medium transition mb-3">
                   <Map size={16} /> Abrir rota no Google Maps
                 </a>
               </>
             ) : (
-              /* Sem coordenadas GPS — mostra aviso */
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4 text-center">
                 <MapPin size={32} className="mx-auto mb-2 text-yellow-400" />
                 <p className="text-yellow-700 text-sm font-medium">Sem localizacao GPS</p>
-                <p className="text-yellow-600 text-xs mt-1">
-                  O utilizador nao marcou a localizacao no mapa. Usa o endereco textual para navegar.
-                </p>
+                <p className="text-yellow-600 text-xs mt-1">Usa o endereco textual para navegar.</p>
                 {modalMapa.endereco_domicilio && (
-                  <a
-                    href={`https://www.google.com/maps/search/${encodeURIComponent(modalMapa.endereco_domicilio + ', Angola')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <a href={`https://www.google.com/maps/search/${encodeURIComponent(modalMapa.endereco_domicilio + ', Angola')}`}
+                    target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium transition">
                     <Map size={13} /> Pesquisar no Google Maps
                   </a>
                 )}
               </div>
             )}
-
-            <button onClick={() => setModalMapa(null)}
-              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">
-              Fechar
-            </button>
+            <button onClick={() => setModalMapa(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">Fechar</button>
           </div>
         </div>
       )}
@@ -408,22 +507,20 @@ export default function EntregasEmpresa() {
               <h3 className="text-green-800 font-bold text-lg flex items-center gap-2"><CalendarCheck size={20} /> Marcar Data de Recolha</h3>
               <button onClick={() => setModalData(null)}><X size={20} className="text-gray-400" /></button>
             </div>
-            <p className="text-gray-500 text-sm mb-4">O utilizador sera notificado com a data. Se designares coletadores, eles tambem recebem notificacao.</p>
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">Data e hora da recolha <span className="text-red-500">*</span></label>
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Data e hora <span className="text-red-500">*</span></label>
               <input type="datetime-local" value={dataRecolha} onChange={e => setDataRecolha(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
             </div>
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">Nota para o utilizador (opcional)</label>
-              <textarea value={obsEmpresa} onChange={e => setObsEmpresa(e.target.value)}
-                placeholder="Ex: Traz os residuos ensacados." rows={2}
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Nota (opcional)</label>
+              <textarea value={obsEmpresa} onChange={e => setObsEmpresa(e.target.value)} rows={2}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
             </div>
             {coletadores.length > 0 && (
               <div className="mb-4">
-                <label className="text-gray-700 text-sm font-semibold block mb-1 flex items-center gap-2">
+                <label className="text-gray-700 text-sm font-semibold block mb-2 flex items-center gap-2">
                   <Users size={15} className="text-green-600" /> Designar coletador(es) (opcional)
                 </label>
                 <div className="space-y-2">
@@ -444,11 +541,6 @@ export default function EntregasEmpresa() {
                     );
                   })}
                 </div>
-              </div>
-            )}
-            {coletadores.length === 0 && (
-              <div className="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                <p className="text-gray-500 text-xs">Nao tens coletadores dependentes. O utilizador ira ao local da empresa.</p>
               </div>
             )}
             {erroData && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><AlertCircle size={14} /> {erroData}</p>}
@@ -476,8 +568,7 @@ export default function EntregasEmpresa() {
               <p className="text-green-600 text-xs mt-0.5">Entrega #{entregaAceitar.id_entrega} · {entregaAceitar.nome_usuario}</p>
             </div>
             <div className="mb-4">
-              <label className="text-gray-700 text-sm font-semibold block mb-1">Peso real dos residuos <span className="text-red-500">*</span></label>
-              <p className="text-gray-400 text-xs mb-2">Pesa os residuos e introduz o valor exacto.</p>
+              <label className="text-gray-700 text-sm font-semibold block mb-1">Peso real <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input type="number" min="0.1" step="0.1" value={pesoReal} onChange={e => setPesoReal(e.target.value)} placeholder="Ex: 12.5"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
@@ -487,9 +578,9 @@ export default function EntregasEmpresa() {
             {estimativa && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 space-y-2">
                 <p className="text-gray-700 text-xs font-semibold flex items-center gap-1"><Leaf size={12} className="text-green-600" /> Resumo do pagamento</p>
-                <div className="flex justify-between text-xs"><span className="text-gray-500">Valor total ({pesoReal} kg)</span><span className="font-medium text-gray-700">{estimativa.valorTotal} Kz</span></div>
-                <div className="flex justify-between text-xs"><span className="text-gray-500">Utilizador recebe (70% - 50 Kz)</span><span className="font-bold text-green-700">{estimativa.valorUtilizador} Kz</span></div>
-                {entregaAceitar.id_coletador && <div className="flex justify-between text-xs"><span className="text-gray-500">Coletador recebe (30%)</span><span className="font-medium text-blue-600">{estimativa.valorColetador} Kz</span></div>}
+                <div className="flex justify-between text-xs"><span className="text-gray-500">Valor total</span><span className="font-medium text-gray-700">{estimativa.valorTotal} Kz</span></div>
+                <div className="flex justify-between text-xs"><span className="text-gray-500">Utilizador (70% - 50 Kz)</span><span className="font-bold text-green-700">{estimativa.valorUtilizador} Kz</span></div>
+                {entregaAceitar.id_coletador && <div className="flex justify-between text-xs"><span className="text-gray-500">Coletador (30%)</span><span className="font-medium text-blue-600">{estimativa.valorColetador} Kz</span></div>}
                 <div className="flex justify-between text-xs border-t border-gray-200 pt-2"><span className="text-gray-400">Comissao EcoTroca (10% + 50 Kz)</span><span className="text-gray-500">{estimativa.comissao} Kz</span></div>
               </div>
             )}
@@ -511,10 +602,9 @@ export default function EntregasEmpresa() {
           <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-bold text-red-600 mb-4">Rejeitar Entrega #{modalRejeitar}</h3>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo da rejeicao <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo <span className="text-red-500">*</span></label>
               <p className="text-gray-400 text-xs mb-2">O utilizador vai receber esta mensagem.</p>
-              <textarea value={motivo} onChange={e => setMotivo(e.target.value)}
-                placeholder="Ex: Residuos misturados com lixo organico..." rows={3}
+              <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={3}
                 className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
             </div>
             {erroRejeitar && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2"><AlertCircle size={14} /> {erroRejeitar}</p>}
