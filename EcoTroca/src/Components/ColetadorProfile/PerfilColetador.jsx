@@ -209,6 +209,9 @@ export default function PerfilColetador() {
           </div>
         )}
 
+        {/* Medalhas — visíveis no modo público */}
+        {modoPublico && <SecaoMedalhas idUtilizador={id} />}
+
         {/* Avaliações — visíveis no modo público */}
         {modoPublico && <SecaoAvaliacoes idUtilizador={id} />}
 
@@ -281,6 +284,49 @@ function SecaoAvaliacoes({ idUtilizador }) {
             <p className="text-gray-300 text-xs mt-1">
               {new Date(a.criado_em).toLocaleDateString("pt-AO", { day: "2-digit", month: "short", year: "numeric" })}
             </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Componente de medalhas
+function SecaoMedalhas({ idUtilizador }) {
+  const [medalhas,   setMedalhas]   = React.useState([]);
+  const [carregando, setCarregando] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!idUtilizador) return;
+    import('../../api.js').then(({ getMedalhasUtilizador }) => {
+      getMedalhasUtilizador(idUtilizador)
+        .then(r => { setMedalhas(r || []); setCarregando(false); })
+        .catch(() => setCarregando(false));
+    });
+  }, [idUtilizador]);
+
+  if (carregando || medalhas.length === 0) return null;
+
+  const ICONES = {
+    primeira_avaliacao: "🌱",
+    "5_estrelas_10x":   "⭐",
+    "5_estrelas_50x":   "🏆",
+    media_5_estrelas:   "💎",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5 mb-4">
+      <h3 className="text-green-800 font-semibold text-sm mb-3 flex items-center gap-2">
+        🏅 Medalhas ({medalhas.length})
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        {medalhas.map((m, i) => (
+          <div key={i} className="bg-orange-50 rounded-xl p-3 flex items-center gap-2">
+            <span className="text-2xl">{ICONES[m.tipo] || "🏅"}</span>
+            <div>
+              <p className="text-gray-800 text-xs font-semibold">{m.nome}</p>
+              <p className="text-gray-400 text-xs leading-tight">{m.descricao}</p>
+            </div>
           </div>
         ))}
       </div>
