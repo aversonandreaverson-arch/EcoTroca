@@ -7,6 +7,7 @@ import { logout, getPerfil, getNotificacoes, marcarNotificacaoLida } from "../..
 const linksIndependente = [
   { label: "Página Inicial",    to: "/ColetadorInicio"    },
   { label: "Dashboard",         to: "/ColetadorDashboard" },
+  { label: "Rankings",          to: "/Rankings"           },
   { label: "Pedidos Pendentes", to: "/PedidosPendentes"   },
   { label: "Histórico",         to: "/HistoricoColetas"   },
   { label: "Notícias",          to: "/ColetadorNoticias"  },
@@ -18,6 +19,7 @@ const linksIndependente = [
 const linksDependente = [
   { label: "Página Inicial", to: "/ColetadorInicio"    },
   { label: "Dashboard",      to: "/ColetadorDashboard" },
+  { label: "Rankings",       to: "/Rankings"           },
   { label: "Notícias",       to: "/ColetadorNoticias"  },
   { label: "Eventos",        to: "/ColetadorEventos"   },
   { label: "Perfil",         to: "/PerfilColetador"    },
