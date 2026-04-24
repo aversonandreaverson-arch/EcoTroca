@@ -20,7 +20,7 @@ import {
   Building2, Bell, MapPin, CalendarCheck, Package, X, AlertCircle
 } from "lucide-react";
 import Header from "./Header.jsx";
-import { getPerfil, getEntregasPendentes, getNotificacoes, criarAvaliacao, getAvaliacoesEntrega } from "../../api.js";
+import { getPerfil, getEntregasPendentes, getNotificacoes, criarAvaliacao, getAvaliacoesEntrega, getMedalhasMinhas } from "../../api.js";
 
 export default function DashboardColetador() {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ export default function DashboardColetador() {
   // 'independente' = trabalha por conta propria
   const [tipoColetador, setTipoColetador] = useState("independente");
   const [nomeEmpresa,   setNomeEmpresa]   = useState("");
+  const [medalhas,      setMedalhas]      = useState([]);
 
   // Modal avaliação
   const [modalAvaliacao, setModalAvaliacao] = useState(null);
@@ -51,11 +52,13 @@ export default function DashboardColetador() {
   const carregar = async () => {
     try {
       // Carrega perfil e entregas em paralelo
-      const [dadosPerfil, dadosEntregas, dadosNotifs] = await Promise.all([
+      const [dadosPerfil, dadosEntregas, dadosNotifs, minhasMedalhas] = await Promise.all([
         getPerfil(),
         getEntregasPendentes(),
         getNotificacoes(),
+        getMedalhasMinhas(),
       ]);
+      setMedalhas(minhasMedalhas || []);
 
       setPerfil(dadosPerfil);
       setEntregas(dadosEntregas || []);
@@ -341,6 +344,27 @@ export default function DashboardColetador() {
           <p className="text-gray-400 text-sm mt-1">
             A empresa {nomeEmpresa} vai notificar-te quando houver uma recolha para fazeres.
           </p>
+        </div>
+      )}
+
+      {/* Medalhas */}
+      {medalhas.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 border border-orange-100">
+          <h3 className="text-green-800 font-bold text-base mb-3">🏅 As minhas Medalhas</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {medalhas.map((m, i) => {
+              const ICONES = { primeira_avaliacao: "🌱", "5_estrelas_10x": "⭐", "5_estrelas_50x": "🏆", media_5_estrelas: "💎" };
+              return (
+                <div key={i} className="bg-orange-50 border border-orange-100 rounded-xl p-3 flex items-center gap-2">
+                  <span className="text-2xl">{ICONES[m.tipo] || "🏅"}</span>
+                  <div>
+                    <p className="text-gray-800 text-xs font-semibold">{m.nome}</p>
+                    <p className="text-gray-400 text-xs">{m.descricao}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
