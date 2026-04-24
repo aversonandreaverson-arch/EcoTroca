@@ -12,10 +12,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp, PlusCircle, Pencil, Trash2,
-  Package, Recycle, Star, Banknote, LogOut, Building2, CheckCircle, Clock, CreditCard
+  Package, Recycle, Star, Banknote, LogOut, Building2, CheckCircle, Clock, CreditCard, X, AlertCircle
 } from "lucide-react";
 import Header from "./Header";
-import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira } from "../../api.js";
+import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira, criarAvaliacao, getAvaliacoesEntrega } from "../../api.js";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,6 +25,14 @@ export default function Dashboard() {
   const [entregas,   setEntregas]   = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro,       setErro]       = useState("");
+
+  // Modal de avaliação
+  const [modalAvaliacao,  setModalAvaliacao]  = useState(null);  // entrega a avaliar
+  const [notaAvaliacao,   setNotaAvaliacao]   = useState(0);
+  const [comentario,      setComentario]      = useState('');
+  const [enviandoAval,    setEnviandoAval]    = useState(false);
+  const [erroAval,        setErroAval]        = useState('');
+  const [jaAvaliou,       setJaAvaliou]       = useState({});    // { id_entrega: [tipos] }
   const [carteira,   setCarteira]   = useState(null);
 
   useEffect(() => { carregar(); }, []);
@@ -43,6 +51,17 @@ export default function Dashboard() {
       setPontuacao(pts);
       setEntregas(minhasEntregas);
       setCarteira(dadosCarteira);
+
+      // Verifica quais entregas concluidas ja foram avaliadas
+      const entregasConcluidas = minhasEntregas.filter(e => e.status === 'coletada');
+      const avalMap = {};
+      await Promise.all(entregasConcluidas.map(async e => {
+        try {
+          const r = await getAvaliacoesEntrega(e.id_entrega);
+          avalMap[e.id_entrega] = r.ja_avaliou || [];
+        } catch { avalMap[e.id_entrega] = []; }
+      }));
+      setJaAvaliou(avalMap);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -58,6 +77,40 @@ export default function Dashboard() {
       await carregar();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  // Abre modal de avaliação para uma entrega concluída
+  const abrirAvaliacao = (entrega) => {
+    setModalAvaliacao(entrega);
+    setNotaAvaliacao(0);
+    setComentario('');
+    setErroAval('');
+  };
+
+  // Envia avaliação da empresa
+  const handleAvaliar = async () => {
+    if (notaAvaliacao === 0) { setErroAval('Selecciona uma nota de 1 a 5 estrelas.'); return; }
+    try {
+      setEnviandoAval(true); setErroAval('');
+      // Busca id_usuario da empresa para avaliar
+      await criarAvaliacao({
+        id_entrega:    modalAvaliacao.id_entrega,
+        id_avaliado:   modalAvaliacao.id_empresa_usuario || modalAvaliacao.id_empresa,
+        tipo_avaliado: 'empresa',
+        nota:          notaAvaliacao,
+        comentario:    comentario || null,
+      });
+      // Marca como avaliado localmente
+      setJaAvaliou(prev => ({
+        ...prev,
+        [modalAvaliacao.id_entrega]: [...(prev[modalAvaliacao.id_entrega] || []), 'empresa']
+      }));
+      setModalAvaliacao(null);
+    } catch (err) {
+      setErroAval(err.message);
+    } finally {
+      setEnviandoAval(false);
     }
   };
 
@@ -254,6 +307,17 @@ export default function Dashboard() {
                         </button>
                       </div>
                     )}
+                    {e.status === "coletada" && !(jaAvaliou[e.id_entrega] || []).includes('empresa') && (
+                      <button onClick={() => abrirAvaliacao(e)}
+                        className="w-full flex items-center justify-center gap-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg text-sm font-medium transition mt-1">
+                        <Star size={13} /> Avaliar empresa
+                      </button>
+                    )}
+                    {e.status === "coletada" && (jaAvaliou[e.id_entrega] || []).includes('empresa') && (
+                      <p className="text-center text-green-600 text-xs mt-1 flex items-center justify-center gap-1">
+                        <CheckCircle size={12} /> Empresa avaliada
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -352,6 +416,81 @@ export default function Dashboard() {
         )}
 
       </div>
+    </div>
+      {/* Modal de Avaliação */}
+      {modalAvaliacao && (
+        <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-green-800 font-bold text-lg flex items-center gap-2">
+                <Star size={20} /> Avaliar Empresa
+              </h3>
+              <button onClick={() => setModalAvaliacao(null)}><X size={20} className="text-gray-400" /></button>
+            </div>
+
+            <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4">
+              <p className="text-green-800 text-sm font-medium">Entrega #{modalAvaliacao.id_entrega}</p>
+              <p className="text-green-600 text-xs mt-0.5">{modalAvaliacao.tipos_residuos || 'Resíduo'}</p>
+            </div>
+
+            {/* Estrelas */}
+            <div className="mb-4">
+              <label className="text-gray-700 text-sm font-medium block mb-2">
+                Como foi a tua experiência com a empresa? <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setNotaAvaliacao(n)}
+                    className="transition transform hover:scale-110">
+                    <Star
+                      size={36}
+                      className={n <= notaAvaliacao ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+                    />
+                  </button>
+                ))}
+              </div>
+              {notaAvaliacao > 0 && (
+                <p className="text-center text-sm mt-2 text-gray-600">
+                  {notaAvaliacao === 1 ? 'Muito má' :
+                   notaAvaliacao === 2 ? 'Má' :
+                   notaAvaliacao === 3 ? 'Razoável' :
+                   notaAvaliacao === 4 ? 'Boa' : 'Excelente'}
+                </p>
+              )}
+            </div>
+
+            {/* Comentário */}
+            <div className="mb-4">
+              <label className="text-gray-600 text-sm block mb-1">Comentário (opcional)</label>
+              <textarea
+                value={comentario}
+                onChange={e => setComentario(e.target.value)}
+                placeholder="Como foi o atendimento, a pontualidade, o pagamento..."
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+              />
+            </div>
+
+            {erroAval && (
+              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} /> {erroAval}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setModalAvaliacao(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">
+                Cancelar
+              </button>
+              <button onClick={handleAvaliar} disabled={enviandoAval}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2">
+                <Star size={16} /> {enviandoAval ? 'A enviar...' : 'Enviar Avaliação'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
