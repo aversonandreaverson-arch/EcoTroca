@@ -1,8 +1,6 @@
 
 //  Mostra os utilizadores, coletadores e empresas mais activos
 //  da plataforma com base em pontos, avaliações e entregas.
-//
-//  Guardar em: src/Components/UserProfile/Rankings.jsx
 //  Rota: /Rankings
 
 import { useState, useEffect } from "react";
