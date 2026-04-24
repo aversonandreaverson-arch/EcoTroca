@@ -1,4 +1,7 @@
-
+// ============================================================
+//  PaginaInicial.jsx
+//  Guardar em: src/Components/UserProfile/PaginaInicial.jsx
+//
 //  FLUXO DE PARTICIPAÇÃO:
 //    - Utilizador comum vê pedido de empresa no feed
 //    - Clica "Participar" → entrega criada imediatamente (sem modal)
@@ -10,6 +13,7 @@
 //    - Empresa vê oferta de resíduo de utilizador comum
 //    - Clica "Tenho interesse" → abre modal para propor valor
 //    - Utilizador recebe notificação com botões Aceitar/Recusar
+// ============================================================
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -124,7 +128,8 @@ export default function PaginaInicial() {
   const [participando, setParticipando] = useState(null);
 
   // ── Estado das empresas para a sidebar ───────────────────
-  const [empresas, setEmpresas] = useState([]);
+  const [empresas,       setEmpresas]       = useState([]);
+  const [perfilModal,    setPerfilModal]    = useState(null); // { tipo, dados } — perfil publico a mostrar
 
   // ── Derivados ─────────────────────────────────────────────
   const tiposDisponiveis     = TIPOS_POR_PERFIL[tipo] || [];
@@ -192,9 +197,8 @@ export default function PaginaInicial() {
   // ── Navega para o perfil ao clicar no dropdown ───────────
   const irParaPerfil = (tipo_resultado, item) => {
     setMostrarDropdown(false); setPesquisa(''); setResultadosPesquisa(null);
-    if (tipo_resultado === 'empresa')       navigate(`/PerfilEmpresa/${item.id_empresa}`);
-    else if (tipo_resultado === 'comum')   navigate(`/Perfil/${item.id_usuario}`);
-    else if (tipo_resultado === 'coletor') navigate(`/PerfilColetador/${item.id_coletador}`);
+    // Todos os tipos abrem modal com perfil publico
+    setPerfilModal({ tipo: tipo_resultado, dados: item });
   };
 
   const totalResultados = resultadosPesquisa
@@ -445,7 +449,7 @@ export default function PaginaInicial() {
               {empresas.length === 0 ? <p className="text-gray-400 text-xs">Nenhuma empresa registada.</p> : (
                 <div className="space-y-1">
                   {empresas.slice(0, 5).map(e => (
-                    <button key={e.id_empresa} onClick={() => navigate(`/PerfilEmpresa/${e.id_empresa}`)}
+                    <button key={e.id_empresa} onClick={() => setPerfilModal({ tipo: 'empresa', dados: e })}
                       className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-green-50 transition text-left">
                       <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{e.nome?.charAt(0).toUpperCase()}</div>
                       <div className="min-w-0 flex-1">
@@ -546,6 +550,94 @@ export default function PaginaInicial() {
           </div>
         </div>
       )}
+
+      {/* Modal perfil publico — empresa, coletador ou utilizador */}
+      {perfilModal && (() => {
+        const d = perfilModal.dados;
+        const t = perfilModal.tipo;
+        const corAvatar = t === 'empresa' ? 'bg-purple-600' : t === 'coletor' ? 'bg-green-600' : 'bg-blue-500';
+        const labelTipo = t === 'empresa' ? 'Empresa Recicladora' : t === 'coletor' ? 'Coletador' : 'Utilizador';
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-end md:items-center justify-center z-50 px-0 md:px-4">
+            <div className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-xl">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-green-800 font-bold text-lg">{d.nome}</h3>
+                <button onClick={() => setPerfilModal(null)}><X size={20} className="text-gray-400" /></button>
+              </div>
+
+              {/* Avatar + nome + tipo */}
+              <div className="flex items-center gap-4 mb-5">
+                <div className={`w-14 h-14 rounded-full ${corAvatar} flex items-center justify-center text-white text-2xl font-bold shrink-0`}>
+                  {d.nome?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-gray-800 font-semibold">{d.nome}</p>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    t === 'empresa' ? 'bg-purple-100 text-purple-700' :
+                    t === 'coletor' ? 'bg-green-100 text-green-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>{labelTipo}</span>
+                </div>
+              </div>
+
+              {/* Informações comuns */}
+              <div className="space-y-2 text-sm text-gray-600 mb-5 bg-gray-50 rounded-xl p-4">
+                {(d.provincia || d.municipio) && (
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-gray-400 shrink-0" />
+                    <span>{[d.municipio, d.provincia].filter(Boolean).join(', ')}</span>
+                  </div>
+                )}
+                {d.telefone && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0">Telefone</span>
+                    <span>{d.telefone}</span>
+                  </div>
+                )}
+                {d.email && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0">Email</span>
+                    <span className="truncate">{d.email}</span>
+                  </div>
+                )}
+
+                {/* Campos específicos de empresa */}
+                {t === 'empresa' && d.horario_abertura && d.horario_fechamento && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0">Horário</span>
+                    <span>{d.horario_abertura} — {d.horario_fechamento}</span>
+                  </div>
+                )}
+                {t === 'empresa' && d.residuos_aceites && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0 mt-0.5">Resíduos</span>
+                    <span className="text-xs">{d.residuos_aceites}</span>
+                  </div>
+                )}
+                {t === 'empresa' && d.descricao && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0 mt-0.5">Sobre</span>
+                    <span className="text-xs leading-relaxed">{d.descricao}</span>
+                  </div>
+                )}
+
+                {/* Campos específicos de coletador */}
+                {t === 'coletor' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs w-16 shrink-0">Tipo</span>
+                    <span className="text-xs">{d.tipo === 'dependente' ? 'Coletador dependente' : 'Coletador independente'}</span>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => setPerfilModal(null)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium transition">
+                Fechar
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal de interesse — empresa propõe compra a utilizador */}
       {modalInteresse && publicacaoAlvo && (
