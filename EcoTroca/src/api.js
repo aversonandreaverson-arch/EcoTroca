@@ -376,3 +376,13 @@ export const getAvaliacoesEntrega = (id_entrega) =>
 
 export const getAvaliacoesUtilizador = (id_usuario) =>
   pedido(`/avaliacoes/utilizador/${id_usuario}`);
+
+// ── RANKINGS E MEDALHAS 
+export const getRanking = () =>
+  pedido('/ranking');
+
+export const getMedalhasMinhas = () =>
+  pedido('/ranking/medalhas');
+
+export const getMedalhasUtilizador = (id) =>
+  pedido(`/ranking/medalhas/${id}`);
