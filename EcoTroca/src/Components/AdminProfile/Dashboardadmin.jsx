@@ -270,6 +270,63 @@ export default function DashboardAdmin() {
         </div>
       </div>
 
+      {/* Gráfico 5 — Crescimento da plataforma */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} className="text-green-400" />
+            <h4 className="text-white font-semibold text-sm">Crescimento da Plataforma</h4>
+          </div>
+          <p className="text-white/40 text-xs mb-4">Estamos a crescer ou a morrer?</p>
+          {graficos?.crescimento?.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={graficos.crescimento} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="dia" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ background: '#1f2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: 'white' }}
+                />
+                <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
+                <Line type="monotone" dataKey="utilizadores" stroke={VERDE}    strokeWidth={2} dot={false} name="Utilizadores" />
+                <Line type="monotone" dataKey="empresas"     stroke={VERDE_CL} strokeWidth={2} dot={false} name="Empresas" strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="coletadores"  stroke="#86efac"  strokeWidth={2} dot={false} name="Coletadores" strokeDasharray="2 2" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <SemDados />
+          )}
+        </div>
+
+        {/* Gráfico 6 — Top Empresas */}
+        <div className="bg-white/10 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 size={16} className="text-green-400" />
+            <h4 className="text-white font-semibold text-sm">Top Empresas por Volume</h4>
+          </div>
+          <p className="text-white/40 text-xs mb-4">Quem está a funcionar bem?</p>
+          {graficos?.top_empresas?.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={graficos.top_empresas}
+                layout="vertical"
+                margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} />
+                <YAxis type="category" dataKey="nome" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} width={80} />
+                <Tooltip
+                  contentStyle={{ background: '#1f2937', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: 'white' }}
+                  formatter={(v) => [`${parseFloat(v).toFixed(1)} kg`]}
+                />
+                <Bar dataKey="total_kg" fill={VERDE} radius={[0, 4, 4, 0]} name="Kg recolhidos" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <SemDados />
+          )}
+        </div>
+      </div>
+
       {/* Últimas Entregas */}
       <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
         <Clock size={18} /> Últimas Entregas
