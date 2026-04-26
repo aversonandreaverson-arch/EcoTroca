@@ -6,7 +6,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/admin/utilizadores 
+// ── GET /api/admin/utilizadores ──────────────────────────────
 // Devolvo todos os utilizadores registados na plataforma
 // O frontend filtra por tipo_usuario para separar utilizadores, coletadores e empresas
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
@@ -536,6 +536,34 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
     res.json({ entregas_semana, receita_semana, tipos_residuos, crescimento, top_empresas, top_coletadores });
   } catch (err) {
     console.error('Erro graficos admin:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── GET /api/admin/hoje ──────────────────────────────────────
+// Estatísticas do dia actual para a sidebar da página inicial
+router.get('/hoje', auth, role('admin'), async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    const [[{ entregas_hoje }]] = await pool.query(
+      "SELECT COUNT(*) AS entregas_hoje FROM entrega WHERE DATE(data_hora) = ?", [hoje]
+    );
+    const [[{ usuarios_hoje }]] = await pool.query(
+      "SELECT COUNT(*) AS usuarios_hoje FROM usuario WHERE DATE(data_criacao) = ? AND tipo_usuario != 'admin'", [hoje]
+    );
+    const [[{ receita_hoje }]] = await pool.query(
+      "SELECT COALESCE(SUM(valor_total), 0) AS receita_hoje FROM entrega WHERE DATE(data_hora) = ? AND status = 'coletada'", [hoje]
+    );
+    const [[{ pendentes }]] = await pool.query(
+      "SELECT COUNT(*) AS pendentes FROM entrega WHERE status = 'pendente'"
+    );
+    const [[{ total_usuarios }]] = await pool.query(
+      "SELECT COUNT(*) AS total_usuarios FROM usuario WHERE tipo_usuario != 'admin'"
+    );
+
+    res.json({ entregas_hoje, usuarios_hoje, receita_hoje, pendentes, total_usuarios });
+  } catch (err) {
     res.status(500).json({ erro: err.message });
   }
 });
