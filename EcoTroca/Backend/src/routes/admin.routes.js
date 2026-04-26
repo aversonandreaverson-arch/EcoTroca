@@ -165,7 +165,7 @@ router.get('/entregas', auth, role('admin'), async (req, res) => {
       LEFT JOIN usuario            u  ON e.id_usuario = u.id_usuario
       LEFT JOIN empresarecicladora em ON e.id_empresa = em.id_empresa
       LEFT JOIN residuo            r  ON e.id_residuo = r.id_residuo
-      ORDER BY e.criado_em DESC
+      ORDER BY e.data_hora DESC
     `);
     res.json(rows);
   } catch (err) {
@@ -252,15 +252,17 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
       SELECT
         e.id_entrega, e.status,
         e.peso_total  AS peso,
-        e.valor_total, e.criado_em,
+        e.valor_total, e.data_hora AS criado_em,
         u.nome        AS utilizador,
         em.nome       AS empresa,
-        r.nome        AS residuo
+        GROUP_CONCAT(r.tipo SEPARATOR ', ') AS residuo
       FROM entrega e
       LEFT JOIN usuario            u  ON e.id_usuario = u.id_usuario
       LEFT JOIN empresarecicladora em ON e.id_empresa = em.id_empresa
-      LEFT JOIN residuo            r  ON e.id_residuo = r.id_residuo
-      ORDER BY e.criado_em DESC
+      LEFT JOIN entrega_residuo   er ON er.id_entrega = e.id_entrega
+      LEFT JOIN residuo            r  ON r.id_residuo = er.id_residuo
+      GROUP BY e.id_entrega
+      ORDER BY e.data_hora DESC
       LIMIT 10
     `);
 
