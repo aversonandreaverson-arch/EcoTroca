@@ -6,7 +6,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/admin/utilizadores ──────────────────────────────
+// ── GET /api/admin/utilizadores 
 // Devolvo todos os utilizadores registados na plataforma
 // O frontend filtra por tipo_usuario para separar utilizadores, coletadores e empresas
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
