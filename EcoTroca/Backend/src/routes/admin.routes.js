@@ -382,7 +382,7 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 6
     `);
 
-    res.json({ entregas_semana, receita_semana, tipos_residuos });
+    res.json({ entregas_semana, receita_semana, tipos_residuos, crescimento, top_empresas, top_coletadores });
   } catch (err) {
     console.error('Erro graficos admin:', err.message);
     res.status(500).json({ erro: err.message });
@@ -474,7 +474,50 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 20
     `);
 
-    // 3. Tipos de resíduos (todos os tempos)
+    // 3. Crescimento da plataforma — novos registos por semana
+    const [crescimento] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_criacao, '%d/%m/%Y') AS dia,
+        YEARWEEK(data_criacao, 1)             AS semana,
+        SUM(tipo_usuario = 'comum')           AS utilizadores,
+        SUM(tipo_usuario = 'empresa')         AS empresas,
+        SUM(tipo_usuario = 'coletor')         AS coletadores
+      FROM usuario
+      WHERE data_criacao IS NOT NULL
+        AND tipo_usuario != 'admin'
+      GROUP BY YEARWEEK(data_criacao, 1)
+      ORDER BY YEARWEEK(data_criacao, 1) ASC
+      LIMIT 20
+    `);
+
+    // 4. Top empresas por volume de kg recolhidos
+    const [top_empresas] = await pool.query(`
+      SELECT
+        er.nome                        AS nome,
+        COALESCE(SUM(e.peso_total), 0) AS total_kg,
+        COUNT(e.id_entrega)            AS total_entregas
+      FROM empresarecicladora er
+      LEFT JOIN entrega e ON e.id_empresa = er.id_empresa AND e.status = 'coletada'
+      GROUP BY er.id_empresa
+      ORDER BY total_kg DESC
+      LIMIT 5
+    `);
+
+    // 5. Top coletadores por recolhas
+    const [top_coletadores] = await pool.query(`
+      SELECT
+        u.nome                         AS nome,
+        COUNT(e.id_entrega)            AS total_entregas,
+        COALESCE(SUM(e.peso_total), 0) AS total_kg
+      FROM coletador c
+      INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+      LEFT JOIN entrega e ON e.id_coletador = c.id_coletador AND e.status = 'coletada'
+      GROUP BY c.id_coletador
+      ORDER BY total_entregas DESC
+      LIMIT 5
+    `);
+
+    // 6. Tipos de resíduos (todos os tempos)
     const [tipos_residuos] = await pool.query(`
       SELECT
         r.tipo  AS nome,
@@ -486,7 +529,7 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 8
     `);
 
-    res.json({ entregas_semana, receita_semana, tipos_residuos });
+    res.json({ entregas_semana, receita_semana, tipos_residuos, crescimento, top_empresas, top_coletadores });
   } catch (err) {
     console.error('Erro graficos admin:', err);
     res.status(500).json({ erro: err.message });
