@@ -12,14 +12,11 @@ import { logout } from "../../api.js";
 // ── Lista de links do menu ───────────────────────────────────
 // Cada objecto tem o texto a mostrar (label) e a rota de destino (to)
 const links = [
-  { label: "Início",       to: "/AdminDashboard"    },
-  { label: "Feed",         to: "/AdminFeed"         },
-  { label: "Utilizadores", to: "/AdminUtilizadores" },
-  { label: "Empresas",     to: "/AdminEmpresas"     },
-  { label: "Coletadores",  to: "/AdminColetadores"  },
-  { label: "Entregas",     to: "/AdminEntregas"     },
-  { label: "Educação",     to: "/AdminEducacao"     },
-  { label: "Relatórios",   to: "/AdminRelatorios"   },
+  { label: "Página Inicial", to: "/AdminInicio"       },
+  { label: "Dashboard",      to: "/AdminDashboard"    },
+  { label: "Utilizadores",   to: "/AdminUtilizadores" },
+  { label: "Educação",       to: "/AdminEducacao"     },
+  { label: "Relatórios",     to: "/AdminRelatorios"   },
 ];
 
 // ── Componente principal ─────────────────────────────────────
