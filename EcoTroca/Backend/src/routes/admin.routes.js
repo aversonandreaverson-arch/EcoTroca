@@ -286,4 +286,209 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
 });
 
 
+// ── GET /api/admin/graficos ──────────────────────────────────
+// Dados para os 3 gráficos do dashboard admin
+router.get('/graficos', auth, role('admin'), async (req, res) => {
+  try {
+    // 1. Entregas por semana (últimas 8 semanas)
+    const [entregasSemana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%Y-%u') AS semana,
+        DATE_FORMAT(MIN(data_hora), '%d/%m') AS label,
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'coletada' THEN 1 ELSE 0 END) AS concluidas,
+        SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) AS canceladas
+      FROM entrega
+      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE_FORMAT(data_hora, '%Y-%u')
+      ORDER BY semana ASC
+    `);
+
+    // 2. Receita por semana (últimas 8 semanas)
+    const [receitaSemana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%Y-%u') AS semana,
+        DATE_FORMAT(MIN(data_hora), '%d/%m') AS label,
+        COALESCE(SUM(valor_total), 0) AS total_transaccionado,
+        COALESCE(SUM(valor_total * 0.10) + COUNT(*) * 50, 0) AS comissoes
+      FROM entrega
+      WHERE status = 'coletada'
+        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE_FORMAT(data_hora, '%Y-%u')
+      ORDER BY semana ASC
+    `);
+
+    // 3. Tipos de resíduos mais reciclados
+    const [tiposResiduos] = await pool.query(`
+      SELECT
+        r.tipo AS name,
+        COUNT(*) AS value,
+        COALESCE(SUM(er.peso_kg), 0) AS total_kg
+      FROM entrega_residuo er
+      INNER JOIN residuo r ON r.id_residuo = er.id_residuo
+      INNER JOIN entrega e ON e.id_entrega = er.id_entrega
+      WHERE e.status = 'coletada'
+      GROUP BY r.tipo
+      ORDER BY value DESC
+    `);
+
+    res.json({ entregasSemana, receitaSemana, tiposResiduos });
+  } catch (err) {
+    console.error('Erro graficos admin:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
+// ── GET /api/admin/graficos ───────────────────────────────────
+// Dados para os 3 gráficos do dashboard admin
+router.get('/graficos', auth, role('admin'), async (req, res) => {
+  try {
+    // 1. Entregas por semana (últimas 8 semanas)
+    const [entregas_semana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m') AS dia,
+        COUNT(*)                         AS total
+      FROM entrega
+      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 2. Receita por semana (últimas 8 semanas)
+    const [receita_semana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m')      AS dia,
+        COALESCE(SUM(valor_total), 0)        AS receita,
+        COALESCE(SUM(valor_total * 0.10), 0) AS comissoes
+      FROM entrega
+      WHERE status = 'coletada'
+        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 3. Tipos de resíduos mais entregues
+    const [tipos_residuos] = await pool.query(`
+      SELECT
+        r.tipo                AS nome,
+        COUNT(er.id_residuo)  AS valor
+      FROM entrega_residuo er
+      JOIN residuo r ON r.id_residuo = er.id_residuo
+      GROUP BY r.id_residuo, r.tipo
+      ORDER BY valor DESC
+      LIMIT 6
+    `);
+
+    res.json({ entregas_semana, receita_semana, tipos_residuos });
+  } catch (err) {
+    console.error('Erro graficos admin:', err.message);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
+// ── GET /api/admin/graficos ───────────────────────────────────
+// Dados para os 3 gráficos do dashboard admin
+router.get('/graficos', auth, role('admin'), async (req, res) => {
+  try {
+    // 1. Entregas por semana (últimas 8 semanas)
+    const [entregasSemana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m') AS dia,
+        COUNT(*) AS total
+      FROM entrega
+      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 2. Receita por semana (últimas 8 semanas)
+    const [receitaSemana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m') AS dia,
+        COALESCE(SUM(valor_total), 0)         AS receita,
+        COALESCE(SUM(valor_total * 0.10), 0)  AS comissao
+      FROM entrega
+      WHERE status = 'coletada'
+        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 3. Tipos de resíduos mais entregues
+    const [tiposResiduos] = await pool.query(`
+      SELECT
+        r.tipo AS nome,
+        COUNT(er.id_entrega_residuo) AS valor
+      FROM entrega_residuo er
+      JOIN residuo r ON r.id_residuo = er.id_residuo
+      JOIN entrega e ON e.id_entrega = er.id_entrega
+      WHERE e.status = 'coletada'
+      GROUP BY r.tipo
+      ORDER BY valor DESC
+      LIMIT 6
+    `);
+
+    res.json({ entregasSemana, receitaSemana, tiposResiduos });
+  } catch (err) {
+    console.error('Erro graficos admin:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
+// ── GET /api/admin/graficos ───────────────────────────────────
+// Dados para os 3 gráficos do dashboard
+router.get('/graficos', auth, role('admin'), async (req, res) => {
+  try {
+    // 1. Entregas por semana (últimas 8 semanas)
+    const [entregas_semana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m') AS dia,
+        COUNT(*)                        AS total
+      FROM entrega
+      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 2. Receita por semana (últimas 8 semanas)
+    const [receita_semana] = await pool.query(`
+      SELECT
+        DATE_FORMAT(data_hora, '%d/%m')       AS dia,
+        COALESCE(SUM(valor_total), 0)         AS receita,
+        COALESCE(SUM(valor_total * 0.10), 0)  AS comissao
+      FROM entrega
+      WHERE status = 'coletada'
+        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
+      GROUP BY DATE(data_hora)
+      ORDER BY DATE(data_hora) ASC
+      LIMIT 56
+    `);
+
+    // 3. Tipos de resíduos (todos os tempos)
+    const [tipos_residuos] = await pool.query(`
+      SELECT
+        r.tipo  AS nome,
+        COUNT(*) AS valor
+      FROM entrega_residuo er
+      JOIN residuo r ON r.id_residuo = er.id_residuo
+      GROUP BY r.tipo
+      ORDER BY valor DESC
+      LIMIT 8
+    `);
+
+    res.json({ entregas_semana, receita_semana, tipos_residuos });
+  } catch (err) {
+    console.error('Erro graficos admin:', err);
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
