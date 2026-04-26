@@ -1,7 +1,3 @@
-// ============================================================
-//  Header.jsx — Barra de navegação do painel de administração
-//  Guardar em: src/Components/AdminProfile/Header.jsx
-// ============================================================
 
 // useState → guardo o estado do menu mobile (aberto ou fechado)
 import { useState } from "react";
