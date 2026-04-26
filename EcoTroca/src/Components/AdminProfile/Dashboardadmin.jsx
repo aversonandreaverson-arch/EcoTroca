@@ -119,18 +119,28 @@ export default function DashboardAdmin() {
       <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
         <Banknote size={18} /> Financeiro
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
         <CartaoStat icon={<TrendingUp size={22} className="text-green-400" />}
           label="Total Transaccionado"
           valor={`${parseFloat(stats?.financeiro?.total_transaccionado || 0).toFixed(0)} Kz`}
           cor="green" grande />
         <CartaoStat icon={<Banknote size={22} className="text-green-400" />}
-          label="Comissões (10%)"
+          label="Comissões EcoTroca (10%)"
           valor={`${parseFloat(stats?.financeiro?.total_comissoes || 0).toFixed(0)} Kz`}
           cor="green" grande onClick={() => navigate('/AdminRelatorios')} />
         <CartaoStat icon={<Recycle size={22} className="text-green-400" />}
           label="Total Kg Recolhidos"
           valor={`${parseFloat(stats?.financeiro?.total_kg || 0).toFixed(1)} kg`}
+          cor="green" grande />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+        <CartaoStat icon={<Users size={22} className="text-green-400" />}
+          label="Pago aos Cidadãos"
+          valor={`${parseFloat(stats?.financeiro?.total_utilizadores || 0).toFixed(0)} Kz`}
+          cor="green" grande />
+        <CartaoStat icon={<Recycle size={22} className="text-green-400" />}
+          label="Pago aos Coletadores"
+          valor={`${parseFloat(stats?.financeiro?.total_coletadores || 0).toFixed(0)} Kz`}
           cor="green" grande />
       </div>
 
