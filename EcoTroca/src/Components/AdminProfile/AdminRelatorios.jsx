@@ -1,5 +1,6 @@
 
-//  Mostra ao admin todos os dados financeiros da plataforma.
+//  O que esta página faz:
+//  Mostro ao admin todos os dados financeiros da plataforma.
 //  Cada transacção concluída gera uma comissão de 10% para a
 //  plataforma. Aqui o admin pode ver quanto a plataforma ganhou,
 //  filtrar por período e ver o detalhe de cada transacção
@@ -13,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import {
   Banknote, TrendingUp, Recycle,
-  Calendar, Download, Search, Filter
+  Calendar, Download, Search, Filter, FileText, Users
 } from 'lucide-react';
 import Header from './Header.jsx';
 import { getRelatoriosAdmin } from '../../api.js';
@@ -74,6 +75,114 @@ export default function AdminRelatorios() {
       t.residuo?.toLowerCase().includes(termo)
     );
   });
+
+  // ── Função para exportar PDF ──
+  const exportarPDF = async () => {
+    if (!dados?.transacoes?.length) return;
+
+    // Importa jsPDF e autoTable dinamicamente
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const periodoLabel = PERIODOS.find(p => p.valor === periodo)?.label || periodo;
+    const dataGeracao  = new Date().toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    // ── Cabeçalho ──
+    doc.setFillColor(22, 163, 74); // verde
+    doc.rect(0, 0, 297, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EcoTroca Angola — Relatório Financeiro', 14, 14);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Período: ${periodoLabel}   |   Gerado em: ${dataGeracao}`, 14, 20);
+
+    // ── Resumo financeiro ──
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumo Financeiro', 14, 32);
+
+    const resumoData = [
+      ['Total Transaccionado', `${parseFloat(dados.resumo?.total_transaccionado || 0).toFixed(2)} Kz`],
+      ['Comissões EcoTroca (10%)', `${parseFloat(dados.resumo?.total_comissoes || 0).toFixed(2)} Kz`],
+      ['Pago aos Utilizadores', `${parseFloat(dados.resumo?.total_utilizadores || 0).toFixed(2)} Kz`],
+      ['Pago aos Coletadores', `${parseFloat(dados.resumo?.total_coletadores || 0).toFixed(2)} Kz`],
+      ['Total de Kg Recolhidos', `${parseFloat(dados.resumo?.total_kg || 0).toFixed(1)} kg`],
+      ['Total de Entregas', `${dados.resumo?.total_entregas || 0}`],
+    ];
+
+    autoTable(doc, {
+      startY: 35,
+      body: resumoData,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [240, 253, 244], textColor: [22, 101, 52] },
+        1: { halign: 'right', fontStyle: 'bold' },
+      },
+      margin: { left: 14, right: 14 },
+      tableWidth: 120,
+    });
+
+    // ── Tabela de transacções ──
+    const finalY = doc.lastAutoTable.finalY + 8;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Detalhe de Transacções (${transacoesFiltradas.length})`, 14, finalY);
+
+    const colunas = ['Data', 'Utilizador', 'Coletador', 'Empresa', 'Resíduo', 'Peso (kg)', 'Valor (Kz)', 'Comissão (Kz)'];
+    const linhas  = transacoesFiltradas.map(t => [
+      new Date(t.criado_em).toLocaleDateString('pt-AO'),
+      t.utilizador || '—',
+      t.coletador  || '—',
+      t.empresa    || '—',
+      t.residuo    || '—',
+      parseFloat(t.peso        || 0).toFixed(2),
+      parseFloat(t.valor_total || 0).toFixed(2),
+      parseFloat(t.comissao    || 0).toFixed(2),
+    ]);
+
+    // Linha de totais
+    const totalValor    = transacoesFiltradas.reduce((a, t) => a + parseFloat(t.valor_total || 0), 0).toFixed(2);
+    const totalComissao = transacoesFiltradas.reduce((a, t) => a + parseFloat(t.comissao    || 0), 0).toFixed(2);
+    linhas.push(['TOTAL', '', '', '', '', '', totalValor, totalComissao]);
+
+    autoTable(doc, {
+      startY: finalY + 3,
+      head: [colunas],
+      body: linhas,
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        5: { halign: 'right' },
+        6: { halign: 'right', textColor: [22, 101, 52] },
+        7: { halign: 'right', textColor: [202, 138, 4], fontStyle: 'bold' },
+      },
+      didParseCell: (data) => {
+        // Última linha (totais) a negrito
+        if (data.row.index === linhas.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 253, 244];
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    // ── Rodapé ──
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.text(`EcoTroca Angola — Relatório gerado automaticamente — Página ${i} de ${pageCount}`, 14, 205);
+    }
+
+    doc.save(`relatorio_ecotroca_${periodo}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   // ── Função para exportar os dados para CSV ──
   // Cria um ficheiro CSV e faz o download automático no browser
@@ -146,14 +255,22 @@ export default function AdminRelatorios() {
           </p>
         </div>
 
-        {/* Botão para exportar os dados em CSV */}
-        <button
-          onClick={exportarCSV}
-          disabled={!dados?.transacoes?.length}
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-400 disabled:opacity-40 text-white font-medium px-5 py-3 rounded-xl transition text-sm"
-        >
-          <Download size={16} /> Exportar CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportarPDF}
+            disabled={!dados?.transacoes?.length}
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-400 disabled:opacity-40 text-white font-medium px-5 py-3 rounded-xl transition text-sm"
+          >
+            <FileText size={16} /> Exportar PDF
+          </button>
+          <button
+            onClick={exportarCSV}
+            disabled={!dados?.transacoes?.length}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white font-medium px-5 py-3 rounded-xl transition text-sm"
+          >
+            <Download size={16} /> CSV
+          </button>
+        </div>
       </div>
 
       {/* ── Filtro por período ── */}
@@ -202,6 +319,24 @@ export default function AdminRelatorios() {
           valor={`${parseFloat(dados?.resumo?.total_kg || 0).toFixed(1)} kg`}
           cor="blue"
           descricao={`${dados?.resumo?.total_entregas || 0} entregas concluídas`}
+        />
+      </div>
+
+      {/* Cards adicionais — pago a utilizadores e coletadores */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <CartaoResumo
+          icon={<Users size={22} className="text-green-400" />}
+          label="Pago aos Utilizadores"
+          valor={`${parseFloat(dados?.resumo?.total_utilizadores || 0).toFixed(2)} Kz`}
+          cor="green"
+          descricao="70% do valor líquido de cada entrega"
+        />
+        <CartaoResumo
+          icon={<Recycle size={22} className="text-blue-400" />}
+          label="Pago aos Coletadores"
+          valor={`${parseFloat(dados?.resumo?.total_coletadores || 0).toFixed(2)} Kz`}
+          cor="blue"
+          descricao="30% do valor líquido quando há coletador"
         />
       </div>
 
@@ -257,7 +392,7 @@ export default function AdminRelatorios() {
             Nenhuma transacção encontrada para este período.
           </p>
         ) : (
-          <table className="w-full text-sm min-w-225">
+          <table className="w-full text-sm min-w-[900px]">
 
             {/* Cabeçalho da tabela — campos exigidos pela Regra 15 */}
             <thead>
