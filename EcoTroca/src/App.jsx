@@ -49,7 +49,8 @@ import NoticiasEmpresa      from './Components/EmpresaProfile/NoticiasEmpresa'
 
 import Feed from './Components/Feed/Feed'
 
-import DashboardAdmin    from './Components/AdminProfile/DashboardAdmin'
+import DashboardAdmin      from './Components/AdminProfile/DashboardAdmin'
+import PaginaInicialAdmin  from './Components/AdminProfile/PaginaInicialAdmin'
 import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
 import AdminEducacao     from './Components/AdminProfile/AdminEducacao'
 import AdminRelatorios   from './Components/AdminProfile/AdminRelatorios'
@@ -114,6 +115,7 @@ function App() {
       <Route path='/NoticiasEmpresa'      element={<RotaProtegida tipos={["empresa"]}><NoticiasEmpresa /></RotaProtegida>} />
 
       {/* ROTAS PRIVADAS — admin */}
+      <Route path='/AdminInicio'       element={<RotaProtegida tipos={["admin"]}><PaginaInicialAdmin /></RotaProtegida>} />
       <Route path='/AdminDashboard'    element={<RotaProtegida tipos={["admin"]}><DashboardAdmin /></RotaProtegida>} />
       <Route path='/AdminFeed'         element={<RotaProtegida tipos={["admin"]}><Feed /></RotaProtegida>} />
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
