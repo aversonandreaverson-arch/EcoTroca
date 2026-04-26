@@ -6,7 +6,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/admin/utilizadores 
+// ── GET /api/admin/utilizadores ──────────────────────────────
 // Devolvo todos os utilizadores registados na plataforma
 // O frontend filtra por tipo_usuario para separar utilizadores, coletadores e empresas
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
@@ -243,6 +243,8 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
       SELECT
         COALESCE(SUM(valor_total), 0)        AS total_transaccionado,
         COALESCE(SUM(valor_total * 0.10), 0) AS total_comissoes,
+        COALESCE(SUM(valor_utilizador), 0)   AS total_utilizadores,
+        COALESCE(SUM(valor_coletador), 0)    AS total_coletadores,
         COALESCE(SUM(peso_total), 0)         AS total_kg
       FROM entrega
       WHERE status = 'coletada'
@@ -275,6 +277,8 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
       financeiro: {
         total_transaccionado: fin.total_transaccionado,
         total_comissoes:      fin.total_comissoes,
+        total_utilizadores:   fin.total_utilizadores,
+        total_coletadores:    fin.total_coletadores,
         total_kg:             fin.total_kg,
       },
       entregas_recentes,
