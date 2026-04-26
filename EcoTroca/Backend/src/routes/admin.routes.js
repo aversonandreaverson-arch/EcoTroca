@@ -446,30 +446,32 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
 // Dados para os 3 gráficos do dashboard
 router.get('/graficos', auth, role('admin'), async (req, res) => {
   try {
-    // 1. Entregas por semana (últimas 8 semanas)
+    // 1. Entregas por semana — todas as entregas agrupadas por semana
     const [entregas_semana] = await pool.query(`
       SELECT
-        DATE_FORMAT(data_hora, '%d/%m') AS dia,
-        COUNT(*)                        AS total
+        DATE_FORMAT(data_hora, '%d/%m/%Y') AS dia,
+        YEARWEEK(data_hora, 1)             AS semana,
+        COUNT(*)                           AS total
       FROM entrega
-      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
+      WHERE data_hora IS NOT NULL
+      GROUP BY YEARWEEK(data_hora, 1)
+      ORDER BY YEARWEEK(data_hora, 1) ASC
+      LIMIT 20
     `);
 
-    // 2. Receita por semana (últimas 8 semanas)
+    // 2. Receita por semana — todas as entregas concluídas
     const [receita_semana] = await pool.query(`
       SELECT
-        DATE_FORMAT(data_hora, '%d/%m')       AS dia,
+        DATE_FORMAT(data_hora, '%d/%m/%Y')    AS dia,
+        YEARWEEK(data_hora, 1)                AS semana,
         COALESCE(SUM(valor_total), 0)         AS receita,
         COALESCE(SUM(valor_total * 0.10), 0)  AS comissao
       FROM entrega
       WHERE status = 'coletada'
-        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
+        AND data_hora IS NOT NULL
+      GROUP BY YEARWEEK(data_hora, 1)
+      ORDER BY YEARWEEK(data_hora, 1) ASC
+      LIMIT 20
     `);
 
     // 3. Tipos de resíduos (todos os tempos)
