@@ -83,16 +83,16 @@ export default function DashboardAdmin() {
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <CartaoStat icon={<Users size={22} className="text-green-400" />}
-          label="Utilizadores" valor={stats?.utilizadores?.total ?? 0}
+          label="Total na Plataforma" valor={stats?.utilizadores?.total ?? 0}
+          cor="green" onClick={() => navigate('/AdminUtilizadores')} />
+        <CartaoStat icon={<Users size={22} className="text-green-400" />}
+          label="Cidadãos" valor={stats?.utilizadores?.comuns ?? 0}
           cor="green" onClick={() => navigate('/AdminUtilizadores')} />
         <CartaoStat icon={<Building2 size={22} className="text-green-400" />}
           label="Empresas" valor={stats?.empresas?.total ?? 0}
           cor="green" onClick={() => navigate('/AdminUtilizadores')} />
         <CartaoStat icon={<Recycle size={22} className="text-green-400" />}
           label="Coletadores" valor={stats?.coletadores?.total ?? 0}
-          cor="green" onClick={() => navigate('/AdminUtilizadores')} />
-        <CartaoStat icon={<Users size={22} className="text-green-400" />}
-          label="Utilizadores Comuns" valor={stats?.utilizadores?.comuns ?? 0}
           cor="green" onClick={() => navigate('/AdminUtilizadores')} />
       </div>
 
