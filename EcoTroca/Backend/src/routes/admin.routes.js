@@ -210,9 +210,9 @@ router.get('/estatisticas', auth, role('admin'), async (req, res) => {
 // múltiplos pedidos ao servidor quando a página abre
 router.get('/dashboard', auth, role('admin'), async (req, res) => {
   try {
-    // Conto utilizadores comuns (tipo != admin)
+    // Total de todos os utilizadores (excluindo admin)
     const [[{ total_utilizadores }]] = await pool.query(
-      "SELECT COUNT(*) as total_utilizadores FROM usuario WHERE tipo_usuario = 'comum'"
+      "SELECT COUNT(*) as total_utilizadores FROM usuario WHERE tipo_usuario != 'admin'"
     );
     // Conto empresas registadas
     const [[{ total_empresas }]] = await pool.query(
