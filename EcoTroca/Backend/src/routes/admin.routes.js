@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
@@ -7,12 +6,8 @@ import pool from '../config/database.js';
 const router = Router();
 
 // ── GET /api/admin/utilizadores 
-// Devolvo todos os utilizadores registados na plataforma
-// O frontend filtra por tipo_usuario para separar utilizadores, coletadores e empresas
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
   try {
-    // Vou buscar todos os utilizadores excepto o próprio admin
-    // Incluo as colunas novas de penalização que adicionei à tabela
     const [rows] = await pool.query(`
       SELECT
         id_usuario, nome, email, telefone, provincia,
@@ -29,42 +24,23 @@ router.get('/utilizadores', auth, role('admin'), async (req, res) => {
 });
 
 // ── PATCH /api/admin/utilizadores/:id/status ─────────────────
-// Activa ou desactiva um utilizador (ativo = 1 ou 0)
 router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) => {
   try {
     const { ativo } = req.body;
-    await pool.query(
-      'UPDATE usuario SET ativo = ? WHERE id_usuario = ?',
-      [ativo, req.params.id]
-    );
-    res.json({ mensagem: 'Estado do utilizador actualizado!' });
+    await pool.query('UPDATE usuario SET ativo = ? WHERE id_usuario = ?', [ativo, req.params.id]);
+    res.json({ mensagem: 'Estado actualizado!' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
 });
 
 // ── PATCH /api/admin/utilizadores/:id/advertencia ────────────
-// Aplica uma advertência — incrementa o contador de advertencias
-// Funciona para utilizadores, coletadores e empresas
-// Regra 13 — 1ª ocorrência por peso errado
-// Empresa — 1ª ocorrência por não pagamento
 router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-
-    // Escolho a tabela e o campo ID correcto conforme o tipo
-    const tabela   = tipo === 'coletor' ? 'Coletador'
-                   : tipo === 'empresa' ? 'EmpresaRecicladora'
-                   : 'Usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador'
-                   : tipo === 'empresa' ? 'id_empresa'
-                   : 'id_usuario';
-
-    // Incremento o contador de advertências em 1
-    await pool.query(
-      `UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`,
-      [req.params.id]
-    );
+    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
+    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [req.params.id]);
     res.json({ mensagem: `Advertência aplicada. Motivo: ${motivo}` });
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -72,24 +48,13 @@ router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, r
 });
 
 // ── PATCH /api/admin/utilizadores/:id/suspender ──────────────
-// Suspende a conta por 1 semana — Regra 13 (2ª ocorrência)
-// Define suspenso_ate para a data de hoje + 7 dias
 router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-
-    const tabela   = tipo === 'coletor' ? 'Coletador'
-                   : tipo === 'empresa' ? 'EmpresaRecicladora'
-                   : 'Usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador'
-                   : tipo === 'empresa' ? 'id_empresa'
-                   : 'id_usuario';
-
-    // Calculo a data daqui a 7 dias para definir o fim da suspensão
+    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
+    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
     const suspensaoAte = new Date();
     suspensaoAte.setDate(suspensaoAte.getDate() + 7);
-
-    // Actualizo a data de suspensão e incremento as advertências
     await pool.query(
       `UPDATE ${tabela} SET suspenso_ate = ?, advertencias = advertencias + 1 WHERE ${campo_id} = ?`,
       [suspensaoAte, req.params.id]
@@ -101,21 +66,11 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
 });
 
 // ── PATCH /api/admin/utilizadores/:id/bloquear ───────────────
-// Bloqueia a conta permanentemente
-// Regra 14 — coletador que desviou material
-// Empresa — 3ª ocorrência de não pagamento
 router.patch('/utilizadores/:id/bloquear', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-
-    const tabela   = tipo === 'coletor' ? 'Coletador'
-                   : tipo === 'empresa' ? 'EmpresaRecicladora'
-                   : 'Usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador'
-                   : tipo === 'empresa' ? 'id_empresa'
-                   : 'id_usuario';
-
-    // Marco como bloqueado e desactivo a conta ao mesmo tempo
+    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
+    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
     await pool.query(
       `UPDATE ${tabela} SET bloqueado_permanente = 1, ativo = 0 WHERE ${campo_id} = ?`,
       [req.params.id]
@@ -127,20 +82,11 @@ router.patch('/utilizadores/:id/bloquear', auth, role('admin'), async (req, res)
 });
 
 // ── PATCH /api/admin/utilizadores/:id/reativar ───────────────
-// Reactiva uma conta suspensa ou bloqueada
-// Limpa todos os campos de penalização e activa a conta
 router.patch('/utilizadores/:id/reativar', auth, role('admin'), async (req, res) => {
   try {
     const { tipo } = req.body;
-
-    const tabela   = tipo === 'coletor' ? 'Coletador'
-                   : tipo === 'empresa' ? 'EmpresaRecicladora'
-                   : 'Usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador'
-                   : tipo === 'empresa' ? 'id_empresa'
-                   : 'id_usuario';
-
-    // Limpo a suspensão, o bloqueio e reactivo a conta
+    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
+    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
     await pool.query(
       `UPDATE ${tabela} SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE ${campo_id} = ?`,
       [req.params.id]
@@ -152,19 +98,16 @@ router.patch('/utilizadores/:id/reativar', auth, role('admin'), async (req, res)
 });
 
 // ── GET /api/admin/entregas ───────────────────────────────────
-// Devolvo todas as entregas da plataforma com detalhes completos
 router.get('/entregas', auth, role('admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT
         e.*,
         u.nome  AS nome_usuario,
-        em.nome AS nome_empresa,
-        r.nome  AS nome_residuo
+        em.nome AS nome_empresa
       FROM entrega e
       LEFT JOIN usuario            u  ON e.id_usuario = u.id_usuario
       LEFT JOIN empresarecicladora em ON e.id_empresa = em.id_empresa
-      LEFT JOIN residuo            r  ON e.id_residuo = r.id_residuo
       ORDER BY e.data_hora DESC
     `);
     res.json(rows);
@@ -174,7 +117,6 @@ router.get('/entregas', auth, role('admin'), async (req, res) => {
 });
 
 // ── GET /api/admin/auditoria ──────────────────────────────────
-// Devolvo o registo de auditoria com o nome do utilizador associado
 router.get('/auditoria', auth, role('admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -189,56 +131,22 @@ router.get('/auditoria', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── GET /api/admin/estatisticas ───────────────────────────────
-// Devolvo estatísticas básicas da plataforma (rota antiga mantida)
-router.get('/estatisticas', auth, role('admin'), async (req, res) => {
-  try {
-    const [[{ total_usuarios }]]     = await pool.query('SELECT COUNT(*) as total_usuarios FROM usuario');
-    const [[{ total_entregas }]]     = await pool.query('SELECT COUNT(*) as total_entregas FROM entrega');
-    const [[{ entregas_pendentes }]] = await pool.query("SELECT COUNT(*) as entregas_pendentes FROM entrega WHERE status = 'pendente'");
-    const [[{ total_empresas }]]     = await pool.query('SELECT COUNT(*) as total_empresas FROM empresarecicladora');
-
-    res.json({ total_usuarios, total_entregas, entregas_pendentes, total_empresas });
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
-});
-
 // ── GET /api/admin/dashboard ──────────────────────────────────
-// Rota principal do painel — usada pelo DashboardAdmin.jsx
-// Devolvo todas as estatísticas numa só chamada para evitar
-// múltiplos pedidos ao servidor quando a página abre
 router.get('/dashboard', auth, role('admin'), async (req, res) => {
   try {
-    // Total de todos os utilizadores (excluindo admin)
     const [[{ total_utilizadores }]] = await pool.query(
       "SELECT COUNT(*) as total_utilizadores FROM usuario WHERE tipo_usuario != 'admin'"
     );
-    // Conto empresas registadas
-    const [[{ total_empresas }]] = await pool.query(
-      'SELECT COUNT(*) as total_empresas FROM empresarecicladora'
+    const [[{ total_utilizadores_comuns }]] = await pool.query(
+      "SELECT COUNT(*) as total_utilizadores_comuns FROM usuario WHERE tipo_usuario = 'comum'"
     );
-    // Conto coletadores registados
-    const [[{ total_coletadores }]] = await pool.query(
-      'SELECT COUNT(*) as total_coletadores FROM coletador'
-    );
-    // Conto total de entregas
-    const [[{ total_entregas }]] = await pool.query(
-      'SELECT COUNT(*) as total_entregas FROM entrega'
-    );
-    // Conto entregas pendentes
-    const [[{ pendentes }]] = await pool.query(
-      "SELECT COUNT(*) as pendentes FROM entrega WHERE status = 'pendente'"
-    );
-    // Conto entregas concluídas
-    const [[{ concluidas }]] = await pool.query(
-      "SELECT COUNT(*) as concluidas FROM entrega WHERE status = 'coletada'"
-    );
-    // Conto entregas canceladas ou rejeitadas
-    const [[{ canceladas }]] = await pool.query(
-      "SELECT COUNT(*) as canceladas FROM entrega WHERE status IN ('cancelada','rejeitada')"
-    );
-    // Calculo os totais financeiros das entregas concluídas
+    const [[{ total_empresas }]]    = await pool.query('SELECT COUNT(*) as total_empresas FROM empresarecicladora');
+    const [[{ total_coletadores }]] = await pool.query('SELECT COUNT(*) as total_coletadores FROM coletador');
+    const [[{ total_entregas }]]    = await pool.query('SELECT COUNT(*) as total_entregas FROM entrega');
+    const [[{ pendentes }]]         = await pool.query("SELECT COUNT(*) as pendentes FROM entrega WHERE status = 'pendente'");
+    const [[{ concluidas }]]        = await pool.query("SELECT COUNT(*) as concluidas FROM entrega WHERE status = 'coletada'");
+    const [[{ canceladas }]]        = await pool.query("SELECT COUNT(*) as canceladas FROM entrega WHERE status IN ('cancelada','rejeitada')");
+
     const [[fin]] = await pool.query(`
       SELECT
         COALESCE(SUM(valor_total), 0)        AS total_transaccionado,
@@ -246,17 +154,16 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
         COALESCE(SUM(valor_utilizador), 0)   AS total_utilizadores,
         COALESCE(SUM(valor_coletador), 0)    AS total_coletadores,
         COALESCE(SUM(peso_total), 0)         AS total_kg
-      FROM entrega
-      WHERE status = 'coletada'
+      FROM entrega WHERE status = 'coletada'
     `);
-    // Vou buscar as últimas 10 entregas com todos os detalhes
+
     const [entregas_recentes] = await pool.query(`
       SELECT
         e.id_entrega, e.status,
-        e.peso_total  AS peso,
+        e.peso_total AS peso,
         e.valor_total, e.data_hora AS criado_em,
-        u.nome        AS utilizador,
-        em.nome       AS empresa,
+        u.nome  AS utilizador,
+        em.nome AS empresa,
         GROUP_CONCAT(r.tipo SEPARATOR ', ') AS residuo
       FROM entrega e
       LEFT JOIN usuario            u  ON e.id_usuario = u.id_usuario
@@ -268,9 +175,8 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
       LIMIT 10
     `);
 
-    // Devolvo tudo num único objecto organizado
     res.json({
-      utilizadores: { total: total_utilizadores, comuns: total_utilizadores },
+      utilizadores: { total: total_utilizadores, comuns: total_utilizadores_comuns },
       empresas:     { total: total_empresas },
       coletadores:  { total: total_coletadores },
       entregas:     { total: total_entregas, pendentes, concluidas, canceladas },
@@ -289,168 +195,9 @@ router.get('/dashboard', auth, role('admin'), async (req, res) => {
   }
 });
 
-
-// ── GET /api/admin/graficos ──────────────────────────────────
-// Dados para os 3 gráficos do dashboard admin
-router.get('/graficos', auth, role('admin'), async (req, res) => {
-  try {
-    // 1. Entregas por semana (últimas 8 semanas)
-    const [entregasSemana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%Y-%u') AS semana,
-        DATE_FORMAT(MIN(data_hora), '%d/%m') AS label,
-        COUNT(*) AS total,
-        SUM(CASE WHEN status = 'coletada' THEN 1 ELSE 0 END) AS concluidas,
-        SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) AS canceladas
-      FROM entrega
-      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE_FORMAT(data_hora, '%Y-%u')
-      ORDER BY semana ASC
-    `);
-
-    // 2. Receita por semana (últimas 8 semanas)
-    const [receitaSemana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%Y-%u') AS semana,
-        DATE_FORMAT(MIN(data_hora), '%d/%m') AS label,
-        COALESCE(SUM(valor_total), 0) AS total_transaccionado,
-        COALESCE(SUM(valor_total * 0.10) + COUNT(*) * 50, 0) AS comissoes
-      FROM entrega
-      WHERE status = 'coletada'
-        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE_FORMAT(data_hora, '%Y-%u')
-      ORDER BY semana ASC
-    `);
-
-    // 3. Tipos de resíduos mais reciclados
-    const [tiposResiduos] = await pool.query(`
-      SELECT
-        r.tipo AS name,
-        COUNT(*) AS value,
-        COALESCE(SUM(er.peso_kg), 0) AS total_kg
-      FROM entrega_residuo er
-      INNER JOIN residuo r ON r.id_residuo = er.id_residuo
-      INNER JOIN entrega e ON e.id_entrega = er.id_entrega
-      WHERE e.status = 'coletada'
-      GROUP BY r.tipo
-      ORDER BY value DESC
-    `);
-
-    res.json({ entregasSemana, receitaSemana, tiposResiduos });
-  } catch (err) {
-    console.error('Erro graficos admin:', err);
-    res.status(500).json({ erro: err.message });
-  }
-});
-
-
 // ── GET /api/admin/graficos ───────────────────────────────────
-// Dados para os 3 gráficos do dashboard admin
 router.get('/graficos', auth, role('admin'), async (req, res) => {
   try {
-    // 1. Entregas por semana (últimas 8 semanas)
-    const [entregas_semana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%d/%m') AS dia,
-        COUNT(*)                         AS total
-      FROM entrega
-      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
-    `);
-
-    // 2. Receita por semana (últimas 8 semanas)
-    const [receita_semana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%d/%m')      AS dia,
-        COALESCE(SUM(valor_total), 0)        AS receita,
-        COALESCE(SUM(valor_total * 0.10), 0) AS comissoes
-      FROM entrega
-      WHERE status = 'coletada'
-        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
-    `);
-
-    // 3. Tipos de resíduos mais entregues
-    const [tipos_residuos] = await pool.query(`
-      SELECT
-        r.tipo                AS nome,
-        COUNT(er.id_residuo)  AS valor
-      FROM entrega_residuo er
-      JOIN residuo r ON r.id_residuo = er.id_residuo
-      GROUP BY r.id_residuo, r.tipo
-      ORDER BY valor DESC
-      LIMIT 6
-    `);
-
-    res.json({ entregas_semana, receita_semana, tipos_residuos, crescimento, top_empresas, top_coletadores });
-  } catch (err) {
-    console.error('Erro graficos admin:', err.message);
-    res.status(500).json({ erro: err.message });
-  }
-});
-
-
-// ── GET /api/admin/graficos ───────────────────────────────────
-// Dados para os 3 gráficos do dashboard admin
-router.get('/graficos', auth, role('admin'), async (req, res) => {
-  try {
-    // 1. Entregas por semana (últimas 8 semanas)
-    const [entregasSemana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%d/%m') AS dia,
-        COUNT(*) AS total
-      FROM entrega
-      WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
-    `);
-
-    // 2. Receita por semana (últimas 8 semanas)
-    const [receitaSemana] = await pool.query(`
-      SELECT
-        DATE_FORMAT(data_hora, '%d/%m') AS dia,
-        COALESCE(SUM(valor_total), 0)         AS receita,
-        COALESCE(SUM(valor_total * 0.10), 0)  AS comissao
-      FROM entrega
-      WHERE status = 'coletada'
-        AND data_hora >= DATE_SUB(NOW(), INTERVAL 8 WEEK)
-      GROUP BY DATE(data_hora)
-      ORDER BY DATE(data_hora) ASC
-      LIMIT 56
-    `);
-
-    // 3. Tipos de resíduos mais entregues
-    const [tiposResiduos] = await pool.query(`
-      SELECT
-        r.tipo AS nome,
-        COUNT(er.id_entrega_residuo) AS valor
-      FROM entrega_residuo er
-      JOIN residuo r ON r.id_residuo = er.id_residuo
-      JOIN entrega e ON e.id_entrega = er.id_entrega
-      WHERE e.status = 'coletada'
-      GROUP BY r.tipo
-      ORDER BY valor DESC
-      LIMIT 6
-    `);
-
-    res.json({ entregasSemana, receitaSemana, tiposResiduos });
-  } catch (err) {
-    console.error('Erro graficos admin:', err);
-    res.status(500).json({ erro: err.message });
-  }
-});
-
-
-// ── GET /api/admin/graficos ───────────────────────────────────
-// Dados para os 3 gráficos do dashboard
-router.get('/graficos', auth, role('admin'), async (req, res) => {
-  try {
-    // 1. Entregas por semana — todas as entregas agrupadas por semana
     const [entregas_semana] = await pool.query(`
       SELECT
         DATE_FORMAT(data_hora, '%d/%m/%Y') AS dia,
@@ -463,22 +210,19 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 20
     `);
 
-    // 2. Receita por semana — todas as entregas concluídas
     const [receita_semana] = await pool.query(`
       SELECT
-        DATE_FORMAT(data_hora, '%d/%m/%Y')    AS dia,
-        YEARWEEK(data_hora, 1)                AS semana,
-        COALESCE(SUM(valor_total), 0)         AS receita,
-        COALESCE(SUM(valor_total * 0.10), 0)  AS comissao
+        DATE_FORMAT(data_hora, '%d/%m/%Y')   AS dia,
+        YEARWEEK(data_hora, 1)               AS semana,
+        COALESCE(SUM(valor_total), 0)        AS receita,
+        COALESCE(SUM(valor_total * 0.10), 0) AS comissao
       FROM entrega
-      WHERE status = 'coletada'
-        AND data_hora IS NOT NULL
+      WHERE status = 'coletada' AND data_hora IS NOT NULL
       GROUP BY YEARWEEK(data_hora, 1)
       ORDER BY YEARWEEK(data_hora, 1) ASC
       LIMIT 20
     `);
 
-    // 3. Crescimento da plataforma — novos registos por semana
     const [crescimento] = await pool.query(`
       SELECT
         DATE_FORMAT(data_criacao, '%d/%m/%Y') AS dia,
@@ -487,14 +231,12 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
         SUM(tipo_usuario = 'empresa')         AS empresas,
         SUM(tipo_usuario = 'coletor')         AS coletadores
       FROM usuario
-      WHERE data_criacao IS NOT NULL
-        AND tipo_usuario != 'admin'
+      WHERE data_criacao IS NOT NULL AND tipo_usuario != 'admin'
       GROUP BY YEARWEEK(data_criacao, 1)
       ORDER BY YEARWEEK(data_criacao, 1) ASC
       LIMIT 20
     `);
 
-    // 4. Top empresas por volume de kg recolhidos
     const [top_empresas] = await pool.query(`
       SELECT
         er.nome                        AS nome,
@@ -507,7 +249,6 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 5
     `);
 
-    // 5. Top coletadores por recolhas
     const [top_coletadores] = await pool.query(`
       SELECT
         u.nome                         AS nome,
@@ -521,11 +262,8 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
       LIMIT 5
     `);
 
-    // 6. Tipos de resíduos (todos os tempos)
     const [tipos_residuos] = await pool.query(`
-      SELECT
-        r.tipo  AS nome,
-        COUNT(*) AS valor
+      SELECT r.tipo AS nome, COUNT(*) AS valor
       FROM entrega_residuo er
       JOIN residuo r ON r.id_residuo = er.id_residuo
       GROUP BY r.tipo
@@ -540,30 +278,142 @@ router.get('/graficos', auth, role('admin'), async (req, res) => {
   }
 });
 
-// ── GET /api/admin/hoje ──────────────────────────────────────
-// Estatísticas do dia actual para a sidebar da página inicial
+// ── GET /api/admin/hoje ───────────────────────────────────────
 router.get('/hoje', auth, role('admin'), async (req, res) => {
   try {
     const hoje = new Date().toISOString().slice(0, 10);
-
-    const [[{ entregas_hoje }]] = await pool.query(
-      "SELECT COUNT(*) AS entregas_hoje FROM entrega WHERE DATE(data_hora) = ?", [hoje]
-    );
-    const [[{ usuarios_hoje }]] = await pool.query(
-      "SELECT COUNT(*) AS usuarios_hoje FROM usuario WHERE DATE(data_criacao) = ? AND tipo_usuario != 'admin'", [hoje]
-    );
-    const [[{ receita_hoje }]] = await pool.query(
-      "SELECT COALESCE(SUM(valor_total), 0) AS receita_hoje FROM entrega WHERE DATE(data_hora) = ? AND status = 'coletada'", [hoje]
-    );
-    const [[{ pendentes }]] = await pool.query(
-      "SELECT COUNT(*) AS pendentes FROM entrega WHERE status = 'pendente'"
-    );
-    const [[{ total_usuarios }]] = await pool.query(
-      "SELECT COUNT(*) AS total_usuarios FROM usuario WHERE tipo_usuario != 'admin'"
-    );
-
+    const [[{ entregas_hoje }]] = await pool.query("SELECT COUNT(*) AS entregas_hoje FROM entrega WHERE DATE(data_hora) = ?", [hoje]);
+    const [[{ usuarios_hoje }]] = await pool.query("SELECT COUNT(*) AS usuarios_hoje FROM usuario WHERE DATE(data_criacao) = ? AND tipo_usuario != 'admin'", [hoje]);
+    const [[{ receita_hoje }]]  = await pool.query("SELECT COALESCE(SUM(valor_total), 0) AS receita_hoje FROM entrega WHERE DATE(data_hora) = ? AND status = 'coletada'", [hoje]);
+    const [[{ pendentes }]]     = await pool.query("SELECT COUNT(*) AS pendentes FROM entrega WHERE status = 'pendente'");
+    const [[{ total_usuarios }]] = await pool.query("SELECT COUNT(*) AS total_usuarios FROM usuario WHERE tipo_usuario != 'admin'");
     res.json({ entregas_hoje, usuarios_hoje, receita_hoje, pendentes, total_usuarios });
   } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── POST /api/admin/educacao ──────────────────────────────────
+router.post('/educacao', auth, role('admin'), async (req, res) => {
+  try {
+    const { titulo, descricao, conteudo, categoria, publico_alvo, imagem } = req.body;
+    if (!titulo || !conteudo) return res.status(400).json({ erro: 'Título e conteúdo são obrigatórios.' });
+    await pool.query(
+      `INSERT INTO educacao (titulo, descricao, conteudo, categoria, publico_alvo, imagem) VALUES (?, ?, ?, ?, ?, ?)`,
+      [titulo, descricao || null, conteudo, categoria || 'boas_praticas', publico_alvo || 'todos', imagem || null]
+    );
+    res.status(201).json({ mensagem: 'Conteúdo criado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── PUT /api/admin/educacao/:id ───────────────────────────────
+router.put('/educacao/:id', auth, role('admin'), async (req, res) => {
+  try {
+    const { titulo, descricao, conteudo, categoria, publico_alvo, imagem } = req.body;
+    if (!titulo || !conteudo) return res.status(400).json({ erro: 'Título e conteúdo são obrigatórios.' });
+    await pool.query(
+      `UPDATE educacao SET titulo = ?, descricao = ?, conteudo = ?, categoria = ?, publico_alvo = ?, imagem = ? WHERE id_educacao = ?`,
+      [titulo, descricao || null, conteudo, categoria, publico_alvo, imagem || null, req.params.id]
+    );
+    res.json({ mensagem: 'Conteúdo actualizado.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── DELETE /api/admin/educacao/:id ───────────────────────────
+router.delete('/educacao/:id', auth, role('admin'), async (req, res) => {
+  try {
+    await pool.query('UPDATE educacao SET eliminado = 1 WHERE id_educacao = ?', [req.params.id]);
+    res.json({ mensagem: 'Conteúdo removido.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── GET /api/admin/relatorios ─────────────────────────────────
+router.get('/relatorios', auth, role('admin'), async (req, res) => {
+  try {
+    const { periodo = 'mes' } = req.query;
+
+    let condicaoData = '';
+    const agora = new Date();
+
+    if (periodo === 'hoje') {
+      const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      condicaoData = `AND e.data_hora >= '${d.toISOString().slice(0, 19).replace('T', ' ')}'`;
+    } else if (periodo === 'semana') {
+      const d = new Date(agora);
+      d.setDate(d.getDate() - 7);
+      condicaoData = `AND e.data_hora >= '${d.toISOString().slice(0, 19).replace('T', ' ')}'`;
+    } else if (periodo === 'mes') {
+      const d = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      condicaoData = `AND e.data_hora >= '${d.toISOString().slice(0, 19).replace('T', ' ')}'`;
+    }
+
+    // Resumo financeiro
+    const [[resumo]] = await pool.query(`
+      SELECT
+        COUNT(*)                              AS total_entregas,
+        COALESCE(SUM(valor_total), 0)         AS total_transaccionado,
+        COALESCE(SUM(valor_total * 0.10), 0)  AS total_comissoes,
+        COALESCE(SUM(valor_utilizador), 0)    AS total_utilizadores,
+        COALESCE(SUM(valor_coletador), 0)     AS total_coletadores,
+        COALESCE(SUM(peso_total), 0)          AS total_kg
+      FROM entrega e
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+    `);
+
+    // Volume por empresa
+    const [por_empresa] = await pool.query(`
+      SELECT
+        em.nome                               AS empresa,
+        COUNT(*)                              AS total_entregas,
+        COALESCE(SUM(e.peso_total), 0)        AS total_kg,
+        COALESCE(SUM(e.valor_total), 0)       AS total_valor,
+        COALESCE(SUM(e.valor_total * 0.10), 0) AS comissao
+      FROM entrega e
+      LEFT JOIN empresarecicladora em ON e.id_empresa = em.id_empresa
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+      GROUP BY e.id_empresa, em.nome
+      ORDER BY comissao DESC
+      LIMIT 10
+    `);
+
+    // Detalhe de cada transacção
+    const [transacoes] = await pool.query(`
+      SELECT
+        e.id_entrega,
+        e.data_hora          AS criado_em,
+        e.peso_total         AS peso,
+        e.valor_total,
+        e.valor_utilizador,
+        e.valor_coletador,
+        e.valor_total * 0.10 AS comissao,
+        u.nome               AS utilizador,
+        c.nome               AS coletador,
+        em.nome              AS empresa,
+        GROUP_CONCAT(r.tipo SEPARATOR ', ') AS residuo
+      FROM entrega e
+      LEFT JOIN usuario            u  ON e.id_usuario   = u.id_usuario
+      LEFT JOIN coletador          col ON e.id_coletador = col.id_coletador
+      LEFT JOIN usuario            c  ON col.id_usuario  = c.id_usuario
+      LEFT JOIN empresarecicladora em ON e.id_empresa   = em.id_empresa
+      LEFT JOIN entrega_residuo   er  ON er.id_entrega  = e.id_entrega
+      LEFT JOIN residuo            r  ON r.id_residuo   = er.id_residuo
+      WHERE e.status = 'coletada'
+      ${condicaoData}
+      GROUP BY e.id_entrega
+      ORDER BY e.data_hora DESC
+    `);
+
+    res.json({ resumo, por_empresa, transacoes });
+  } catch (err) {
+    console.error('Erro relatorios admin:', err);
     res.status(500).json({ erro: err.message });
   }
 });
