@@ -1,7 +1,4 @@
-// ============================================================
-//  PaginaInicial.jsx
-//  Guardar em: src/Components/UserProfile/PaginaInicial.jsx
-//
+
 //  FLUXO DE PARTICIPAÇÃO:
 //    - Utilizador comum vê pedido de empresa no feed
 //    - Clica "Participar" → entrega criada imediatamente (sem modal)
