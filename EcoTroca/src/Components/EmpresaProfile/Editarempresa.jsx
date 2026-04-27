@@ -1,37 +1,52 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import { Navigation, MapPin, X } from 'lucide-react';
 import HeaderEmpresa from './HeaderEmpresa.jsx';
 import { getPerfilEmpresa, atualizarEmpresa } from '../../api.js';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const iconeRoxo = new L.Icon({
+  iconUrl:    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+  shadowUrl:  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize:   [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+const CENTRO_PADRAO = [-8.8368, 13.2343];
+
+function CapturarClique({ onClicar }) {
+  useMapEvents({ click(e) { onClicar(e.latlng.lat, e.latlng.lng); } });
+  return null;
+}
 
 export default function EditarEmpresa() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    nome:               '',
-    telefone:           '',
-    email:              '',
-    endereco:           '',
-    provincia:          '',
-    municipio:          '',
-    bairro:             '',
-    descricao:          '',
-    horario_abertura:   '',
-    horario_fechamento: '',
-    site:               '',
-    residuos_aceites:   '',
+    nome: '', telefone: '', email: '', endereco: '',
+    provincia: '', municipio: '', bairro: '', descricao: '',
+    horario_abertura: '', horario_fechamento: '', site: '',
+    residuos_aceites: '', latitude: null, longitude: null,
   });
 
-  const [idEmpresa,  setIdEmpresa]  = useState(null);
-  const [carregando, setCarregando] = useState(true);
-  const [guardando,  setGuardando]  = useState(false);
-  const [erro,       setErro]       = useState('');
-  const [sucesso,    setSucesso]    = useState(false);
+  const [posicao,           setPosicao]           = useState(null);
+  const [aObterLocalizacao, setAObterLocalizacao] = useState(false);
+  const [erroMapa,          setErroMapa]          = useState('');
+  const [carregando,        setCarregando]        = useState(true);
+  const [guardando,         setGuardando]         = useState(false);
+  const [erro,              setErro]              = useState('');
+  const [sucesso,           setSucesso]           = useState(false);
 
   useEffect(() => {
     getPerfilEmpresa()
       .then((perfil) => {
-        setIdEmpresa(perfil.id_empresa);
         setForm({
           nome:               perfil.nome               || '',
           telefone:           perfil.telefone           || '',
@@ -45,7 +60,12 @@ export default function EditarEmpresa() {
           horario_fechamento: perfil.horario_fechamento || '',
           site:               perfil.site               || '',
           residuos_aceites:   perfil.residuos_aceites   || '',
+          latitude:           perfil.latitude           || null,
+          longitude:          perfil.longitude          || null,
         });
+        if (perfil.latitude && perfil.longitude) {
+          setPosicao([parseFloat(perfil.latitude), parseFloat(perfil.longitude)]);
+        }
       })
       .catch(err => setErro(err.message))
       .finally(() => setCarregando(false));
@@ -54,9 +74,52 @@ export default function EditarEmpresa() {
   const atualizar = (campo) => (e) =>
     setForm(prev => ({ ...prev, [campo]: e.target.value }));
 
+  // Clique no mapa — obtém endereço via Nominatim
+  const handleClicarMapa = useCallback(async (lat, lng) => {
+    setPosicao([lat, lng]);
+    setForm(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    setErroMapa('');
+    try {
+      const resposta = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt`,
+        { headers: { 'Accept-Language': 'pt' } }
+      );
+      const dados = await resposta.json();
+      if (dados.display_name) {
+        const addr = dados.address || {};
+        const partes = [
+          addr.road || addr.pedestrian || addr.street,
+          addr.house_number,
+          addr.suburb || addr.neighbourhood || addr.quarter,
+          addr.city || addr.town || addr.village,
+        ].filter(Boolean);
+        const enderecoAutomatic = partes.join(', ') || dados.display_name;
+        setForm(prev => ({
+          ...prev,
+          latitude:  lat,
+          longitude: lng,
+          endereco:  enderecoAutomatic,
+          provincia: addr.state || prev.provincia,
+          municipio: addr.city || addr.town || addr.municipality || prev.municipio,
+        }));
+      }
+    } catch {
+      setErroMapa('Não foi possível obter o endereço. Podes escrevê-lo manualmente.');
+    }
+  }, []);
+
+  const obterLocalizacaoGPS = () => {
+    if (!navigator.geolocation) { setErroMapa('GPS não suportado.'); return; }
+    setAObterLocalizacao(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { handleClicarMapa(pos.coords.latitude, pos.coords.longitude); setAObterLocalizacao(false); },
+      ()    => { setErroMapa('Não foi possível obter GPS. Clica no mapa.'); setAObterLocalizacao(false); },
+      { timeout: 10000 }
+    );
+  };
+
   const guardar = async () => {
-    setErro('');
-    setSucesso(false);
+    setErro(''); setSucesso(false);
     if (!form.nome.trim())     return setErro('O nome da empresa é obrigatório.');
     if (!form.telefone.trim()) return setErro('O telefone é obrigatório.');
     try {
@@ -89,120 +152,119 @@ export default function EditarEmpresa() {
 
           {/* Identificação */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Identificação
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome da empresa <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={atualizar('nome')}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome da empresa <span className="text-red-500">*</span></label>
+                <input type="text" value={form.nome} onChange={atualizar('nome')}
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <textarea
-                  value={form.descricao}
-                  onChange={atualizar('descricao')}
-                  rows={3}
+                <textarea value={form.descricao} onChange={atualizar('descricao')} rows={3}
                   placeholder="Descreve a tua empresa, missão, serviços..."
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
-                />
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
               </div>
             </div>
           </div>
 
           {/* Contactos */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Contactos
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contactos</p>
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefone <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.telefone}
-                    onChange={atualizar('telefone')}
-                    placeholder="Ex: 923456789"
-                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone <span className="text-red-500">*</span></label>
+                  <input type="text" value={form.telefone} onChange={atualizar('telefone')} placeholder="Ex: 923456789"
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={atualizar('email')}
-                    placeholder="Ex: empresa@email.com"
-                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
+                  <input type="email" value={form.email} onChange={atualizar('email')} placeholder="Ex: empresa@email.com"
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input
-                  type="text"
-                  value={form.site}
-                  onChange={atualizar('site')}
-                  placeholder="Ex: https://www.empresa.ao"
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                <input type="text" value={form.site} onChange={atualizar('site')} placeholder="Ex: https://www.empresa.ao"
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
             </div>
           </div>
 
-          {/* Localização */}
+          {/* Localização com mapa */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Localização
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Localização</p>
             <div className="space-y-3">
+
+              {/* Instrução */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-blue-700 text-xs font-medium">📍 Marca a localização exacta da empresa no mapa</p>
+                <p className="text-blue-600 text-xs mt-0.5">Isto permite que utilizadores e coletadores saibam onde ir entregar os resíduos.</p>
+              </div>
+
+              {/* Botão GPS */}
+              <button onClick={obterLocalizacaoGPS} disabled={aObterLocalizacao}
+                className="flex items-center gap-2 text-xs text-green-700 border border-green-300 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-xl transition disabled:opacity-60">
+                <Navigation size={13} className={aObterLocalizacao ? 'animate-spin' : ''} />
+                {aObterLocalizacao ? 'A obter localização...' : 'Usar a minha localização actual (GPS)'}
+              </button>
+
+              {/* Mapa Leaflet */}
+              <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: '220px' }}>
+                <MapContainer
+                  center={posicao || CENTRO_PADRAO}
+                  zoom={posicao ? 16 : 13}
+                  style={{ height: '100%', width: '100%' }}
+                  key={posicao ? posicao.join(',') : 'default'}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+                  <CapturarClique onClicar={handleClicarMapa} />
+                  {posicao && <Marker position={posicao} icon={iconeRoxo} />}
+                </MapContainer>
+              </div>
+
+              {/* Indicação */}
+              {posicao ? (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                  <MapPin size={13} className="text-green-600 shrink-0" />
+                  <p className="text-green-700 text-xs">
+                    Localização marcada — {posicao[0].toFixed(5)}, {posicao[1].toFixed(5)}
+                  </p>
+                  <button onClick={() => { setPosicao(null); setForm(prev => ({ ...prev, latitude: null, longitude: null })); }}
+                    className="ml-auto text-gray-400 hover:text-red-500 transition">
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-xs text-center">Clica no mapa para marcar a localização da empresa</p>
+              )}
+
+              {erroMapa && <p className="text-orange-500 text-xs">{erroMapa}</p>}
+
+              {/* Endereço textual */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                <input
-                  type="text"
-                  value={form.endereco}
-                  onChange={atualizar('endereco')}
+                <input type="text" value={form.endereco} onChange={atualizar('endereco')}
                   placeholder="Ex: Rua da Missão, nº 45"
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
-                  <input
-                    type="text"
-                    value={form.bairro}
-                    onChange={atualizar('bairro')}
-                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
+                  <input type="text" value={form.bairro} onChange={atualizar('bairro')}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Município</label>
-                  <input
-                    type="text"
-                    value={form.municipio}
-                    onChange={atualizar('municipio')}
-                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
+                  <input type="text" value={form.municipio} onChange={atualizar('municipio')}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Província</label>
-                  <input
-                    type="text"
-                    value={form.provincia}
-                    onChange={atualizar('provincia')}
-                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                  />
+                  <input type="text" value={form.provincia} onChange={atualizar('provincia')}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
               </div>
             </div>
@@ -210,67 +272,39 @@ export default function EditarEmpresa() {
 
           {/* Horário */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Horário de Funcionamento
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Horário de Funcionamento</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Abertura</label>
-                <input
-                  type="time"
-                  value={form.horario_abertura}
-                  onChange={atualizar('horario_abertura')}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                <input type="time" value={form.horario_abertura} onChange={atualizar('horario_abertura')}
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fechamento</label>
-                <input
-                  type="time"
-                  value={form.horario_fechamento}
-                  onChange={atualizar('horario_fechamento')}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                />
+                <input type="time" value={form.horario_fechamento} onChange={atualizar('horario_fechamento')}
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
             </div>
           </div>
 
-          {/* Resíduos Aceites */}
+          {/* Resíduos */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Resíduos Aceites
-            </p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Resíduos Aceites</p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipos de resíduos que a empresa aceita
-              </label>
-              <input
-                type="text"
-                value={form.residuos_aceites}
-                onChange={atualizar('residuos_aceites')}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipos de resíduos que a empresa aceita</label>
+              <input type="text" value={form.residuos_aceites} onChange={atualizar('residuos_aceites')}
                 placeholder="Ex: Plástico, Metal, Papel, Vidro"
-                className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-              />
+                className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               <p className="text-xs text-gray-400 mt-1">Separa os tipos com vírgula</p>
             </div>
           </div>
         </div>
 
-        {/* Feedback */}
-        {erro && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mt-4">{erro}</p>
-        )}
-        {sucesso && (
-          <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl p-3 mt-4">
-            ✅ Perfil actualizado com sucesso!
-          </p>
-        )}
+        {erro && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mt-4">{erro}</p>}
+        {sucesso && <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl p-3 mt-4">✅ Perfil actualizado com sucesso!</p>}
 
-        <button
-          onClick={guardar}
-          disabled={guardando}
-          className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-3 rounded-xl font-semibold transition"
-        >
+        <button onClick={guardar} disabled={guardando}
+          className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-3 rounded-xl font-semibold transition">
           {guardando ? 'A guardar...' : 'Guardar Alterações'}
         </button>
       </div>
