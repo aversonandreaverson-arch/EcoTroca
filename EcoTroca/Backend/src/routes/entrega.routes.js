@@ -22,11 +22,18 @@ router.get('/', auth, async (req, res) => {
         MAX(r.descricao)                    AS descricao_qualidade,
         MAX(r.preco_min)                    AS preco_min,
         MAX(r.preco_max)                    AS preco_max,
-        p.imagem                            AS imagem
+        p.imagem                            AS imagem,
+        u_col.nome                          AS nome_coletador,
+        c.latitude                          AS coletador_latitude,
+        c.longitude                         AS coletador_longitude,
+        em.nome                             AS nome_empresa
        FROM entrega e
        LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
        LEFT JOIN residuo r          ON er.id_residuo = r.id_residuo
        LEFT JOIN publicacao p       ON p.id_entrega = e.id_entrega AND p.eliminado = 0
+       LEFT JOIN coletador c        ON c.id_coletador = e.id_coletador
+       LEFT JOIN usuario u_col      ON u_col.id_usuario = c.id_usuario
+       LEFT JOIN empresarecicladora em ON em.id_empresa = e.id_empresa
        WHERE e.id_usuario = ?
        GROUP BY e.id_entrega, p.imagem
        ORDER BY e.data_hora DESC`,
