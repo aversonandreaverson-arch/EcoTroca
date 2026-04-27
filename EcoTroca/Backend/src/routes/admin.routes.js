@@ -2,10 +2,55 @@ import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
 import pool from '../config/database.js';
+import nodemailer from 'nodemailer';
+
+// ── Configuração do nodemailer (mesmo que o auth.service.js) ──
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// ── Envia email de notificação admin ao utilizador 
+const enviarEmailAdmin = async (email, nome, titulo, mensagem, corTitulo = '#15803d') => {
+  if (!email) return; // sem email, não envia
+  try {
+    await transporter.sendMail({
+      from:    `"EcoTroca Angola" <${process.env.EMAIL_USER}>`,
+      to:      email,
+      subject: `${titulo} — EcoTroca Angola`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #eee;border-radius:12px;overflow:hidden;">
+          <div style="background:#15803d;padding:24px;">
+            <h2 style="color:white;margin:0;">EcoTroca Angola</h2>
+          </div>
+          <div style="padding:24px;">
+            <h3 style="color:${corTitulo};margin-top:0;">${titulo}</h3>
+            <p>Olá, <strong>${nome}</strong>!</p>
+            <div style="background:#f9f9f9;border-left:4px solid ${corTitulo};padding:16px;border-radius:8px;margin:16px 0;">
+              <p style="margin:0;">${mensagem}</p>
+            </div>
+            <p style="color:#666;font-size:13px;">
+              Se tens dúvidas, contacta o suporte da EcoTroca Angola.
+            </p>
+          </div>
+          <div style="background:#f5f5f5;padding:16px;text-align:center;">
+            <p style="color:#aaa;font-size:11px;margin:0;">EcoTroca Angola — Conectando pessoas pela sustentabilidade</p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('Erro ao enviar email admin:', err.message);
+    // Erro no email não bloqueia a resposta
+  }
+};
 
 const router = Router();
 
-// ── GET /api/admin/utilizadores 
+// ── GET /api/admin/utilizadores ──────────────────────────────
 router.get('/utilizadores', auth, role('admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -38,9 +83,31 @@ router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) =
 router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
+    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
-    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [req.params.id]);
+
+    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [id_usuario]);
+
+    // Notifica o utilizador — sino
+    await pool.query(
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, '⚠️ Advertência da EcoTroca', ?, 'sistema')`,
+      [id_usuario, `Recebeste uma advertência oficial da plataforma EcoTroca Angola. Motivo: ${motivo}. Por favor cumpre as regras da plataforma para evitar sanções mais graves.`]
+    );
+
+    // Notifica o utilizador — email
+    const [userAdv] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
+    if (userAdv.length) {
+      await enviarEmailAdmin(
+        userAdv[0].email,
+        userAdv[0].nome,
+        '⚠️ Advertência Oficial',
+        `Recebeste uma advertência oficial da plataforma EcoTroca Angola.<br><br><strong>Motivo:</strong> ${motivo}<br><br>Por favor cumpre as regras da plataforma para evitar sanções mais graves como suspensão ou bloqueio da conta.`,
+        '#ca8a04'
+      );
+    }
+
     res.json({ mensagem: `Advertência aplicada. Motivo: ${motivo}` });
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -51,14 +118,38 @@ router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, r
 router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
+    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+
     const suspensaoAte = new Date();
     suspensaoAte.setDate(suspensaoAte.getDate() + 7);
+
     await pool.query(
       `UPDATE ${tabela} SET suspenso_ate = ?, advertencias = advertencias + 1 WHERE ${campo_id} = ?`,
-      [suspensaoAte, req.params.id]
+      [suspensaoAte, id_usuario]
     );
+
+    // Notifica o utilizador — sino
+    const dataFim = suspensaoAte.toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' });
+    await pool.query(
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, '🚫 Conta Suspensa', ?, 'sistema')`,
+      [id_usuario, `A tua conta foi suspensa por 7 dias até ${dataFim}. Motivo: ${motivo}. Durante este período não podes aceder à plataforma.`]
+    );
+
+    // Notifica o utilizador — email
+    const [userSusp] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
+    if (userSusp.length) {
+      await enviarEmailAdmin(
+        userSusp[0].email,
+        userSusp[0].nome,
+        '🚫 Conta Suspensa',
+        `A tua conta EcoTroca Angola foi suspensa temporariamente por 7 dias.<br><br><strong>Motivo:</strong> ${motivo}<br><strong>Suspensa até:</strong> ${dataFim}<br><br>Durante este período não consegues aceder à plataforma. Após o prazo, a conta será reactivada automaticamente.`,
+        '#dc2626'
+      );
+    }
+
     res.json({ mensagem: `Conta suspensa por 1 semana. Motivo: ${motivo}` });
   } catch (err) {
     res.status(500).json({ erro: err.message });
@@ -69,12 +160,34 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
 router.patch('/utilizadores/:id/bloquear', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
+    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+
     await pool.query(
       `UPDATE ${tabela} SET bloqueado_permanente = 1, ativo = 0 WHERE ${campo_id} = ?`,
-      [req.params.id]
+      [id_usuario]
     );
+
+    // Notifica o utilizador — sino
+    await pool.query(
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, '❌ Conta Bloqueada', ?, 'sistema')`,
+      [id_usuario, `A tua conta foi bloqueada permanentemente pela administração da EcoTroca Angola. Motivo: ${motivo}. Se acreditas que isto foi um erro, contacta o suporte.`]
+    );
+
+    // Notifica o utilizador — email
+    const [userBloq] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
+    if (userBloq.length) {
+      await enviarEmailAdmin(
+        userBloq[0].email,
+        userBloq[0].nome,
+        '❌ Conta Bloqueada Permanentemente',
+        `A tua conta EcoTroca Angola foi bloqueada permanentemente pela administração da plataforma.<br><br><strong>Motivo:</strong> ${motivo}<br><br>Se acreditas que isto foi um erro, contacta o suporte através do email <a href="mailto:${process.env.EMAIL_USER}">${process.env.EMAIL_USER}</a>.`,
+        '#991b1b'
+      );
+    }
+
     res.json({ mensagem: `Conta bloqueada permanentemente. Motivo: ${motivo}` });
   } catch (err) {
     res.status(500).json({ erro: err.message });
