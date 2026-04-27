@@ -135,8 +135,8 @@ export const getEntregasPendentes = () => pedido('/coletador/entregas/pendentes'
 
 export const getMinhasColetasColetador = () => pedido('/coletador/entregas/minhas');
 
-export const aceitarEntrega = (id) =>
-  pedido(`/coletador/entregas/${id}/aceitar`, { method: 'PATCH' });
+export const aceitarEntrega = (id, tipo_recompensa = 'dinheiro') =>
+  pedido(`/coletador/entregas/${id}/aceitar`, { method: 'PATCH', body: JSON.stringify({ tipo_recompensa }) });
 
 export const recolherEntrega = (id) =>
   pedido(`/coletador/entregas/${id}/recolher`, { method: 'PATCH' });
