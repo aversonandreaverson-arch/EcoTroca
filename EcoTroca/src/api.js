@@ -377,7 +377,7 @@ export const getAvaliacoesEntrega = (id_entrega) =>
 export const getAvaliacoesUtilizador = (id_usuario) =>
   pedido(`/avaliacoes/utilizador/${id_usuario}`);
 
-// ── RANKINGS E MEDALHAS 
+// ── RANKINGS E MEDALHAS ───────────────────────────────────────
 export const getRanking = () =>
   pedido('/ranking');
 
@@ -386,3 +386,13 @@ export const getMedalhasMinhas = () =>
 
 export const getMedalhasUtilizador = (id) =>
   pedido(`/ranking/medalhas/${id}`);
+
+// ── LOCALIZAÇÃO COLETADOR ─────────────────────────────────────
+export const actualizarLocalizacaoColetador = (latitude, longitude) =>
+  pedido('/coletador/localizacao', {
+    method: 'POST',
+    body: JSON.stringify({ latitude, longitude })
+  });
+
+export const getColetadoresProximos = (latitude, longitude) =>
+  pedido(`/coletador/proximos?latitude=${latitude}&longitude=${longitude}`);
