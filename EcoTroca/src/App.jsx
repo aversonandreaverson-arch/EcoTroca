@@ -1,6 +1,3 @@
-/**
- * Define todas as rotas públicas e privadas da plataforma EcoTroca.
- */
 
 import { Routes, Route } from 'react-router-dom'
 
@@ -51,6 +48,9 @@ import Feed from './Components/Feed/Feed'
 
 import DashboardAdmin      from './Components/AdminProfile/DashboardAdmin'
 import PaginaInicialAdmin  from './Components/AdminProfile/PaginaInicialAdmin'
+import AdminEventos        from './Components/AdminProfile/AdminEventos'
+import AdminNoticias       from './Components/AdminProfile/AdminNoticias'
+import AdminAvisos         from './Components/AdminProfile/AdminAvisos'
 import AdminUtilizadores from './Components/AdminProfile/AdminUtilizadores'
 import AdminEducacao     from './Components/AdminProfile/AdminEducacao'
 import AdminRelatorios   from './Components/AdminProfile/AdminRelatorios'
@@ -121,6 +121,9 @@ function App() {
       <Route path='/AdminUtilizadores' element={<RotaProtegida tipos={["admin"]}><AdminUtilizadores /></RotaProtegida>} />
       <Route path='/AdminEducacao'     element={<RotaProtegida tipos={["admin"]}><AdminEducacao /></RotaProtegida>} />
       <Route path='/AdminRelatorios'   element={<RotaProtegida tipos={["admin"]}><AdminRelatorios /></RotaProtegida>} />
+      <Route path='/AdminEventos'      element={<RotaProtegida tipos={["admin"]}><AdminEventos /></RotaProtegida>} />
+      <Route path='/AdminNoticias'     element={<RotaProtegida tipos={["admin"]}><AdminNoticias /></RotaProtegida>} />
+      <Route path='/AdminAvisos'       element={<RotaProtegida tipos={["admin"]}><AdminAvisos /></RotaProtegida>} />
 
     </Routes>
   )
