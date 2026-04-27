@@ -62,21 +62,27 @@ router.get('/entregas/minhas', auth, role('coletor'), async (req, res) => {
     if (coletador.length === 0) return res.status(404).json({ erro: 'Coletador não encontrado' });
 
     const [rows] = await pool.query(
-      `SELECT 
+      `SELECT
         e.id_entrega,
         e.status,
         e.tipo_recompensa,
         e.endereco_domicilio,
+        e.latitude,
+        e.longitude,
         e.data_hora,
         u.nome AS nome_usuario,
-        u.telefone AS telefone_usuario,
         GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
         SUM(er.peso_kg) AS peso_total,
+        SUM(er.quantidade) AS quantidade_total,
+        GROUP_CONCAT(
+          CONCAT(r.tipo, ': ', er.quantidade, ' un / ', er.peso_kg, ' kg')
+          SEPARATOR ' | '
+        ) AS detalhe_residuos,
         SUM(er.peso_kg * r.valor_por_kg) AS valor_total
-       FROM Entrega e
-       JOIN Usuario u ON e.id_usuario = u.id_usuario
-       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
-       LEFT JOIN Residuo r ON er.id_residuo = r.id_residuo
+       FROM entrega e
+       JOIN usuario u ON e.id_usuario = u.id_usuario
+       LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
        WHERE e.id_coletador = ?
        GROUP BY e.id_entrega
        ORDER BY e.data_hora DESC`,
@@ -120,7 +126,7 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
 
     // Activa o chat entre utilizador e coletador
     await pool.query(
-      'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?', 
+      'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?',
       [req.params.id]
     );
 
