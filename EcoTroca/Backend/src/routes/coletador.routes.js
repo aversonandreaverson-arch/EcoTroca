@@ -15,21 +15,28 @@ const router = Router();
 router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT 
+      `SELECT
         e.id_entrega,
         e.tipo_recompensa,
         e.endereco_domicilio,
+        e.latitude,
+        e.longitude,
         e.data_hora,
         e.status,
-        u.nome AS nome_usuario,
-        u.telefone AS telefone_usuario,
-        GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
-        SUM(er.peso_kg) AS peso_total,
-        SUM(er.peso_kg * r.valor_por_kg) AS valor_total
-       FROM Entrega e
-       JOIN Usuario u ON e.id_usuario = u.id_usuario
-       LEFT JOIN Entrega_Residuo er ON e.id_entrega = er.id_entrega
-       LEFT JOIN Residuo r ON er.id_residuo = r.id_residuo
+        u.nome     AS nome_usuario,
+        u.provincia AS provincia_usuario,
+        GROUP_CONCAT(r.tipo SEPARATOR ', ')                    AS tipos_residuos,
+        SUM(er.peso_kg)                                        AS peso_total,
+        SUM(er.quantidade)                                     AS quantidade_total,
+        GROUP_CONCAT(
+          CONCAT(r.tipo, ': ', er.quantidade, ' un / ', er.peso_kg, ' kg')
+          SEPARATOR ' | '
+        )                                                      AS detalhe_residuos,
+        SUM(er.peso_kg * r.valor_por_kg)                       AS valor_total
+       FROM entrega e
+       JOIN usuario u ON e.id_usuario = u.id_usuario
+       LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
+       LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
        WHERE e.status = 'pendente'
          AND e.tipo_entrega = 'domicilio'
        GROUP BY e.id_entrega
