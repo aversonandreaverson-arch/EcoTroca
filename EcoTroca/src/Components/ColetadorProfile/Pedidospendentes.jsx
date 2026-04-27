@@ -4,9 +4,11 @@ import Header from "./Header.jsx";
 import { getEntregasPendentes, aceitarEntrega, recolherEntrega } from "../../api.js";
 import Mapa from "./Mapa.jsx";
 
+
 //  Lista entregas pendentes (para aceitar) e aceites (para confirmar recolha).
 //  Quando clica "Ver Rota", obtém a localizacao do coletador via GPS
 //  e abre o mapa com a rota até ao utilizador.
+// ============================================================
 
 export default function PedidosPendentes() {
   const [entregas,              setEntregas]              = useState([]);
@@ -235,11 +237,20 @@ export default function PedidosPendentes() {
 // ── Card de cada pedido ──────────────────────────────────────
 function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando, carregandoMapa }) {
   if (!entrega) return null;
+
+  const peso     = parseFloat(entrega.peso_total || entrega.peso_total_real || 0);
+  const pesado   = peso >= 20;
+  const medio    = peso >= 5 && peso < 20;
+
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 border border-green-100 hover:shadow-lg transition">
-      <div className="flex justify-between items-start mb-4">
+
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <p className="font-bold text-green-700 text-lg">{entrega.tipo_residuo || "Residuo"}</p>
+          <p className="font-bold text-green-700 text-lg">
+            {entrega.tipos_residuos || entrega.tipo_residuo || "Resíduo"}
+          </p>
           <p className="text-xs text-gray-400">Pedido #{entrega.id_entrega}</p>
         </div>
         <span className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -248,29 +259,83 @@ function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando
           {tipo === "pendente" ? "Pendente" : "Em curso"}
         </span>
       </div>
-      <div className="space-y-2 text-sm text-gray-600 mb-4">
+
+      {/* Peso e quantidade — destaque visual */}
+      <div className={`rounded-xl px-4 py-3 mb-3 flex items-center justify-between ${
+        pesado ? "bg-red-50 border border-red-200" :
+        medio  ? "bg-yellow-50 border border-yellow-200" :
+                 "bg-green-50 border border-green-200"
+      }`}>
         <div className="flex items-center gap-2">
-          <User size={15} className="text-green-500 shrink-0" />
-          <span className="truncate">{entrega.nome_usuario || "Utilizador"}</span>
+          <Package size={18} className={
+            pesado ? "text-red-500" : medio ? "text-yellow-500" : "text-green-500"
+          } />
+          <div>
+            <p className={`font-bold text-lg ${
+              pesado ? "text-red-700" : medio ? "text-yellow-700" : "text-green-700"
+            }`}>
+              {peso > 0 ? `${peso.toFixed(1)} kg` : "Peso a confirmar"}
+            </p>
+            <p className={`text-xs ${
+              pesado ? "text-red-500" : medio ? "text-yellow-500" : "text-green-500"
+            }`}>
+              {pesado ? "⚠️ Carga pesada — precisas de ajuda ou veículo" :
+               medio  ? "Carga média — atenção ao transporte" :
+               peso > 0 ? "Carga leve — fácil de transportar" : "Confirma o peso no local"}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <MapPin size={15} className="text-green-500 shrink-0" />
-          <span className="truncate text-xs">{entrega.endereco_domicilio || "Localizacao nao definida"}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Package size={15} className="text-green-500 shrink-0" />
-          <span>{entrega.peso_total || "?"} kg</span>
-        </div>
+        {entrega.valor_total && (
+          <div className="text-right">
+            <p className="text-xs text-gray-400">Comissão</p>
+            <p className="font-bold text-green-700 text-sm">
+              {(parseFloat(entrega.valor_total) * 0.30).toFixed(0)} Kz
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Botao Ver Rota — abre o mapa com GPS */}
+      {/* Detalhe dos resíduos — quantidade + kg por tipo */}
+      {entrega.detalhe_residuos && (
+        <div className="bg-gray-50 rounded-xl px-3 py-2 mb-3">
+          <p className="text-xs text-gray-400 mb-1 font-medium">O que vai recolher:</p>
+          {entrega.detalhe_residuos.split(' | ').map((item, i) => (
+            <p key={i} className="text-xs text-gray-700 font-medium">{item}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Detalhes */}
+      <div className="space-y-2 text-sm text-gray-600 mb-4">
+        <div className="flex items-center gap-2">
+          <User size={14} className="text-green-500 shrink-0" />
+          <span className="truncate">{entrega.nome_usuario || "Utilizador"}</span>
+          {entrega.provincia_usuario && (
+            <span className="text-xs text-gray-400">· {entrega.provincia_usuario}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <MapPin size={14} className="text-green-500 shrink-0" />
+          <span className="truncate text-xs">{entrega.endereco_domicilio || "Localização não definida"}</span>
+        </div>
+        {entrega.tipo_recompensa && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              Recompensa: {entrega.tipo_recompensa === 'dinheiro' ? 'Dinheiro' :
+                           entrega.tipo_recompensa === 'saldo'   ? 'Saldo'    : 'Pontos'}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Botão Ver Rota */}
       <button onClick={onMapa} disabled={carregandoMapa}
         className="w-full mb-2 bg-blue-100 hover:bg-blue-200 disabled:opacity-60 text-blue-700 py-2 rounded-xl font-medium transition flex items-center justify-center gap-2 text-sm">
         <Map size={14} />
-        {carregandoMapa ? "A obter localizacao..." : "Ver Rota no Mapa"}
+        {carregandoMapa ? "A obter localização..." : "Ver Rota no Mapa"}
       </button>
 
-      {/* Botao de accao — aceitar ou confirmar recolha */}
+      {/* Botão de acção */}
       {tipo === "pendente" ? (
         <button onClick={onAceitar} disabled={carregando}
           className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl font-medium transition flex items-center justify-center gap-2">
