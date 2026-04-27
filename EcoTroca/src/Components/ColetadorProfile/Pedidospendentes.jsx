@@ -15,6 +15,7 @@ export default function PedidosPendentes() {
   const [carregando,            setCarregando]            = useState(true);
   const [erro,                  setErro]                  = useState("");
   const [acaoEmCurso,           setAcaoEmCurso]           = useState(null);
+  const [recompensaEscolhida,   setRecompensaEscolhida]   = useState({}); // { id_entrega: 'dinheiro'|'saldo' }
   const [localizacaoColetador,  setLocalizacaoColetador]  = useState(null);
   const [entregaSelecionadaMapa,setEntregaSelecionadaMapa]= useState(null);
   const [carregandoMapa,        setCarregandoMapa]        = useState(false);
@@ -37,9 +38,10 @@ export default function PedidosPendentes() {
 
   // Aceita uma entrega pendente — coletador fica responsavel pela recolha
   const handleAceitar = async (id) => {
+    const recompensa = recompensaEscolhida[id] || 'dinheiro';
     try {
       setAcaoEmCurso(id);
-      await aceitarEntrega(id);
+      await aceitarEntrega(id, recompensa);
       await carregar();
     } catch (err) {
       setErro(err.message || "Erro ao aceitar pedido");
@@ -200,7 +202,9 @@ export default function PedidosPendentes() {
                     onAceitar={() => handleAceitar(e.id_entrega)}
                     onMapa={() => abrirMapa(e)}
                     carregando={acaoEmCurso === e.id_entrega}
-                    carregandoMapa={carregandoMapa} />
+                    carregandoMapa={carregandoMapa}
+                    recompensa={recompensaEscolhida[e.id_entrega] || 'dinheiro'}
+                    onRecompensa={(r) => setRecompensaEscolhida(prev => ({ ...prev, [e.id_entrega]: r }))} />
                 ))}
               </div>
             )}
@@ -235,7 +239,7 @@ export default function PedidosPendentes() {
 }
 
 // ── Card de cada pedido ──────────────────────────────────────
-function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando, carregandoMapa }) {
+function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando, carregandoMapa, recompensa = 'dinheiro', onRecompensa = () => {} }) {
   if (!entrega) return null;
 
   const peso     = parseFloat(entrega.peso_total || entrega.peso_total_real || 0);
@@ -335,12 +339,39 @@ function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando
         {carregandoMapa ? "A obter localização..." : "Ver Rota no Mapa"}
       </button>
 
+      {/* Escolha de recompensa — só para pedidos pendentes */}
+      {tipo === "pendente" && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-500 mb-2 font-medium">Como queres receber a comissão?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onRecompensa('dinheiro')}
+              className={`py-2 px-3 rounded-xl text-xs font-semibold border transition ${
+                recompensa === 'dinheiro'
+                  ? 'bg-green-600 text-white border-green-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-green-50'
+              }`}>
+              💵 Dinheiro sacável
+            </button>
+            <button
+              onClick={() => onRecompensa('saldo')}
+              className={`py-2 px-3 rounded-xl text-xs font-semibold border transition ${
+                recompensa === 'saldo'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50'
+              }`}>
+              💳 Saldo na app
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Botão de acção */}
       {tipo === "pendente" ? (
         <button onClick={onAceitar} disabled={carregando}
           className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl font-medium transition flex items-center justify-center gap-2">
           <Truck size={16} />
-          {carregando ? "A aceitar..." : "Aceitar Pedido"}
+          {carregando ? "A aceitar..." : `Aceitar — receber em ${recompensa === 'saldo' ? 'Saldo' : 'Dinheiro'}`}
         </button>
       ) : (
         <button onClick={onRecolher} disabled={carregando}
