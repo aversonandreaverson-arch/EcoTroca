@@ -108,7 +108,7 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
       [req.params.id]
     );
     if (entrega.length === 0) return res.status(404).json({ erro: 'Entrega não encontrada' });
-    if (entrega[0].tipo_entrega !== 'domicilio') return res.status(400).json({ erro: 'Esta entrega não precisa de coletador' });
+    if (entrega[0].tipo_entrega !== 'coletador') return res.status(400).json({ erro: 'Esta entrega não precisa de coletador' });
     if (entrega[0].status !== 'pendente') return res.status(400).json({ erro: 'Esta entrega já foi aceite por outro coletador' });
 
     // Aceita a entrega — guarda o tipo de recompensa escolhido pelo coletador
@@ -120,7 +120,7 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
 
     // Activa o chat entre utilizador e coletador
     await pool.query(
-      'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?',
+      'UPDATE Chat SET ativo = TRUE WHERE id_entrega = ?', 
       [req.params.id]
     );
 
