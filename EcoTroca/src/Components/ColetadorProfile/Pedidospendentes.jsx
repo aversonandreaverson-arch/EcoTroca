@@ -4,10 +4,7 @@ import Header from "./Header.jsx";
 import { getEntregasPendentes, aceitarEntrega, recolherEntrega, getMinhasColetasColetador } from "../../api.js";
 import Mapa from "./Mapa.jsx";
 
-// ============================================================
-//  PedidosPendentes.jsx
-//  Guardar em: src/Components/ColetadorProfile/PedidosPendentes.jsx
-//
+
 //  Lista entregas pendentes (para aceitar) e aceites (para confirmar recolha).
 //  Quando clica "Ver Rota", obtém a localizacao do coletador via GPS
 //  e abre o mapa com a rota até ao utilizador.
