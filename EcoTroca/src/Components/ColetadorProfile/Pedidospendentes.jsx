@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { MapPin, User, CheckCircle, Truck, Map, ArrowLeft, AlertCircle, Package } from "lucide-react";
 import Header from "./Header.jsx";
-import { getEntregasPendentes, aceitarEntrega, recolherEntrega } from "../../api.js";
+import { getEntregasPendentes, aceitarEntrega, recolherEntrega, getMinhasColetasColetador } from "../../api.js";
 import Mapa from "./Mapa.jsx";
 
-
+// ============================================================
+//  PedidosPendentes.jsx
+//  Guardar em: src/Components/ColetadorProfile/PedidosPendentes.jsx
+//
 //  Lista entregas pendentes (para aceitar) e aceites (para confirmar recolha).
 //  Quando clica "Ver Rota", obtém a localizacao do coletador via GPS
 //  e abre o mapa com a rota até ao utilizador.
@@ -23,12 +26,19 @@ export default function PedidosPendentes() {
 
   useEffect(() => { carregar(); }, []);
 
-  // Carrega todas as entregas pendentes e aceites pelo coletador
+  // Carrega entregas pendentes (disponíveis) e aceites (em curso)
   const carregar = async () => {
     try {
       setErro("");
-      const dados = await getEntregasPendentes();
-      setEntregas(dados || []);
+      // Pendentes = todos os pedidos disponíveis para aceitar
+      // Minhas = entregas que este coletador já aceitou
+      const [pendentes, minhas] = await Promise.all([
+        getEntregasPendentes(),
+        getMinhasColetasColetador().catch(() => []),
+      ]);
+      // Junta as duas listas — pendentes + as aceites por este coletador
+      const aceitas = (minhas || []).filter(e => e.status === 'aceita');
+      setEntregas([...(pendentes || []), ...aceitas]);
     } catch (err) {
       setErro(err.message || "Erro ao carregar pedidos");
     } finally {
