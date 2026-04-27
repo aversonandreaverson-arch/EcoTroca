@@ -194,7 +194,7 @@ export default function PaginaInicialAdmin() {
   };
 
   return (
-    <div className="min-h-screen bg-green-100 pt-24 pb-12">
+    <div className="min-h-screen bg-gray-900 pt-24 pb-12">
       <Header />
 
       <div className="px-6">
@@ -207,7 +207,7 @@ export default function PaginaInicialAdmin() {
             <p className="text-green-600 text-sm mt-0.5">Controlo total da plataforma EcoTroca Angola</p>
           </div>
           <button onClick={() => { setFormulario(FORM_VAZIO); setModalAberto(true); }}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition">
+            className="flex items-center gap-2 bg-gray-900 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition">
             <Plus size={16} /> Publicar
           </button>
         </div>
