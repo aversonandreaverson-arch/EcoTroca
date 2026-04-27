@@ -80,19 +80,29 @@ router.get('/minhas/entregas', auth, async (req, res) => {
 });
 
 // POST /api/empresas/minhas/entregas/:id/aceitar
-// Empresa aceita entrega — regista peso real e processa pagamento
+// Empresa aceita entrega:
+//   - Se tipo_entrega = 'coletador' → notifica coletadores independentes (pagamento só depois da recolha)
+//   - Se tipo_entrega = 'domicilio' ou 'ponto_recolha' → regista peso e paga logo
 router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
   try {
     const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
     const id_entrega = parseInt(req.params.id);
     const { peso_real } = req.body;
 
-    if (!peso_real || parseFloat(peso_real) <= 0)
-      return res.status(400).json({ erro: 'O peso real dos residuos e obrigatorio.' });
-
     const [entregas] = await pool.query(
-      'SELECT id_entrega, status FROM entrega WHERE id_entrega = ? AND id_empresa = ?',
-      [id_entrega, id_empresa]
+      `SELECT e.id_entrega, e.status, e.tipo_entrega, e.id_usuario,
+              er.id_residuo, r.tipo AS tipo_residuo,
+              u.nome AS nome_utilizador, u.provincia AS provincia_utilizador,
+              emp.nome AS nome_empresa, emp.endereco AS endereco_empresa,
+              emp.latitude AS empresa_latitude, emp.longitude AS empresa_longitude
+       FROM entrega e
+       LEFT JOIN entrega_residuo er ON er.id_entrega = e.id_entrega
+       LEFT JOIN residuo r ON r.id_residuo = er.id_residuo
+       LEFT JOIN usuario u ON u.id_usuario = e.id_usuario
+       LEFT JOIN empresarecicladora emp ON emp.id_empresa = ?
+       WHERE e.id_entrega = ? AND e.id_empresa = ?
+       LIMIT 1`,
+      [id_empresa, id_entrega, id_empresa]
     );
 
     if (entregas.length === 0)
@@ -100,6 +110,58 @@ router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
 
     if (entregas[0].status !== 'pendente')
       return res.status(400).json({ erro: 'Esta entrega ja foi processada.' });
+
+    const entrega = entregas[0];
+
+    // ── Fluxo com coletador independente ──
+    // Empresa aceita → notifica coletadores → coletador vai buscar → empresa pesa → paga
+    if (entrega.tipo_entrega === 'coletador') {
+
+      // Marca a entrega como aceite pela empresa (aguarda coletador)
+      await pool.query(
+        "UPDATE entrega SET status = 'aceita' WHERE id_entrega = ?",
+        [id_entrega]
+      );
+
+      // Notifica o utilizador que a empresa aceitou
+      await pool.query(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+         VALUES (?, '✅ Empresa aceitou!', ?, 'sistema')`,
+        [
+          entrega.id_usuario,
+          `A empresa ${entrega.nome_empresa} aceitou a tua oferta de ${entrega.tipo_residuo || 'resíduo'}. Estamos a procurar um coletador para ir buscar os teus resíduos.`
+        ]
+      );
+
+      // Notifica todos os coletadores independentes activos
+      const [coletadores] = await pool.query(
+        `SELECT c.id_coletador, u.id_usuario, u.nome
+         FROM coletador c
+         INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+         WHERE c.id_empresa IS NULL AND c.tipo = 'independente' AND u.ativo = TRUE`
+      );
+
+      for (const col of coletadores) {
+        await pool.query(
+          `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+           VALUES (?, '📦 Nova recolha disponível', ?, 'sistema')`,
+          [
+            col.id_usuario,
+            `Nova recolha disponível! ${entrega.nome_utilizador}${entrega.provincia_utilizador ? ` (${entrega.provincia_utilizador})` : ''} tem ${entrega.tipo_residuo || 'resíduo'} para recolher. Destino: empresa ${entrega.nome_empresa}. Entrega #${id_entrega}.`
+          ]
+        );
+      }
+
+      return res.json({
+        mensagem: `Entrega aceite. ${coletadores.length} coletador(es) notificado(s).`,
+        aguarda_coletador: true,
+      });
+    }
+
+    // ── Fluxo normal (domicilio / ponto_recolha) ──
+    // Empresa vai buscar ou utilizador leva — paga na hora
+    if (!peso_real || parseFloat(peso_real) <= 0)
+      return res.status(400).json({ erro: 'O peso real dos residuos e obrigatorio.' });
 
     const { processarPagamento } = await import('../services/empresa.service.js');
     const resultado = await processarPagamento(id_entrega, id_empresa, parseFloat(peso_real));
@@ -408,11 +470,11 @@ router.put('/minhas/limiar', auth, async (req, res) => {
 // PUT /api/empresas/perfil
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nome, telefone, email, endereco, provincia, municipio, bairro, descricao, horario_abertura, horario_fechamento, site, residuos_aceites } = req.body;
+    const { nome, telefone, email, endereco, provincia, municipio, bairro, descricao, horario_abertura, horario_fechamento, site, residuos_aceites, latitude, longitude } = req.body;
     const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
     await pool.query(
-      'UPDATE empresarecicladora SET nome=?, telefone=?, email=?, endereco=?, provincia=?, municipio=?, bairro=?, descricao=?, horario_abertura=?, horario_fechamento=?, site=?, residuos_aceites=? WHERE id_empresa=?',
-      [nome, telefone, email||null, endereco||null, provincia||null, municipio||null, bairro||null, descricao||null, horario_abertura||null, horario_fechamento||null, site||null, residuos_aceites||null, id_empresa]
+      'UPDATE empresarecicladora SET nome=?, telefone=?, email=?, endereco=?, provincia=?, municipio=?, bairro=?, descricao=?, horario_abertura=?, horario_fechamento=?, site=?, residuos_aceites=?, latitude=?, longitude=? WHERE id_empresa=?',
+      [nome, telefone, email||null, endereco||null, provincia||null, municipio||null, bairro||null, descricao||null, horario_abertura||null, horario_fechamento||null, site||null, residuos_aceites||null, latitude||null, longitude||null, id_empresa]
     );
     res.json({ mensagem: 'Perfil actualizado com sucesso.' });
   } catch (err) {
