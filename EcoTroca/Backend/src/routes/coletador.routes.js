@@ -38,7 +38,8 @@ router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
        LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
        LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
        WHERE e.status = 'pendente'
-         AND e.tipo_entrega = 'domicilio'
+         AND e.tipo_entrega = 'coletador'
+         AND e.id_coletador IS NULL
        GROUP BY e.id_entrega
        ORDER BY e.data_hora ASC`
     );
@@ -110,10 +111,11 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
     if (entrega[0].tipo_entrega !== 'domicilio') return res.status(400).json({ erro: 'Esta entrega não precisa de coletador' });
     if (entrega[0].status !== 'pendente') return res.status(400).json({ erro: 'Esta entrega já foi aceite por outro coletador' });
 
-    // Aceita a entrega — só este coletador pode recolher agora
+    // Aceita a entrega — guarda o tipo de recompensa escolhido pelo coletador
+    const tipo_recompensa_coletador = req.body.tipo_recompensa || 'dinheiro';
     await pool.query(
-      'UPDATE Entrega SET status = ?, id_coletador = ? WHERE id_entrega = ?',
-      ['aceita', coletador[0].id_coletador, req.params.id]
+      'UPDATE entrega SET status = ?, id_coletador = ?, tipo_recompensa_coletador = ? WHERE id_entrega = ?',
+      ['aceita', coletador[0].id_coletador, tipo_recompensa_coletador, req.params.id]
     );
 
     // Activa o chat entre utilizador e coletador
