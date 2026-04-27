@@ -182,4 +182,62 @@ router.patch('/entregas/:id/recolher', auth, role('coletor'), async (req, res) =
   }
 });
 
+// ── POST /api/coletador/localizacao ──────────────────────────
+// Coletador actualiza a sua localização GPS
+router.post('/localizacao', auth, role('coletor'), async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (!latitude || !longitude) return res.status(400).json({ erro: 'Latitude e longitude são obrigatórias.' });
+
+    await pool.query(
+      `UPDATE coletador SET latitude = ?, longitude = ?, ultima_localizacao = NOW()
+       WHERE id_usuario = ?`,
+      [latitude, longitude, req.usuario.id_usuario]
+    );
+    res.json({ mensagem: 'Localização actualizada.' });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ── GET /api/coletador/proximos ───────────────────────────────
+// Devolve coletadores independentes ordenados por distância
+// Usa fórmula Haversine para calcular distância em km
+router.get('/proximos', auth, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.query;
+    if (!latitude || !longitude) return res.status(400).json({ erro: 'Localização necessária.' });
+
+    const [rows] = await pool.query(`
+      SELECT
+        c.id_coletador,
+        u.nome,
+        u.provincia,
+        c.latitude,
+        c.longitude,
+        c.ultima_localizacao,
+        -- Fórmula Haversine — distância em km
+        (6371 * ACOS(
+          COS(RADIANS(?)) * COS(RADIANS(c.latitude)) *
+          COS(RADIANS(c.longitude) - RADIANS(?)) +
+          SIN(RADIANS(?)) * SIN(RADIANS(c.latitude))
+        )) AS distancia_km
+      FROM coletador c
+      INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+      WHERE c.tipo = 'independente'
+        AND c.ativo = 1
+        AND c.latitude IS NOT NULL
+        AND c.longitude IS NOT NULL
+        -- Só coletadores com localização actualizada nas últimas 24h
+        AND c.ultima_localizacao >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      ORDER BY distancia_km ASC
+      LIMIT 10
+    `, [latitude, longitude, latitude]);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
