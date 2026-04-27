@@ -9,12 +9,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 // logout → função do api.js que apaga o token e termina a sessão
 import { logout } from "../../api.js";
 
-// ── Lista de links do menu ───────────────────────────────────
+// ── Lista de links do menu 
 // Cada objecto tem o texto a mostrar (label) e a rota de destino (to)
 const links = [
   { label: "Página Inicial", to: "/AdminInicio"       },
   { label: "Dashboard",      to: "/AdminDashboard"    },
   { label: "Utilizadores",   to: "/AdminUtilizadores" },
+  { label: "Eventos",        to: "/AdminEventos"      },
+  { label: "Notícias",       to: "/AdminNoticias"     },
+  { label: "Avisos",         to: "/AdminAvisos"       },
   { label: "Educação",       to: "/AdminEducacao"     },
   { label: "Relatórios",     to: "/AdminRelatorios"   },
 ];
