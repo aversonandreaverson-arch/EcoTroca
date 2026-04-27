@@ -122,10 +122,31 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
       [req.params.id]
     );
 
-    // Notifica o utilizador
+    // Busca o nome do coletador para a notificação
+    const [nomeCol] = await pool.query(
+      'SELECT nome FROM usuario WHERE id_usuario = ?',
+      [req.usuario.id_usuario]
+    );
+    const nomeColetador = nomeCol[0]?.nome || 'Um coletador';
+
+    // Busca o tipo de resíduo da entrega para a notificação
+    const [residuoCol] = await pool.query(
+      `SELECT GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos
+       FROM entrega_residuo er
+       JOIN residuo r ON r.id_residuo = er.id_residuo
+       WHERE er.id_entrega = ?`,
+      [req.params.id]
+    );
+    const tipoResiduo = residuoCol[0]?.tipos || 'resíduo';
+
+    // Notifica o utilizador com o nome do coletador
     await pool.query(
-      'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-      [entrega[0].id_usuario, '🚛 Coletador a caminho!', `Um coletador aceitou a tua entrega #${req.params.id} e está a caminho!`]
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, '🚛 Coletador a caminho!', ?, 'sistema')`,
+      [
+        entrega[0].id_usuario,
+        `O coletador ${nomeColetador} aceitou a tua entrega #${req.params.id} (${tipoResiduo}) e está a caminho para recolher os teus resíduos!`
+      ]
     );
 
     res.json({ mensagem: 'Entrega aceite com sucesso!' });
