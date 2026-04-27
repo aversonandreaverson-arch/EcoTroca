@@ -47,7 +47,36 @@ export default function DashboardColetador() {
   const [erroAval,       setErroAval]       = useState('');
   const [jaAvaliou,      setJaAvaliou]      = useState({});
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => {
+    carregar();
+    actualizarLocalizacao();
+  }, []);
+
+  // Actualiza a localização GPS do coletador automaticamente
+  const actualizarLocalizacao = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const token = localStorage.getItem('token');
+          await fetch('http://localhost:3000/api/coletador/localizacao', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              latitude:  pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            })
+          });
+        } catch (err) {
+          console.error('Erro ao actualizar localização:', err);
+        }
+      },
+      (err) => console.warn('Geolocalização não disponível:', err.message)
+    );
+  };
 
   const carregar = async () => {
     try {
