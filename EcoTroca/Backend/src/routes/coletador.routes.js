@@ -173,6 +173,44 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
       ]
     );
 
+    // Notifica a empresa que o coletador aceitou
+    const [empresaInfo] = await pool.query(
+      `SELECT
+         em.id_usuario AS id_usuario_empresa,
+         u_col.nome    AS nome_coletador,
+         u_col.provincia AS provincia_coletador,
+         u_uti.nome    AS nome_utilizador,
+         u_uti.provincia AS provincia_utilizador,
+         GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
+         SUM(er.quantidade) AS quantidade_total,
+         SUM(er.peso_kg)    AS peso_total
+       FROM entrega e
+       INNER JOIN empresarecicladora em ON em.id_empresa = e.id_empresa
+       INNER JOIN usuario u_col ON u_col.id_usuario = ?
+       INNER JOIN usuario u_uti ON u_uti.id_usuario = e.id_usuario
+       LEFT JOIN entrega_residuo er ON er.id_entrega = e.id_entrega
+       LEFT JOIN residuo r ON r.id_residuo = er.id_residuo
+       WHERE e.id_entrega = ?
+       GROUP BY em.id_usuario, u_col.nome, u_col.provincia, u_uti.nome, u_uti.provincia`,
+      [req.usuario.id_usuario, req.params.id]
+    );
+
+    if (empresaInfo.length > 0) {
+      const info = empresaInfo[0];
+      const pesoOuQtd = info.peso_total > 0
+        ? `${parseFloat(info.peso_total).toFixed(1)} kg`
+        : `${info.quantidade_total} unidades`;
+
+      await pool.query(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+         VALUES (?, '🚛 Coletador confirmado!', ?, 'sistema')`,
+        [
+          info.id_usuario_empresa,
+          `O coletador ${info.nome_coletador}${info.provincia_coletador ? ` (${info.provincia_coletador})` : ''} irá recolher ${info.tipos_residuos || 'resíduo'} (${pesoOuQtd}) do utilizador ${info.nome_utilizador}${info.provincia_utilizador ? ` (${info.provincia_utilizador})` : ''} e trazer para a vossa empresa. Entrega #${req.params.id}.`
+        ]
+      );
+    }
+
     res.json({ mensagem: 'Entrega aceite com sucesso!' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
