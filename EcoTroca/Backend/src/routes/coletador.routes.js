@@ -129,7 +129,10 @@ router.patch('/entregas/:id/aceitar', auth, role('coletor'), async (req, res) =>
     );
     if (entrega.length === 0) return res.status(404).json({ erro: 'Entrega não encontrada' });
     if (entrega[0].tipo_entrega !== 'coletador') return res.status(400).json({ erro: 'Esta entrega não precisa de coletador' });
-    if (entrega[0].status !== 'pendente') return res.status(400).json({ erro: 'Esta entrega já foi aceite por outro coletador' });
+    // Aceita se status = 'aceita' (empresa marcou data) E sem coletador ainda
+    // OU se status = 'pendente' E sem coletador
+    const podeAceitar = (entrega[0].status === 'aceita' || entrega[0].status === 'pendente') && !entrega[0].id_coletador;
+    if (!podeAceitar) return res.status(400).json({ erro: 'Esta entrega já foi aceite por outro coletador' });
 
     // Aceita a entrega — guarda o tipo de recompensa escolhido pelo coletador
     const tipo_recompensa_coletador = req.body.tipo_recompensa || 'dinheiro';
