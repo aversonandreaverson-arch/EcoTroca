@@ -74,14 +74,14 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
 
   // Busca dados da entrega: utilizador, coletador e tipo de recompensa
   const [entregas] = await pool.query(
-    `SELECT id_usuario, id_coletador, tipo_recompensa
+    `SELECT id_usuario, id_coletador, tipo_recompensa, tipo_recompensa_coletador
      FROM entrega WHERE id_entrega = ?`,
     [id_entrega]
   );
 
   if (entregas.length === 0) throw new Error('Entrega nao encontrada.');
 
-  const { id_usuario, id_coletador, tipo_recompensa } = entregas[0];
+  const { id_usuario, id_coletador, tipo_recompensa, tipo_recompensa_coletador } = entregas[0];
 
   // ── Calcula quanto vai para cada parte ────────────────────
   let valor_utilizador = 0;
@@ -207,10 +207,18 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
       [id_coletador]
     );
     if (coletadorInfo.length > 0) {
-      // Coletador sempre recebe em dinheiro sacavel
+      // Coletador recebe conforme escolha ao aceitar (dinheiro ou saldo)
+      const campoColetador = tipo_recompensa_coletador === 'saldo' ? 'saldo' : 'dinheiro';
       await pool.query(
-        'UPDATE carteira SET dinheiro = dinheiro + ? WHERE id_usuario = ?',
+        `UPDATE carteira SET ${campoColetador} = ${campoColetador} + ? WHERE id_usuario = ?`,
         [valor_coletador, coletadorInfo[0].id_usuario]
+      );
+
+      // Pontos automáticos para o coletador
+      const pontosColetador = Math.floor(parseFloat(peso_real) * 10);
+      await pool.query(
+        `UPDATE pontuacaousuario SET pontos_total = pontos_total + ? WHERE id_usuario = ?`,
+        [pontosColetador, coletadorInfo[0].id_usuario]
       );
       await pool.query(
         `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
