@@ -23,8 +23,14 @@ router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
         e.longitude,
         e.data_hora,
         e.status,
-        u.nome     AS nome_usuario,
+        u.nome      AS nome_usuario,
         u.provincia AS provincia_usuario,
+        em.nome     AS nome_empresa,
+        em.endereco AS endereco_empresa,
+        em.latitude AS empresa_latitude,
+        em.longitude AS empresa_longitude,
+        em.municipio AS municipio_empresa,
+        em.provincia AS provincia_empresa,
         GROUP_CONCAT(r.tipo SEPARATOR ', ')                    AS tipos_residuos,
         SUM(er.peso_kg)                                        AS peso_total,
         SUM(er.quantidade)                                     AS quantidade_total,
@@ -37,7 +43,8 @@ router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
        JOIN usuario u ON e.id_usuario = u.id_usuario
        LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
        LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
-       WHERE e.status = 'pendente'
+       LEFT JOIN empresarecicladora em ON em.id_empresa = e.id_empresa
+       WHERE e.status = 'aceita'
          AND e.tipo_entrega = 'coletador'
          AND e.id_coletador IS NULL
        GROUP BY e.id_entrega
@@ -70,7 +77,13 @@ router.get('/entregas/minhas', auth, role('coletor'), async (req, res) => {
         e.latitude,
         e.longitude,
         e.data_hora,
-        u.nome AS nome_usuario,
+        u.nome      AS nome_usuario,
+        em.nome     AS nome_empresa,
+        em.endereco AS endereco_empresa,
+        em.latitude AS empresa_latitude,
+        em.longitude AS empresa_longitude,
+        em.municipio AS municipio_empresa,
+        em.provincia AS provincia_empresa,
         GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
         SUM(er.peso_kg) AS peso_total,
         SUM(er.quantidade) AS quantidade_total,
@@ -83,6 +96,7 @@ router.get('/entregas/minhas', auth, role('coletor'), async (req, res) => {
        JOIN usuario u ON e.id_usuario = u.id_usuario
        LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
        LEFT JOIN residuo r ON er.id_residuo = r.id_residuo
+       LEFT JOIN empresarecicladora em ON em.id_empresa = e.id_empresa
        WHERE e.id_coletador = ?
        GROUP BY e.id_entrega
        ORDER BY e.data_hora DESC`,
