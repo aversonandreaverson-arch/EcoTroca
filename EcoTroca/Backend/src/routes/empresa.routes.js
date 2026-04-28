@@ -54,7 +54,7 @@ router.get('/minhas/entregas', auth, async (req, res) => {
     const { id_empresa } = await getIdEmpresa(req.usuario.id_usuario);
     const [rows] = await pool.query(
       `SELECT
-         en.id_entrega, en.status, en.peso_total, en.valor_total,
+         en.id_entrega, en.status, en.tipo_entrega, en.peso_total, en.valor_total,
          en.data_hora, en.observacoes, en.endereco_domicilio,
          en.data_recolha_proposta,
          en.observacoes_empresa,
@@ -62,10 +62,14 @@ router.get('/minhas/entregas', auth, async (req, res) => {
          en.valor_coletador,
          en.latitude,
          en.longitude,
+         en.id_coletador,
          u.nome AS nome_usuario, u.telefone AS telefone_usuario,
+         uc.nome AS nome_coletadores,
          GROUP_CONCAT(r.tipo ORDER BY r.tipo SEPARATOR ', ') AS tipos_residuos
        FROM entrega en
        INNER JOIN usuario u ON en.id_usuario = u.id_usuario
+       LEFT JOIN coletador c ON c.id_coletador = en.id_coletador
+       LEFT JOIN usuario uc ON uc.id_usuario = c.id_usuario
        LEFT JOIN entrega_residuo er ON er.id_entrega = en.id_entrega
        LEFT JOIN residuo r ON r.id_residuo = er.id_residuo
        WHERE en.id_empresa = ?
