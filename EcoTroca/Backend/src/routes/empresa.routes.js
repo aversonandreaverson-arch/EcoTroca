@@ -225,8 +225,8 @@ router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
       return res.status(404).json({ erro: 'Entrega nao encontrada.' });
 
     await pool.query(
-      'UPDATE entrega SET data_recolha_proposta = ?, observacoes_empresa = ? WHERE id_entrega = ?',
-      [data_recolha, observacoes || null, id_entrega]
+      'UPDATE entrega SET data_recolha_proposta = ?, observacoes_empresa = ?, status = ? WHERE id_entrega = ?',
+      [data_recolha, observacoes || null, 'aceita', id_entrega]
     );
 
     const dataFormatada = new Date(data_recolha).toLocaleString('pt-AO', {
