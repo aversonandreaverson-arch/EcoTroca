@@ -120,16 +120,33 @@ router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
     const entrega = entregas[0];
 
     // ── Fluxo com coletador independente ──
-    // Empresa aceita → notifica coletadores → coletador vai buscar → empresa pesa → paga
     if (entrega.tipo_entrega === 'coletador') {
 
-      // Marca a entrega como aceite pela empresa (aguarda coletador)
+      // Verifica se o coletador já entregou (aguarda_pesagem) ou já tem coletador
+      // Se sim → empresa está a registar o peso → processa pagamento
+      if (entrega.status === 'aguarda_pesagem') {
+        if (!peso_real || parseFloat(peso_real) <= 0)
+          return res.status(400).json({ erro: 'O peso real dos residuos e obrigatorio.' });
+
+        const { processarPagamento } = await import('../services/empresa.service.js');
+        const resultado = await processarPagamento(id_entrega, id_empresa, parseFloat(peso_real));
+
+        return res.json({
+          mensagem:          'Pagamento processado com sucesso.',
+          peso_real:         resultado.peso_real,
+          valor_total:       resultado.valor_total,
+          comissao_ecotroca: resultado.comissao_ecotroca,
+          valor_utilizador:  resultado.valor_utilizador,
+          valor_coletador:   resultado.valor_coletador,
+        });
+      }
+
+      // Coletador ainda não entregou → empresa aceita e aguarda
       await pool.query(
         "UPDATE entrega SET status = 'aceita' WHERE id_entrega = ?",
         [id_entrega]
       );
 
-      // Notifica o utilizador que a empresa aceitou
       await pool.query(
         `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
          VALUES (?, '✅ Empresa aceitou!', ?, 'sistema')`,
@@ -146,7 +163,6 @@ router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
     }
 
     // ── Fluxo normal (domicilio / ponto_recolha) ──
-    // Empresa vai buscar ou utilizador leva — paga na hora
     if (!peso_real || parseFloat(peso_real) <= 0)
       return res.status(400).json({ erro: 'O peso real dos residuos e obrigatorio.' });
 
