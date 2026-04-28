@@ -355,19 +355,43 @@ export default function EntregasEmpresa() {
                 </div>
               )}
 
+              {/* Aviso quando tipo coletador e coletador ainda não confirmou */}
+              {e.status === 'aceita' && e.tipo_entrega === 'coletador' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+                  <Truck size={14} className="text-yellow-600 shrink-0" />
+                  <div>
+                    <p className="text-yellow-700 text-xs font-medium">A aguardar coletador</p>
+                    <p className="text-yellow-600 text-xs">O coletador ainda não confirmou a recolha. O pagamento será processado após a confirmação.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Aceitar e Rejeitar */}
               {e.status === 'pendente' && (
                 <div className="grid grid-cols-2 gap-3">
-                  {e.data_recolha_proposta ? (
-                    <button onClick={() => abrirModalAceitar(e.id_entrega)}
-                      disabled={acaoEmCurso === e.id_entrega}
-                      className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
-                      <CheckCircle size={14} /> Aceitar
-                    </button>
+                  {/* Botão aceitar — bloqueado se tipo coletador (empresa marca data mas não pesa ainda) */}
+                  {e.tipo_entrega === 'coletador' ? (
+                    e.data_recolha_proposta ? (
+                      <div className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed" title="O coletador irá confirmar a recolha">
+                        <Truck size={14} /> Aguarda coletador
+                      </div>
+                    ) : (
+                      <div className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
+                        <CheckCircle size={14} /> Marcar data 1°
+                      </div>
+                    )
                   ) : (
-                    <div className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
-                      <CheckCircle size={14} /> Marcar data 1°
-                    </div>
+                    e.data_recolha_proposta ? (
+                      <button onClick={() => abrirModalAceitar(e.id_entrega)}
+                        disabled={acaoEmCurso === e.id_entrega}
+                        className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+                        <CheckCircle size={14} /> Aceitar
+                      </button>
+                    ) : (
+                      <div className="bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-not-allowed">
+                        <CheckCircle size={14} /> Marcar data 1°
+                      </div>
+                    )
                   )}
                   <button onClick={() => setModalRejeitar(e.id_entrega)}
                     disabled={acaoEmCurso === e.id_entrega}
@@ -375,6 +399,15 @@ export default function EntregasEmpresa() {
                     <XCircle size={14} /> Rejeitar
                   </button>
                 </div>
+              )}
+
+              {/* Aceitar após coletador confirmar recolha — tipo coletador + status coletada */}
+              {e.status === 'coletada' && e.tipo_entrega === 'coletador' && !e.valor_total && (
+                <button onClick={() => abrirModalAceitar(e.id_entrega)}
+                  disabled={acaoEmCurso === e.id_entrega}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1 mt-2">
+                  <Scale size={14} /> Registar Peso e Pagar
+                </button>
               )}
             </div>
           ))}
