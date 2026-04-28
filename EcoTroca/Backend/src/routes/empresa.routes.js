@@ -133,27 +133,8 @@ router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
         ]
       );
 
-      // Notifica todos os coletadores independentes activos
-      const [coletadores] = await pool.query(
-        `SELECT c.id_coletador, u.id_usuario, u.nome
-         FROM coletador c
-         INNER JOIN usuario u ON u.id_usuario = c.id_usuario
-         WHERE c.id_empresa IS NULL AND c.tipo = 'independente' AND u.ativo = TRUE`
-      );
-
-      for (const col of coletadores) {
-        await pool.query(
-          `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
-           VALUES (?, '📦 Nova recolha disponível', ?, 'sistema')`,
-          [
-            col.id_usuario,
-            `Nova recolha disponível! ${entrega.nome_utilizador}${entrega.provincia_utilizador ? ` (${entrega.provincia_utilizador})` : ''} tem ${entrega.tipo_residuo || 'resíduo'} para recolher. Destino: empresa ${entrega.nome_empresa}. Entrega #${id_entrega}.`
-          ]
-        );
-      }
-
       return res.json({
-        mensagem: `Entrega aceite. ${coletadores.length} coletador(es) notificado(s).`,
+        mensagem: 'Entrega aceite. Define a data de recolha para notificar os coletadores.',
         aguarda_coletador: true,
       });
     }
@@ -283,6 +264,45 @@ router.post('/minhas/entregas/:id/propor-data', auth, async (req, res) => {
           );
         }
       }
+    }
+
+    // Se tipo_entrega = 'coletador' → notifica coletadores independentes com a data
+    const [entregaInfo] = await pool.query(
+      `SELECT e.tipo_entrega, emp.nome AS nome_empresa,
+              GROUP_CONCAT(r.tipo SEPARATOR ', ') AS tipos_residuos,
+              u.nome AS nome_utilizador, u.provincia AS provincia_utilizador
+       FROM entrega e
+       LEFT JOIN empresarecicladora emp ON emp.id_empresa = e.id_empresa
+       LEFT JOIN entrega_residuo er ON er.id_entrega = e.id_entrega
+       LEFT JOIN residuo r ON r.id_residuo = er.id_residuo
+       LEFT JOIN usuario u ON u.id_usuario = e.id_usuario
+       WHERE e.id_entrega = ?
+       GROUP BY e.id_entrega`,
+      [id_entrega]
+    );
+
+    if (entregaInfo.length > 0 && entregaInfo[0].tipo_entrega === 'coletador') {
+      const info = entregaInfo[0];
+
+      const [coletadores] = await pool.query(
+        `SELECT c.id_coletador, u.id_usuario
+         FROM coletador c
+         INNER JOIN usuario u ON u.id_usuario = c.id_usuario
+         WHERE c.id_empresa IS NULL AND c.tipo = 'independente' AND u.ativo = TRUE`
+      );
+
+      for (const col of coletadores) {
+        await pool.query(
+          `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+           VALUES (?, '📦 Nova recolha disponível', ?, 'sistema')`,
+          [
+            col.id_usuario,
+            `Nova recolha disponível! ${info.nome_utilizador}${info.provincia_utilizador ? ` (${info.provincia_utilizador})` : ''} tem ${info.tipos_residuos || 'resíduo'} para recolher. Destino: ${info.nome_empresa}. Data: ${dataFormatada}. Entrega #${id_entrega}.`
+          ]
+        );
+      }
+
+      console.log(`${coletadores.length} coletadores notificados para entrega #${id_entrega}`);
     }
 
     res.json({ mensagem: `Data proposta. ${nome_utilizador} foi notificado.`, data_recolha, data_formatada: dataFormatada });
