@@ -15,7 +15,7 @@
 //  TIPO DE RECOMPENSA (escolhido pelo utilizador na entrega):
 //    'dinheiro' -> credita em carteira.dinheiro (sacavel)
 //    'saldo'    -> credita em carteira.saldo (so na plataforma)
-//    'pontos'   -> credita em pontuacaousuario.total_pontos
+//    'pontos'   -> credita em pontuacaousuario.pontos_total
 
 import pool from '../config/database.js';
 
@@ -131,7 +131,7 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
     const pontos = Math.floor(peso * 10 * 2);
     await pool.query(
       `UPDATE pontuacaousuario
-       SET total_pontos = total_pontos + ?, total_entregas = total_entregas + 1
+       SET pontos_total = pontos_total + ?
        WHERE id_usuario = ?`,
       [pontos, id_usuario]
     );
@@ -149,18 +149,17 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
     // Actualiza pontuacaousuario
     await pool.query(
       `UPDATE pontuacaousuario
-       SET total_pontos   = total_pontos + ?,
-           total_entregas = total_entregas + 1
+       SET pontos_total = pontos_total + ?
        WHERE id_usuario = ?`,
       [pontosAuto, id_usuario]
     );
 
     // Actualiza recompensausuario — calcula o nivel automaticamente
     const totalPontos_r = await pool.query(
-      'SELECT total_pontos FROM pontuacaousuario WHERE id_usuario = ?',
+      'SELECT pontos_total FROM pontuacaousuario WHERE id_usuario = ?',
       [id_usuario]
     );
-    const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
+    const totalPts = totalPontos_r[0][0]?.pontos_total || 0;
     const nivel = totalPts < 500   ? 'EcoIniciante' :
                   totalPts < 1500  ? 'EcoAmigo'     :
                   totalPts < 4000  ? 'EcoDefensor'  :
@@ -173,10 +172,10 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
   } else {
     // Para quem escolheu pontos, também actualiza o nível
     const totalPontos_r = await pool.query(
-      'SELECT total_pontos FROM pontuacaousuario WHERE id_usuario = ?',
+      'SELECT pontos_total FROM pontuacaousuario WHERE id_usuario = ?',
       [id_usuario]
     );
-    const totalPts = totalPontos_r[0][0]?.total_pontos || 0;
+    const totalPts = totalPontos_r[0][0]?.pontos_total || 0;
     const nivel = totalPts < 500   ? 'EcoIniciante' :
                   totalPts < 1500  ? 'EcoAmigo'     :
                   totalPts < 4000  ? 'EcoDefensor'  :

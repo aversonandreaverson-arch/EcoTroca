@@ -112,7 +112,9 @@ router.post('/minhas/entregas/:id/aceitar', auth, async (req, res) => {
     if (entregas.length === 0)
       return res.status(404).json({ erro: 'Entrega nao encontrada.' });
 
-    if (entregas[0].status !== 'pendente')
+    // Aceita se pendente, aceita (data marcada) ou aguarda_pesagem (coletador entregou)
+    const statusValidos = ['pendente', 'aceita', 'aguarda_pesagem'];
+    if (!statusValidos.includes(entregas[0].status))
       return res.status(400).json({ erro: 'Esta entrega ja foi processada.' });
 
     const entrega = entregas[0];
