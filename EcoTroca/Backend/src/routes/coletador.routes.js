@@ -22,6 +22,8 @@ router.get('/entregas/pendentes', auth, role('coletor'), async (req, res) => {
         e.latitude,
         e.longitude,
         e.data_hora,
+        e.data_recolha_proposta,
+        e.observacoes_empresa,
         e.status,
         u.nome      AS nome_usuario,
         u.provincia AS provincia_usuario,
