@@ -215,11 +215,12 @@ export default function EntregasEmpresa() {
       {/* Filtros */}
       <div className="flex gap-2 flex-wrap mb-6">
         {[
-          { val: 'pendente',  label: 'Pendentes'         },
-          { val: 'aceita',    label: 'Aceites'           },
-          { val: 'coletada',  label: 'Trocas Concluidas' },
-          { val: 'cancelada', label: 'Rejeitadas'        },
-          { val: 'todos',     label: 'Todos'             },
+          { val: 'pendente',        label: 'Pendentes'         },
+          { val: 'aceita',          label: 'Aceites'           },
+          { val: 'aguarda_pesagem', label: 'Aguarda Pesagem'   },
+          { val: 'coletada',        label: 'Trocas Concluídas' },
+          { val: 'cancelada',       label: 'Rejeitadas'        },
+          { val: 'todos',           label: 'Todos'             },
         ].map(({ val, label }) => (
           <button key={val} onClick={() => setFiltro(val)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
@@ -248,12 +249,16 @@ export default function EntregasEmpresa() {
                   <p className="text-xs text-gray-400">Entrega #{e.id_entrega}</p>
                 </div>
                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  e.status === 'pendente'  ? 'bg-yellow-100 text-yellow-700' :
-                  e.status === 'aceita'    ? 'bg-green-100 text-green-700'   :
-                  e.status === 'coletada'  ? 'bg-blue-100 text-blue-700'     :
-                                             'bg-red-100 text-red-700'
+                  e.status === 'pendente'        ? 'bg-yellow-100 text-yellow-700' :
+                  e.status === 'aceita'          ? 'bg-blue-100 text-blue-700'     :
+                  e.status === 'aguarda_pesagem' ? 'bg-orange-100 text-orange-700' :
+                  e.status === 'coletada'        ? 'bg-green-100 text-green-700'   :
+                                                   'bg-red-100 text-red-700'
                 }`}>
-                  {e.status === 'pendente' ? 'Pendente' : e.status === 'aceita' ? 'Aceite' : e.status === 'coletada' ? 'Troca Concluida' : 'Rejeitada'}
+                  {e.status === 'pendente'        ? 'Pendente'          :
+                   e.status === 'aceita'          ? 'Aceite'            :
+                   e.status === 'aguarda_pesagem' ? 'Aguarda Pesagem'   :
+                   e.status === 'coletada'        ? 'Troca Concluída'   : 'Rejeitada'}
                 </span>
               </div>
 
@@ -401,13 +406,19 @@ export default function EntregasEmpresa() {
                 </div>
               )}
 
-              {/* Aceitar após coletador confirmar recolha — tipo coletador + status coletada */}
-              {e.status === 'coletada' && e.tipo_entrega === 'coletador' && !e.valor_total && (
-                <button onClick={() => abrirModalAceitar(e.id_entrega)}
-                  disabled={acaoEmCurso === e.id_entrega}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1 mt-2">
-                  <Scale size={14} /> Registar Peso e Pagar
-                </button>
+              {/* Botão registar peso — aparece quando coletador confirmou entrega */}
+              {e.status === 'aguarda_pesagem' && (
+                <div className="mt-2">
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-2 flex items-center gap-2">
+                    <Scale size={14} className="text-orange-600 shrink-0" />
+                    <p className="text-orange-700 text-xs font-medium">Resíduos entregues pelo coletador — pesa e confirma para processar o pagamento</p>
+                  </div>
+                  <button onClick={() => abrirModalAceitar(e.id_entrega)}
+                    disabled={acaoEmCurso === e.id_entrega}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-1">
+                    <Scale size={14} /> Registar Peso e Pagar
+                  </button>
+                </div>
               )}
             </div>
           ))}
