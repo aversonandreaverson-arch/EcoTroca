@@ -2,8 +2,6 @@ import { Router } from 'express';
 import auth from '../middlewares/auth.middleware.js';
 import role from '../middlewares/role.middleware.js';
 import pool from '../config/database.js';
-import { atribuirRecompensa } from '../services/entrega.service.js';
-
 const router = Router();
 
 // ─────────────────────────────────────────────
@@ -240,33 +238,51 @@ router.patch('/entregas/:id/recolher', auth, role('coletor'), async (req, res) =
     if (entrega[0].id_coletador !== coletador[0].id_coletador) return res.status(403).json({ erro: 'Não tens permissão para recolher esta entrega' });
     if (entrega[0].status !== 'aceita') return res.status(400).json({ erro: 'A entrega tem de estar aceite antes de ser recolhida' });
 
-    // Marca como recolhida
+    // Marca como entregue na empresa — aguarda pesagem e confirmação da empresa
+    // O pagamento e pontos SÓ são processados quando a empresa confirmar o peso real
     await pool.query(
-      'UPDATE Entrega SET status = ? WHERE id_entrega = ?',
-      ['coletada', req.params.id]
+      "UPDATE entrega SET status = 'aguarda_pesagem' WHERE id_entrega = ?",
+      [req.params.id]
     );
 
-    // Atribui recompensa conforme escolha do utilizador (dinheiro ou saldo)
-    // Pontos são sempre gerados automaticamente dentro desta função
-    const resultado = await atribuirRecompensa(
-      entrega[0].id_usuario,
-      parseInt(req.params.id),
-      entrega[0].tipo_recompensa,  // 'dinheiro' ou 'saldo'
-      coletador[0].id_coletador    // para calcular comissão de 30%
+    // Busca dados da empresa para notificar
+    const [empInfo] = await pool.query(
+      `SELECT em.id_usuario AS id_usuario_empresa, em.nome AS nome_empresa
+       FROM entrega e
+       INNER JOIN empresarecicladora em ON em.id_empresa = e.id_empresa
+       WHERE e.id_entrega = ?`,
+      [req.params.id]
     );
 
-    // Notifica o utilizador
+    // Notifica a empresa que os resíduos chegaram e aguardam pesagem
+    if (empInfo.length > 0) {
+      const [nomeColRows] = await pool.query(
+        'SELECT nome FROM usuario WHERE id_usuario = ?',
+        [req.usuario.id_usuario]
+      );
+      const nomeCol = nomeColRows[0]?.nome || 'O coletador';
+
+      await pool.query(
+        `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+         VALUES (?, '📦 Resíduos entregues — aguarda pesagem', ?, 'sistema')`,
+        [
+          empInfo[0].id_usuario_empresa,
+          `${nomeCol} acabou de entregar os resíduos da entrega #${req.params.id}. Por favor pesa e confirma para processar o pagamento.`
+        ]
+      );
+    }
+
+    // Notifica o utilizador que os resíduos chegaram à empresa
     await pool.query(
-      'INSERT INTO Notificacao (id_usuario, titulo, mensagem) VALUES (?, ?, ?)',
-      [entrega[0].id_usuario, '✅ Entrega confirmada!', `A tua entrega #${req.params.id} foi recolhida com sucesso!`]
+      `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
+       VALUES (?, '✅ Resíduos entregues na empresa!', ?, 'sistema')`,
+      [
+        entrega[0].id_usuario,
+        `Os teus resíduos da entrega #${req.params.id} foram entregues na empresa. Aguarda a confirmação do peso para receberes o pagamento.`
+      ]
     );
 
-    res.json({
-      mensagem: 'Entrega recolhida com sucesso!',
-      pontos_atribuidos: resultado.pontos,
-      valor_total: resultado.valor_total,
-      nivel: resultado.nivel
-    });
+    res.json({ mensagem: 'Entrega confirmada! A empresa irá pesar e processar o pagamento.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
