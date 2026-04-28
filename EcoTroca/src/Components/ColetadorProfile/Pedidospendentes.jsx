@@ -18,6 +18,7 @@ export default function PedidosPendentes() {
   const [recompensaEscolhida,   setRecompensaEscolhida]   = useState({}); // { id_entrega: 'dinheiro'|'saldo' }
   const [localizacaoColetador,  setLocalizacaoColetador]  = useState(null);
   const [entregaSelecionadaMapa,setEntregaSelecionadaMapa]= useState(null);
+  const [mapaDestino,           setMapaDestino]           = useState('utilizador'); // 'utilizador' | 'empresa'
   const [carregandoMapa,        setCarregandoMapa]        = useState(false);
   const [erroLocalizacao,       setErroLocalizacao]       = useState("");
 
@@ -87,7 +88,7 @@ export default function PedidosPendentes() {
       );
     });
 
-  // Clica "Ver Rota" — obtém GPS e abre o ecra do mapa
+  // Clica "Ir ao utilizador" — mapa até ao utilizador
   const abrirMapa = async (entrega) => {
     setCarregandoMapa(true);
     setErroLocalizacao("");
@@ -95,6 +96,23 @@ export default function PedidosPendentes() {
       const loc = await obterLocalizacao();
       setLocalizacaoColetador(loc);
       setEntregaSelecionadaMapa(entrega);
+      setMapaDestino('utilizador');
+    } catch (err) {
+      setErroLocalizacao(err.message);
+    } finally {
+      setCarregandoMapa(false);
+    }
+  };
+
+  // Clica "Ir à empresa" — mapa até à empresa destino
+  const abrirMapaEmpresa = async (entrega) => {
+    setCarregandoMapa(true);
+    setErroLocalizacao("");
+    try {
+      const loc = await obterLocalizacao();
+      setLocalizacaoColetador(loc);
+      setEntregaSelecionadaMapa(entrega);
+      setMapaDestino('empresa');
     } catch (err) {
       setErroLocalizacao(err.message);
     } finally {
@@ -106,60 +124,79 @@ export default function PedidosPendentes() {
   const pendentes = entregas.filter(e => e.status === "pendente");
   const aceites   = entregas.filter(e => e.status === "aceita");
 
-  // ── Ecra do mapa — substitui a lista quando uma entrega esta seleccionada ──
+  // ── Ecra do mapa ──
   if (entregaSelecionadaMapa && localizacaoColetador) {
-    // Coordenadas do destino — usa as da entrega ou fallback para Luanda centro
-    const latDestino = parseFloat(entregaSelecionadaMapa.latitude  || -8.8383);
-    const lngDestino = parseFloat(entregaSelecionadaMapa.longitude || 13.2344);
+    const eEmpresa   = mapaDestino === 'empresa';
+    const latDestino = eEmpresa
+      ? parseFloat(entregaSelecionadaMapa.empresa_latitude  || -8.8383)
+      : parseFloat(entregaSelecionadaMapa.latitude          || -8.8383);
+    const lngDestino = eEmpresa
+      ? parseFloat(entregaSelecionadaMapa.empresa_longitude || 13.2344)
+      : parseFloat(entregaSelecionadaMapa.longitude         || 13.2344);
+    const nomeDestino = eEmpresa
+      ? (entregaSelecionadaMapa.nome_empresa || 'Empresa')
+      : (entregaSelecionadaMapa.nome_usuario || 'Utilizador');
 
     return (
       <div className="min-h-screen bg-green-100 pt-24 pb-12 p-6">
         <Header />
 
-        {/* Botao voltar */}
         <button
           onClick={() => { setEntregaSelecionadaMapa(null); setLocalizacaoColetador(null); }}
           className="mb-4 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-medium flex items-center gap-2 transition">
           <ArrowLeft size={16} /> Voltar
         </button>
 
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">Rota para o Utilizador</h1>
-          <p className="text-gray-600 mt-1 text-sm">
-            {entregaSelecionadaMapa.tipo_residuo || "Residuo"} — {entregaSelecionadaMapa.nome_usuario}
-          </p>
+        {/* Tabs para alternar entre utilizador e empresa */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setMapaDestino('utilizador')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${mapaDestino === 'utilizador' ? 'bg-green-600 text-white' : 'bg-white text-gray-600'}`}>
+            🏠 Ir ao utilizador
+          </button>
+          {entregaSelecionadaMapa.empresa_latitude && (
+            <button onClick={() => setMapaDestino('empresa')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${mapaDestino === 'empresa' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600'}`}>
+              🏭 Ir à empresa
+            </button>
+          )}
         </div>
 
-        {/* Mapa com a rota */}
-        {/* origem = localizacao GPS do coletador */}
-        {/* destino = coordenadas do utilizador (ou fallback Luanda) */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Rota para {eEmpresa ? 'a Empresa' : 'o Utilizador'}
+          </h1>
+          <p className="text-gray-600 mt-1 text-sm">{nomeDestino}</p>
+        </div>
+
         <Mapa
-          origem={{
-            lat:  localizacaoColetador.lat,
-            lng:  localizacaoColetador.lng,
-            nome: "A tua localizacao",
-          }}
-          destino={{
-            lat:  latDestino,
-            lng:  lngDestino,
-            nome: entregaSelecionadaMapa.nome_usuario || "Utilizador",
-          }}
+          origem={{ lat: localizacaoColetador.lat, lng: localizacaoColetador.lng, nome: "A tua localização" }}
+          destino={{ lat: latDestino, lng: lngDestino, nome: nomeDestino }}
           altura={380}
         />
 
-        {/* Info da entrega abaixo do mapa */}
         <div className="mt-4 bg-white rounded-2xl p-5 border border-green-100 space-y-3">
           <div className="flex items-center gap-2">
             <User size={15} className="text-green-600 shrink-0" />
             <span className="text-gray-700 font-medium">{entregaSelecionadaMapa.nome_usuario}</span>
+            <span className="text-gray-400 text-xs">· Recolher aqui</span>
           </div>
           <div className="flex items-center gap-2">
             <MapPin size={15} className="text-green-600 shrink-0" />
-            <span className="text-gray-600 text-sm">{entregaSelecionadaMapa.endereco_domicilio || "Endereco nao disponivel"}</span>
+            <span className="text-gray-600 text-sm">{entregaSelecionadaMapa.endereco_domicilio || "Endereço não disponível"}</span>
           </div>
+          {entregaSelecionadaMapa.nome_empresa && (
+            <div className="flex items-center gap-2">
+              <Package size={15} className="text-purple-600 shrink-0" />
+              <span className="text-gray-600 text-sm">
+                <strong>{entregaSelecionadaMapa.nome_empresa}</strong>
+                {entregaSelecionadaMapa.endereco_empresa ? ` — ${entregaSelecionadaMapa.endereco_empresa}` : ''}
+                <span className="text-purple-500 text-xs ml-1">· Entregar aqui</span>
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Package size={15} className="text-green-600 shrink-0" />
-            <span className="text-gray-600 text-sm">{entregaSelecionadaMapa.tipo_residuo || "Residuo"} — {entregaSelecionadaMapa.peso_total || "?"} kg</span>
+            <span className="text-gray-600 text-sm">{entregaSelecionadaMapa.tipos_residuos || "Resíduo"} — {entregaSelecionadaMapa.peso_total || "?"} kg</span>
           </div>
         </div>
       </div>
@@ -208,6 +245,7 @@ export default function PedidosPendentes() {
                   <CartaoPedido key={e.id_entrega} entrega={e} tipo="pendente"
                     onAceitar={() => handleAceitar(e.id_entrega)}
                     onMapa={() => abrirMapa(e)}
+                    onMapaEmpresa={() => abrirMapaEmpresa(e)}
                     carregando={acaoEmCurso === e.id_entrega}
                     carregandoMapa={carregandoMapa}
                     recompensa={recompensaEscolhida[e.id_entrega] || 'dinheiro'}
@@ -233,6 +271,7 @@ export default function PedidosPendentes() {
                   <CartaoPedido key={e.id_entrega} entrega={e} tipo="aceita"
                     onRecolher={() => handleRecolher(e.id_entrega)}
                     onMapa={() => abrirMapa(e)}
+                    onMapaEmpresa={() => abrirMapaEmpresa(e)}
                     carregando={acaoEmCurso === e.id_entrega}
                     carregandoMapa={carregandoMapa} />
                 ))}
@@ -246,7 +285,7 @@ export default function PedidosPendentes() {
 }
 
 // ── Card de cada pedido ──────────────────────────────────────
-function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando, carregandoMapa, recompensa = 'dinheiro', onRecompensa = () => {} }) {
+function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, onMapaEmpresa, carregando, carregandoMapa, recompensa = 'dinheiro', onRecompensa = () => {} }) {
   if (!entrega) return null;
 
   const peso     = parseFloat(entrega.peso_total || entrega.peso_total_real || 0);
@@ -329,6 +368,32 @@ function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando
           <MapPin size={14} className="text-green-500 shrink-0" />
           <span className="truncate text-xs">{entrega.endereco_domicilio || "Localização não definida"}</span>
         </div>
+        {entrega.nome_empresa && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-2">
+            <p className="text-purple-700 text-xs font-medium">🏭 Destino</p>
+            <p className="text-purple-800 text-sm font-bold">{entrega.nome_empresa}</p>
+            {entrega.endereco_empresa && (
+              <p className="text-purple-600 text-xs mt-0.5">{entrega.endereco_empresa}</p>
+            )}
+            {entrega.municipio_empresa && (
+              <p className="text-purple-500 text-xs">{entrega.municipio_empresa}{entrega.provincia_empresa ? `, ${entrega.provincia_empresa}` : ''}</p>
+            )}
+          </div>
+        )}
+        {entrega.data_recolha_proposta && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+            <p className="text-blue-700 text-xs font-medium">📅 Data de entrega</p>
+            <p className="text-blue-800 text-sm font-bold">
+              {new Date(entrega.data_recolha_proposta).toLocaleString('pt-AO', {
+                weekday: 'long', day: '2-digit', month: 'long',
+                hour: '2-digit', minute: '2-digit'
+              })}
+            </p>
+            {entrega.observacoes_empresa && (
+              <p className="text-blue-600 text-xs mt-0.5 italic">"{entrega.observacoes_empresa}"</p>
+            )}
+          </div>
+        )}
         {entrega.tipo_recompensa && (
           <div className="flex items-center gap-2">
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
@@ -339,12 +404,26 @@ function CartaoPedido({ entrega, tipo, onAceitar, onRecolher, onMapa, carregando
         )}
       </div>
 
-      {/* Botão Ver Rota */}
-      <button onClick={onMapa} disabled={carregandoMapa}
-        className="w-full mb-2 bg-blue-100 hover:bg-blue-200 disabled:opacity-60 text-blue-700 py-2 rounded-xl font-medium transition flex items-center justify-center gap-2 text-sm">
-        <Map size={14} />
-        {carregandoMapa ? "A obter localização..." : "Ver Rota no Mapa"}
-      </button>
+      {/* Botões de mapa — utilizador e empresa */}
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <button onClick={onMapa} disabled={carregandoMapa}
+          className="bg-blue-100 hover:bg-blue-200 disabled:opacity-60 text-blue-700 py-2 rounded-xl font-medium transition flex items-center justify-center gap-1 text-xs">
+          <Map size={12} />
+          {carregandoMapa ? "..." : "Ir ao utilizador"}
+        </button>
+        {entrega.empresa_latitude && entrega.empresa_longitude ? (
+          <button onClick={onMapaEmpresa} disabled={carregandoMapa}
+            className="bg-purple-100 hover:bg-purple-200 disabled:opacity-60 text-purple-700 py-2 rounded-xl font-medium transition flex items-center justify-center gap-1 text-xs">
+            <Map size={12} /> Ir à empresa
+          </button>
+        ) : entrega.endereco_empresa ? (
+          <a href={`https://www.google.com/maps/search/${encodeURIComponent(entrega.endereco_empresa + ', Angola')}`}
+            target="_blank" rel="noopener noreferrer"
+            className="bg-purple-100 hover:bg-purple-200 text-purple-700 py-2 rounded-xl font-medium transition flex items-center justify-center gap-1 text-xs">
+            <Map size={12} /> Empresa (Maps)
+          </a>
+        ) : null}
+      </div>
 
       {/* Escolha de recompensa — só para pedidos pendentes */}
       {tipo === "pendente" && (
