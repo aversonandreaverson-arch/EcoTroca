@@ -17,7 +17,22 @@ const pedido = async (endpoint, opcoes = {}) => {
   }
 
   const dados = await resposta.json();
-  if (!resposta.ok) throw new Error(dados.erro || 'Erro no servidor');
+  if (!resposta.ok) {
+    // 403 de suspensão ou bloqueio — faz logout automático
+    if (resposta.status === 403 && dados.erro && (
+      dados.erro.includes('suspensa') ||
+      dados.erro.includes('bloqueada') ||
+      dados.erro.includes('bloqueado')
+    )) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      // Guarda a mensagem para mostrar na página de login
+      localStorage.setItem('mensagem_login', dados.erro);
+      window.location.href = '/Login';
+      return;
+    }
+    throw new Error(dados.erro || 'Erro no servidor');
+  }
   return dados;
 };
 
