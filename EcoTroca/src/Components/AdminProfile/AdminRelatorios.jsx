@@ -348,7 +348,7 @@ export default function AdminRelatorios() {
             Nenhuma transacção encontrada para este período.
           </p>
         ) : (
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-225">
 
             {/* Cabeçalho da tabela — campos exigidos pela Regra 15 */}
             <thead>
@@ -435,7 +435,7 @@ export default function AdminRelatorios() {
   );
 }
 
-// ── CartaoResumo ─────────────────────────────────────────────
+// ── CartaoResumo 
 // Cartão de resumo financeiro com ícone, valor e descrição
 function CartaoResumo({ icon, label, valor, cor, descricao }) {
   const cores = {
@@ -450,7 +450,7 @@ function CartaoResumo({ icon, label, valor, cor, descricao }) {
         <p className="text-white/60 text-sm">{label}</p>
       </div>
       {/* Valor principal em destaque */}
-      <p className="text-white font-bold text-2xl mb-1">{valor}</p>
+      <p className="text-white font-bold text-2xl mb-1">{valor}</p> 
       {/* Descrição secundária */}
       <p className="text-white/40 text-xs">{descricao}</p>
     </div>
