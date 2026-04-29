@@ -26,7 +26,9 @@ router.get('/', auth, async (req, res) => {
         u_col.nome                          AS nome_coletador,
         c.latitude                          AS coletador_latitude,
         c.longitude                         AS coletador_longitude,
-        em.nome                             AS nome_empresa
+        em.nome                             AS nome_empresa,
+        em.id_usuario                       AS id_empresa_usuario,
+        e.id_empresa
        FROM entrega e
        LEFT JOIN entrega_residuo er ON e.id_entrega = er.id_entrega
        LEFT JOIN residuo r          ON er.id_residuo = r.id_residuo
@@ -181,62 +183,9 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    // ── Notifica coletadores independentes quando tipo_entrega = 'coletador' ──
-    // Coletadores independentes sao os que NAO estao associados a nenhuma empresa (id_empresa IS NULL)
-    // Todos os coletadores independentes activos recebem a notificacao
-    // O primeiro a aceitar fica com a tarefa (implementado no perfil do coletador)
-    if (tipo_entrega === 'coletador') {
-      try {
-        // Busca dados do utilizador e do residuo para a mensagem
-        const [userInfo] = await pool.query(
-          `SELECT u.nome, u.provincia FROM usuario u WHERE u.id_usuario = ?`,
-          [req.usuario.id_usuario]
-        );
-
-        const nomeUtilizador = userInfo[0]?.nome     || 'Um utilizador';
-        const provinciaUser  = userInfo[0]?.provincia || '';
-
-        // Busca o tipo de residuo para a mensagem
-        let tipoResiduo = 'residuo';
-        if (id_residuo_principal) {
-          const [resInfo] = await pool.query(
-            'SELECT tipo FROM residuo WHERE id_residuo = ?',
-            [id_residuo_principal]
-          );
-          if (resInfo.length > 0) tipoResiduo = resInfo[0].tipo;
-        }
-
-        // Busca todos os coletadores independentes activos
-        // Independente = id_empresa IS NULL (nao pertence a nenhuma empresa)
-        const [coletadores] = await pool.query(
-          `SELECT c.id_coletador, u.id_usuario, u.nome
-           FROM coletador c
-           INNER JOIN usuario u ON u.id_usuario = c.id_usuario
-           WHERE c.id_empresa IS NULL
-             AND u.ativo = TRUE`,
-        );
-
-        // Envia notificacao a cada coletador independente
-        // A mensagem inclui o tipo de residuo, o nome do utilizador e a localizacao
-        for (const coletador of coletadores) {
-          await pool.query(
-            `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
-             VALUES (?, 'Nova recolha disponivel', ?, 'geral')`,
-            [
-              coletador.id_usuario,
-              `${nomeUtilizador}${provinciaUser ? ` (${provinciaUser})` : ''} precisa de um coletador para recolher ${tipoResiduo}. Entrega #${id_entrega}.`,
-            ]
-          );
-        }
-
-        // Guarda o numero de coletadores notificados para o log
-        console.log(`Notificados ${coletadores.length} coletadores independentes para entrega #${id_entrega}`);
-
-      } catch (errColetador) {
-        // Notificacao e opcional — nao bloqueia a criacao da entrega
-        console.error('Erro ao notificar coletadores:', errColetador.message);
-      }
-    }
+    // Nota: coletadores independentes SÃO notificados apenas quando
+    // a empresa aceitar a entrega e marcar a data de recolha.
+    // Isto garante que o coletador já sabe para onde vai levar os resíduos.
 
     // Crio o chat para esta entrega
     await pool.query('INSERT INTO chat (id_entrega) VALUES (?)', [id_entrega]);
