@@ -305,7 +305,7 @@ const Cadastro = () => {
                 ) : (
                   <div>
                     <label className="text-green-700 text-sm font-medium block mb-2">
-                      Selecciona a tua empresa <span className="text-red-500">*</span>
+                      Selecciona a tua empresa: <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <select
@@ -329,8 +329,8 @@ const Cadastro = () => {
                     {empresaSelecionada && (
                       <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
                         <p className="text-yellow-700 text-xs font-medium">
-                          A tua conta ficara inactiva ate a empresa confirmar que trabalhas para ela.
-                          Recebes uma notificacao quando estiver activa.
+                          A tua conta ficará inactiva até a empresa confirmar que trabalhas para ela.
+                          Recebes uma notificação quando estiver activa.
                         </p>
                       </div>
                     )}
@@ -343,7 +343,7 @@ const Cadastro = () => {
             {pertenceEmpresa === false && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                 <p className="text-blue-700 text-xs font-medium">
-                  A tua conta ficara activa imediatamente. Poderas aceitar entregas de qualquer utilizador da plataforma.
+                  A tua conta ficará activa imediatamente. Poderás aceitar entregas de qualquer utilizador da plataforma.
                 </p>
               </div>
             )}
