@@ -17,6 +17,39 @@ import {
 } from "lucide-react";
 import Header from "./Header";
 import { getPerfil, getPontuacao, getMinhasEntregas, cancelarEntrega, logout, getCarteira, criarAvaliacao, getAvaliacoesEntrega, getMedalhasMinhas } from "../../api.js";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+const iconeVerde = new L.Icon({
+  iconUrl:    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl:  "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize:   [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+const iconeRoxo = new L.Icon({
+  iconUrl:    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png",
+  shadowUrl:  "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize:   [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+// Calcula distância em km entre dois pontos GPS (Haversine)
+const calcularDistancia = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -97,10 +130,29 @@ export default function Dashboard() {
     if (notaAvaliacao === 0) { setErroAval('Selecciona uma nota de 1 a 5 estrelas.'); return; }
     try {
       setEnviandoAval(true); setErroAval('');
-      // Busca id_usuario da empresa para avaliar
+
+      // Se não temos id_empresa_usuario, busca directamente da API
+      let id_avaliado = modalAvaliacao.id_empresa_usuario || null;
+      if (!id_avaliado && modalAvaliacao.id_empresa) {
+        try {
+          const token = localStorage.getItem('token');
+          const r = await fetch(`http://localhost:3000/api/empresas/${modalAvaliacao.id_empresa}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const emp = await r.json();
+          id_avaliado = emp.id_usuario || null;
+        } catch (e) { console.error('Erro ao buscar empresa:', e); }
+      }
+
+      if (!id_avaliado) {
+        setErroAval('Não foi possível identificar a empresa. Tenta novamente.');
+        setEnviandoAval(false);
+        return;
+      }
+
       await criarAvaliacao({
         id_entrega:    modalAvaliacao.id_entrega,
-        id_avaliado:   modalAvaliacao.id_empresa_usuario || modalAvaliacao.id_empresa,
+        id_avaliado,
         tipo_avaliado: 'empresa',
         nota:          notaAvaliacao,
         comentario:    comentario || null,
@@ -335,6 +387,32 @@ export default function Dashboard() {
                           className="flex-1 flex items-center justify-center gap-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm font-medium transition">
                           <Trash2 size={13} /> Excluir
                         </button>
+                      </div>
+                    )}
+                    {/* Mapa para empresa — quando utilziador vai levar pessoalmente */}
+                    {e.status === "aceita" && e.tipo_entrega === "ponto_recolha" && e.nome_empresa && (
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-500 mb-2 font-medium flex items-center gap-1">
+                          🏭 Levar para: <strong>{e.nome_empresa}</strong>
+                        </p>
+                        {e.empresa_latitude && e.empresa_longitude ? (
+                          <div className="rounded-xl overflow-hidden border border-gray-200 mb-2" style={{ height: '160px' }}>
+                            <MapContainer
+                              center={[parseFloat(e.empresa_latitude), parseFloat(e.empresa_longitude)]}
+                              zoom={15}
+                              style={{ height: '100%', width: '100%' }}>
+                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                              <Marker position={[parseFloat(e.empresa_latitude), parseFloat(e.empresa_longitude)]} icon={iconeRoxo}>
+                                <Popup>{e.nome_empresa}</Popup>
+                              </Marker>
+                            </MapContainer>
+                          </div>
+                        ) : null}
+                        <a href={`https://www.google.com/maps/search/${encodeURIComponent((e.endereco_empresa || e.nome_empresa) + ', Angola')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="w-full flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg text-sm font-medium transition">
+                          🗺️ Ver rota no Google Maps
+                        </a>
                       </div>
                     )}
                     {e.status === "coletada" && !(jaAvaliou[e.id_entrega] || []).includes('empresa') && (
