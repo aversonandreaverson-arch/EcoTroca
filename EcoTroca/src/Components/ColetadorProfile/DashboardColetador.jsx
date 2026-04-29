@@ -40,6 +40,7 @@ export default function DashboardColetador() {
   const [medalhas,      setMedalhas]      = useState([]);
   const [carteira,      setCarteira]      = useState(null);
   const [minhasEntregas, setMinhasEntregas] = useState([]);
+  const [pontuacao,      setPontuacao]      = useState(null);
 
   // Modal avaliação
   const [modalAvaliacao, setModalAvaliacao] = useState(null);
@@ -83,17 +84,19 @@ export default function DashboardColetador() {
   const carregar = async () => {
     try {
       // Carrega perfil e entregas em paralelo
-      const [dadosPerfil, dadosEntregas, dadosNotifs, minhasMedalhas, dadosCarteira, dadosMinhas] = await Promise.all([
+      const [dadosPerfil, dadosEntregas, dadosNotifs, minhasMedalhas, dadosCarteira, dadosMinhas, dadosPontuacao] = await Promise.all([
         getPerfil(),
         getEntregasPendentes(),
         getNotificacoes(),
         getMedalhasMinhas(),
         getCarteira(),
         getMinhasColetasColetador().catch(() => []),
+        fetch('http://localhost:3000/api/coletador/pontuacao', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).catch(() => null),
       ]);
       setMedalhas(minhasMedalhas || []);
       setCarteira(dadosCarteira || null);
       setMinhasEntregas(Array.isArray(dadosMinhas) ? dadosMinhas : []);
+      setPontuacao(dadosPontuacao || null);
 
       setPerfil(dadosPerfil);
       setEntregas(dadosEntregas || []);
@@ -159,8 +162,8 @@ export default function DashboardColetador() {
   const emCurso    = minhasEntregas.filter(e => e.status === "aceita" || e.status === "aguarda_pesagem");
   const aguardando = entregas; // pendentes disponíveis para aceitar
 
-  // Pontos totais das entregas concluídas
-  const totalPontos = concluidas.reduce((acc, e) => acc + (parseFloat(e.peso_total || 0) * 10), 0);
+  // Pontos reais da BD
+  const totalPontos = pontuacao?.pontuacao?.pontos_total || 0;
 
   // Abre modal de avaliação
   const abrirAvaliacao = (entrega, alvo) => {
@@ -329,7 +332,7 @@ export default function DashboardColetador() {
               <Star size={18} className="text-yellow-500" />
             </div>
             <p className="text-3xl font-bold text-yellow-600">
-              {Math.floor(totalPontos)}
+              {totalPontos}
             </p>
             <p className="text-xs text-gray-400 mt-1">pontos ganhos</p>
           </div>
