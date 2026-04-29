@@ -63,8 +63,10 @@ router.get('/minhas/entregas', auth, async (req, res) => {
          en.latitude,
          en.longitude,
          en.id_coletador,
+         en.id_usuario,
          u.nome AS nome_usuario, u.telefone AS telefone_usuario,
          uc.nome AS nome_coletadores,
+         uc.id_usuario AS id_coletador_usuario,
          GROUP_CONCAT(r.tipo ORDER BY r.tipo SEPARATOR ', ') AS tipos_residuos
        FROM entrega en
        INNER JOIN usuario u ON en.id_usuario = u.id_usuario
