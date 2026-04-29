@@ -349,4 +349,18 @@ router.get('/proximos', auth, async (req, res) => {
   }
 });
 
+// ── GET /api/coletador/pontuacao ─────────────────────────────
+router.get('/pontuacao', auth, role('coletor'), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT pontos_total FROM pontuacaousuario WHERE id_usuario = ?',
+      [req.usuario.id_usuario]
+    );
+    const pontos_total = rows[0]?.pontos_total || 0;
+    res.json({ pontuacao: { pontos_total } });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 export default router;
