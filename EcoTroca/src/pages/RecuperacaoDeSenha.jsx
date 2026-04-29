@@ -48,9 +48,9 @@ export default function RecuperacaoDeSenha() {
         {sucesso ? (
           <div className="text-center">
             <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
-              <p className="text-green-700 font-medium mb-1">📬 Instruções enviadas!</p>
+              <p className="text-green-700 font-medium mb-1"> Instruções enviadas!</p>
               <p className="text-sm text-gray-600">
-                Se existir uma conta com esses dados, receberás um email e um SMS
+                Receberás um email e um SMS
                 com o link para redefinir a senha. Verifica também a pasta de spam.
               </p>
             </div>
