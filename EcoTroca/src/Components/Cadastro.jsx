@@ -4,20 +4,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { registar, getEmpresas } from "../api.js";
 
 const PROVINCIAS_MUNICIPIOS = {
-  "Luanda": ["Luanda", "Viana", "Cacuaco", "Cazenga", "Belas", "Icolo e Bengo", "Quilamba Quiaxi"],
+  "Luanda": ["Luanda", "Viana", "Cacuaco", "Cazenga", "Belas", "Talatona", "Kuilamba Kuiaxi"],
   "Icolo e Bengo": ["Catete", "Calumbo", "Cassoneca", "Mucari", "Ngangula"],
 };
 const PROVINCIAS = Object.keys(PROVINCIAS_MUNICIPIOS);
 
 const validarNome = (nome) => {
-  if (!nome.trim()) return "Nome e obrigatorio.";
+  if (!nome.trim()) return "Nome é obrigatorio.";
   if (nome.trim().length < 3) return "Nome deve ter pelo menos 3 caracteres.";
   return null;
 };
 const validarTelefone = (tel) => {
   const limpo = tel.replace(/\s/g, "");
-  if (!limpo) return "Telefone e obrigatorio.";
-  if (!/^[9][0-9]{8}$/.test(limpo)) return "Telefone invalido. Deve ter 9 digitos e comecar por 9.";
+  if (!limpo) return "Telefone é obrigatorio.";
+  if (!/^[9][0-9]{8}$/.test(limpo)) return "Telefone inválido. Deve ter 9 digitos e começar por 9.";
   return null;
 };
 const validarEmail = (email) => {
