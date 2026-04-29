@@ -79,31 +79,40 @@ router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) =
   }
 });
 
-// ── Helper: busca id_usuario a partir do id e tipo ──────────
+// ── Helper: busca id_usuario — recebe sempre id_usuario ──────
+// O frontend envia sempre id_usuario independentemente do tipo
 const getIdUsuario = async (id, tipo) => {
+  // Verifica se o id_usuario existe na tabela usuario
+  const [[row]] = await pool.query('SELECT id_usuario FROM usuario WHERE id_usuario = ?', [id]);
+  return row?.id_usuario || null;
+};
+
+// ── Helper: busca id na tabela do tipo a partir do id_usuario ─
+const getIdTabela = async (id_usuario, tipo) => {
   if (tipo === 'coletor') {
-    const [[row]] = await pool.query('SELECT id_usuario FROM coletador WHERE id_coletador = ?', [id]);
-    return row?.id_usuario || null;
+    const [[row]] = await pool.query('SELECT id_coletador FROM coletador WHERE id_usuario = ?', [id_usuario]);
+    return row?.id_coletador || null;
   }
   if (tipo === 'empresa') {
-    const [[row]] = await pool.query('SELECT id_usuario FROM empresarecicladora WHERE id_empresa = ?', [id]);
-    return row?.id_usuario || null;
+    const [[row]] = await pool.query('SELECT id_empresa FROM empresarecicladora WHERE id_usuario = ?', [id_usuario]);
+    return row?.id_empresa || null;
   }
-  return id; // comum — id já é o id_usuario
+  return id_usuario; // comum — id_usuario é o campo directo
 };
 
 // ── PATCH /api/admin/utilizadores/:id/advertencia ────────────
 router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+    // req.params.id é sempre id_usuario
+    const id_usuario = parseInt(req.params.id);
+    const id_tabela = await getIdTabela(id_usuario, tipo);
 
-    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [req.params.id]);
-
-    // Busca o id_usuario real para notificar
-    const id_usuario = await getIdUsuario(req.params.id, tipo);
-    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+    if (id_tabela) {
+      const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
+      const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+      await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [id_tabela]);
+    }
 
     await pool.query(
       `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
@@ -131,21 +140,20 @@ router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, r
 router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+    const id_usuario = parseInt(req.params.id);
+    const id_tabela  = await getIdTabela(id_usuario, tipo);
 
     const suspensaoAte = new Date();
     suspensaoAte.setDate(suspensaoAte.getDate() + 7);
 
-    await pool.query(
-      `UPDATE ${tabela} SET suspenso_ate = ?, advertencias = advertencias + 1 WHERE ${campo_id} = ?`,
-      [suspensaoAte, req.params.id]
-    );
+    // Suspende na tabela específica do tipo
+    if (id_tabela && tipo !== 'comum') {
+      const tabela   = tipo === 'coletor' ? 'coletador' : 'empresarecicladora';
+      const campo_id = tipo === 'coletor' ? 'id_coletador' : 'id_empresa';
+      await pool.query(`UPDATE ${tabela} SET suspenso_ate = ?, advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [suspensaoAte, id_tabela]);
+    }
 
-    // Busca id_usuario real e suspende na tabela usuario (bloqueia o login)
-    const id_usuario = await getIdUsuario(req.params.id, tipo);
-    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
-
+    // Suspende sempre na tabela usuario — bloqueia o login
     await pool.query('UPDATE usuario SET suspenso_ate = ? WHERE id_usuario = ?', [suspensaoAte, id_usuario]);
 
     const dataFim = suspensaoAte.toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -175,22 +183,18 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
 router.patch('/utilizadores/:id/bloquear', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
-    const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
+    const id_usuario = parseInt(req.params.id);
+    const id_tabela  = await getIdTabela(id_usuario, tipo);
 
-    await pool.query(
-      `UPDATE ${tabela} SET bloqueado_permanente = 1, ativo = 0 WHERE ${campo_id} = ?`,
-      [req.params.id]
-    );
+    // Bloqueia na tabela específica do tipo
+    if (id_tabela && tipo !== 'comum') {
+      const tabela   = tipo === 'coletor' ? 'coletador' : 'empresarecicladora';
+      const campo_id = tipo === 'coletor' ? 'id_coletador' : 'id_empresa';
+      await pool.query(`UPDATE ${tabela} SET bloqueado_permanente = 1, ativo = 0 WHERE ${campo_id} = ?`, [id_tabela]);
+    }
 
-    // Bloqueia também na tabela usuario para impedir o login
-    const id_usuario = await getIdUsuario(req.params.id, tipo);
-    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
-
-    await pool.query(
-      'UPDATE usuario SET ativo = 0, bloqueado_permanente = 1 WHERE id_usuario = ?',
-      [id_usuario]
-    );
+    // Bloqueia sempre na tabela usuario — impede o login
+    await pool.query('UPDATE usuario SET ativo = 0, bloqueado_permanente = 1 WHERE id_usuario = ?', [id_usuario]);
 
     await pool.query(
       `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
@@ -220,19 +224,19 @@ router.patch('/utilizadores/:id/reativar', auth, role('admin'), async (req, res)
     const { tipo } = req.body;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
-    await pool.query(
-      `UPDATE ${tabela} SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE ${campo_id} = ?`,
-      [req.params.id]
-    );
+    const id_usuario_reat = parseInt(req.params.id);
+    const id_tabela_reat  = await getIdTabela(id_usuario_reat, req.body.tipo);
 
-    // Reactiva também na tabela usuario
-    const id_usuario_reativar = await getIdUsuario(req.params.id, req.body.tipo);
-    if (id_usuario_reativar) {
-      await pool.query(
-        'UPDATE usuario SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE id_usuario = ?',
-        [id_usuario_reativar]
-      );
+    if (id_tabela_reat && req.body.tipo !== 'comum') {
+      const tabela   = req.body.tipo === 'coletor' ? 'coletador' : 'empresarecicladora';
+      const campo_id = req.body.tipo === 'coletor' ? 'id_coletador' : 'id_empresa';
+      await pool.query(`UPDATE ${tabela} SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE ${campo_id} = ?`, [id_tabela_reat]);
     }
+
+    await pool.query(
+      'UPDATE usuario SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE id_usuario = ?',
+      [id_usuario_reat]
+    );
 
     res.json({ mensagem: 'Conta reactivada com sucesso.' });
   } catch (err) {
