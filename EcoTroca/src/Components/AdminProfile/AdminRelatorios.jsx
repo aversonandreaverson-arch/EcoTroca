@@ -23,7 +23,7 @@ import { getRelatoriosAdmin } from '../../api.js';
 const PERIODOS = [
   { valor: 'hoje',    label: 'Hoje'        },
   { valor: 'semana',  label: 'Está Semana' },
-  { valor: 'mês',     label: 'Este Mês'    },
+  { valor: 'mes',     label: 'Este Mês'    },
   { valor: 'total',   label: 'Todo o Período' },
 ];
 
