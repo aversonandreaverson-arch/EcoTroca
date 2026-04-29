@@ -26,11 +26,11 @@ const validarEmail = (email) => {
 };
 const validarBI = (bi) => {
   if (!bi) return null;
-  if (!/^[0-9]{9}[A-Z]{2}[0-9]{3}$/.test(bi.toUpperCase())) return "BI invalido. Formato: 000000000LA000";
+  if (!/^[0-9]{9}[A-Z]{2}[0-9]{3}$/.test(bi.toUpperCase())) return "BI inválido. Formato: 000000000LA000";
   return null;
 };
 const validarDataNascimento = (data) => {
-  if (!data) return "Data de nascimento e obrigatoria.";
+  if (!data) return "Data de nascimento é obrigatoria.";
   const nascimento = new Date(data);
   const hoje = new Date();
   const idade = hoje.getFullYear() - nascimento.getFullYear();
@@ -42,10 +42,10 @@ const validarDataNascimento = (data) => {
   return null;
 };
 const validarSenha = (senha) => {
-  if (!senha) return "Senha e obrigatoria.";
+  if (!senha) return "Senha é obrigatoria.";
   if (senha.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
-  if (!/[A-Z]/.test(senha)) return "A senha deve ter pelo menos uma letra maiuscula.";
-  if (!/[0-9]/.test(senha)) return "A senha deve ter pelo menos um numero.";
+  if (!/[A-Z]/.test(senha)) return "A senha deve ter pelo menos uma letra maiúscula.";
+  if (!/[0-9]/.test(senha)) return "A senha deve ter pelo menos um número.";
   return null;
 };
 
@@ -158,13 +158,13 @@ const Cadastro = () => {
     e.telefone = validarTelefone(form.telefone);
     e.email    = validarEmail(form.email);
     e.senha    = validarSenha(form.senha);
-    if (!form.provincia) e.provincia = "Provincia e obrigatoria.";
-    if (!form.municipio) e.municipio = "Municipio e obrigatorio.";
-    if (!form.bairro.trim()) e.bairro = "Bairro e obrigatorio.";
+    if (!form.provincia) e.provincia = "Provincia é obrigatoria.";
+    if (!form.municipio) e.municipio = "Municipio é obrigatorio.";
+    if (!form.bairro.trim()) e.bairro = "Bairro é obrigatorio.";
     if (!form.confirmar_senha) {
       e.confirmar_senha = "Confirma a tua senha.";
     } else if (form.senha !== form.confirmar_senha) {
-      e.confirmar_senha = "As senhas nao coincidem.";
+      e.confirmar_senha = "As senhas não coincidem.";
     }
     if (tipo !== "empresa") {
       e.bi              = validarBI(form.bi);
@@ -176,7 +176,7 @@ const Cadastro = () => {
     }
     // Coletador que pertence a empresa tem de seleccionar a empresa
     if (tipo === "coletor" && pertenceEmpresa === true && !empresaSelecionada) {
-      e.empresa = "Selecciona a empresa a que pertences.";
+      e.empresa = "Selecciona a empresa a que trabalhas.";
     }
     // Coletador tem de responder se pertence a empresa ou nao
     if (tipo === "coletor" && pertenceEmpresa === null) {
@@ -227,15 +227,15 @@ const Cadastro = () => {
         // O coletador so pode entrar depois da empresa confirmar
         navigate("/Login", {
           state: {
-            mensagem: `A tua conta foi criada! A empresa foi notificada e ira confirmar que trabalhas para ela. Recebes uma notificacao quando a conta estiver activa.`
+            mensagem: `A tua conta foi criada! A empresa foi notificada e irá confirmar que trabalhas para ela. Recebes uma notificação no teu email  quando a conta estiver activa.`
           }
         });
       } else if (resultado.tipo_usuario === "coletor") {
-        navigate("/ColetadorDashboard");
+        navigate("/ColetadorDashboard"); /* links para rederecionar apos clicar no botao */
       } else if (resultado.tipo_usuario === "empresa") {
         navigate("/DashboardEmpresa");
       } else {
-        navigate("/PaginaInicial");
+        navigate("/Dashboard"); 
       }
     } catch (err) {
       setErro(err.message);
@@ -250,7 +250,7 @@ const Cadastro = () => {
 
         <div className="text-center mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-green-900">Cadastre-se</h1>
-          <p className="mt-2 text-sm text-gray-600">Cadastro gratis para usuarios, coletadores e empresas.</p>
+          <p className="mt-2 text-sm text-gray-600">Cadastro para usuários, coletadores e empresas.</p>
         </div>
 
         {/* Seleccao do tipo de conta */}
@@ -266,8 +266,8 @@ const Cadastro = () => {
           <div className="mb-6 bg-green-50 border border-green-200 rounded-2xl p-5">
             <p className="text-green-800 font-semibold text-sm mb-1">Pertences a alguma empresa?</p>
             <p className="text-green-600 text-xs mb-4">
-              Se trabalhares para uma empresa registada na plataforma, a tua conta so ficara activa
-              apos a empresa confirmar que trabalhas para ela.
+              Se trabalhares para uma empresa registada na plataforma, a tua conta só ficará activa
+              apss a empresa confirmar que trabalhas para ela.
             </p>
 
             {/* Botoes Sim / Nao */}
