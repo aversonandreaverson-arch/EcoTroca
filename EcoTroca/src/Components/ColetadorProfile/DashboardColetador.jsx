@@ -20,7 +20,7 @@ import {
   Building2, Bell, MapPin, CalendarCheck, Package, X, AlertCircle
 } from "lucide-react";
 import Header from "./Header.jsx";
-import { getPerfil, getEntregasPendentes, getNotificacoes, criarAvaliacao, getAvaliacoesEntrega, getMedalhasMinhas } from "../../api.js";
+import { getPerfil, getEntregasPendentes, getNotificacoes, criarAvaliacao, getAvaliacoesEntrega, getMedalhasMinhas, getCarteira, getMinhasColetasColetador } from "../../api.js";
 
 export default function DashboardColetador() {
   const navigate = useNavigate();
@@ -38,6 +38,8 @@ export default function DashboardColetador() {
   const [tipoColetador, setTipoColetador] = useState("independente");
   const [nomeEmpresa,   setNomeEmpresa]   = useState("");
   const [medalhas,      setMedalhas]      = useState([]);
+  const [carteira,      setCarteira]      = useState(null);
+  const [minhasEntregas, setMinhasEntregas] = useState([]);
 
   // Modal avaliação
   const [modalAvaliacao, setModalAvaliacao] = useState(null);
@@ -81,13 +83,17 @@ export default function DashboardColetador() {
   const carregar = async () => {
     try {
       // Carrega perfil e entregas em paralelo
-      const [dadosPerfil, dadosEntregas, dadosNotifs, minhasMedalhas] = await Promise.all([
+      const [dadosPerfil, dadosEntregas, dadosNotifs, minhasMedalhas, dadosCarteira, dadosMinhas] = await Promise.all([
         getPerfil(),
         getEntregasPendentes(),
         getNotificacoes(),
         getMedalhasMinhas(),
+        getCarteira(),
+        getMinhasColetasColetador().catch(() => []),
       ]);
       setMedalhas(minhasMedalhas || []);
+      setCarteira(dadosCarteira || null);
+      setMinhasEntregas(Array.isArray(dadosMinhas) ? dadosMinhas : []);
 
       setPerfil(dadosPerfil);
       setEntregas(dadosEntregas || []);
@@ -146,10 +152,15 @@ export default function DashboardColetador() {
     </div>
   );
 
-  // Calcula estatisticas a partir das entregas
-  const concluidas = entregas.filter(e => e.status === "coletada");
-  const emCurso    = entregas.filter(e => e.status === "aceita");
-  const aguardando = entregas.filter(e => e.status === "pendente");
+  // Calcula estatísticas
+  // entregas = pedidos pendentes disponíveis para aceitar
+  // minhasEntregas = todas as entregas deste coletador (aceitas + concluídas)
+  const concluidas = minhasEntregas.filter(e => e.status === "coletada");
+  const emCurso    = minhasEntregas.filter(e => e.status === "aceita" || e.status === "aguarda_pesagem");
+  const aguardando = entregas; // pendentes disponíveis para aceitar
+
+  // Pontos totais das entregas concluídas
+  const totalPontos = concluidas.reduce((acc, e) => acc + (parseFloat(e.peso_total || 0) * 10), 0);
 
   // Abre modal de avaliação
   const abrirAvaliacao = (entrega, alvo) => {
@@ -318,12 +329,38 @@ export default function DashboardColetador() {
               <Star size={18} className="text-yellow-500" />
             </div>
             <p className="text-3xl font-bold text-yellow-600">
-              {concluidas.reduce((acc, e) => acc + (e.pontos_recebidos || 10), 0)}
+              {Math.floor(totalPontos)}
             </p>
             <p className="text-xs text-gray-400 mt-1">pontos ganhos</p>
           </div>
         )}
       </div>
+
+      {/* Cards financeiros — só para coletador independente */}
+      {tipoColetador === 'independente' && carteira && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm p-5 border border-green-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-gray-500 text-sm font-medium">Dinheiro Ganho</h3>
+              <span className="text-green-600 text-lg">💵</span>
+            </div>
+            <p className="text-3xl font-bold text-green-700">
+              {parseFloat(carteira?.dinheiro || 0).toFixed(0)} Kz
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Sacável — das tuas recolhas</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-5 border border-blue-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-gray-500 text-sm font-medium">Saldo na Plataforma</h3>
+              <span className="text-blue-600 text-lg">💳</span>
+            </div>
+            <p className="text-3xl font-bold text-blue-700">
+              {parseFloat(carteira?.saldo || 0).toFixed(0)} Kz
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Só na app</p>
+          </div>
+        </div>
+      )}
 
       {/* Lista de pedidos pendentes — so para coletador independente */}
       {tipoColetador === 'independente' && (
@@ -398,13 +435,13 @@ export default function DashboardColetador() {
       )}
 
       {/* Actividade recente */}
-      {entregas.length > 0 && (
+      {minhasEntregas.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-6 mt-6 border border-green-100">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
             <TrendingUp size={18} className="text-green-600" /> Actividade Recente
           </h3>
           <ul className="space-y-3">
-            {entregas.slice(0, 4).map(e => (
+            {minhasEntregas.slice(0, 4).map(e => (
               <li key={e.id_entrega}
                 className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">
