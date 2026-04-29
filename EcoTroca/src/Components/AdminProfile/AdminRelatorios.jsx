@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import {
   Banknote, TrendingUp, Recycle,
-  Calendar, Download, Search, Filter, FileText, Users
+  Calendar, Search, Filter, FileText, Users
 } from 'lucide-react';
 import Header from './Header.jsx';
 import { getRelatoriosAdmin } from '../../api.js';
@@ -184,45 +184,7 @@ export default function AdminRelatorios() {
     doc.save(`relatorio_ecotroca_${periodo}_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
-  // ── Função para exportar os dados para CSV ──
-  // Cria um ficheiro CSV e faz o download automático no browser
-  const exportarCSV = () => {
-    if (!dados?.transacoes?.length) return;
 
-    // Cabeçalho do CSV conforme Regra 15
-    const cabecalho = [
-      'Data', 'Hora', 'Utilizador', 'Coletador', 'Empresa',
-      'Resíduo', 'Peso (kg)', 'Valor Pago (Kz)', 'Comissão (Kz)'
-    ].join(',');
-
-    // Converto cada transacção numa linha CSV
-    const linhas = dados.transacoes.map(t => {
-      const data = new Date(t.criado_em);
-      return [
-        data.toLocaleDateString('pt-AO'),       // data
-        data.toLocaleTimeString('pt-AO'),        // hora
-        t.utilizador || '-',                     // utilizador
-        t.coletador  || '-',                     // coletador
-        t.empresa    || '-',                     // empresa
-        t.residuo    || '-',                     // tipo de resíduo
-        parseFloat(t.peso || 0).toFixed(2),      // peso em kg
-        parseFloat(t.valor_total || 0).toFixed(2), // valor pago
-        parseFloat(t.comissao || 0).toFixed(2),  // comissão da plataforma
-      ].join(',');
-    });
-
-    // Junto o cabeçalho com as linhas e crio o ficheiro
-    const csv = [cabecalho, ...linhas].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    // Crio um link invisível e clico nele para descarregar o ficheiro
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `relatorio_comissoes_${periodo}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url); // liberto a memória após o download
-  };
 
   // ── Ecrã de carregamento ──
   if (carregando) return (
@@ -263,13 +225,7 @@ export default function AdminRelatorios() {
           >
             <FileText size={16} /> Exportar PDF
           </button>
-          <button
-            onClick={exportarCSV}
-            disabled={!dados?.transacoes?.length}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white font-medium px-5 py-3 rounded-xl transition text-sm"
-          >
-            <Download size={16} /> CSV
-          </button>
+
         </div>
       </div>
 
