@@ -1,6 +1,6 @@
 
 //  O que esta página faz:
-//  Mostro ao admin todos os dados financeiros da plataforma.
+//  todos os dados financeiros da plataforma.
 //  Cada transacção concluída gera uma comissão de 10% para a
 //  plataforma. Aqui o admin pode ver quanto a plataforma ganhou,
 //  filtrar por período e ver o detalhe de cada transacção
@@ -22,8 +22,8 @@ import { getRelatoriosAdmin } from '../../api.js';
 // ── Opções de período de filtragem ──
 const PERIODOS = [
   { valor: 'hoje',    label: 'Hoje'        },
-  { valor: 'semana',  label: 'Esta Semana' },
-  { valor: 'mes',     label: 'Este Mês'    },
+  { valor: 'semana',  label: 'Está Semana' },
+  { valor: 'mês',     label: 'Este Mês'    },
   { valor: 'total',   label: 'Todo o Período' },
 ];
 
