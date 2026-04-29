@@ -22,7 +22,7 @@ const validarTelefone = (tel) => {
 };
 const validarEmail = (email) => {
   if (!email) return null;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : "Email invalido.";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : "Email inválido.";
 };
 const validarBI = (bi) => {
   if (!bi) return null;
