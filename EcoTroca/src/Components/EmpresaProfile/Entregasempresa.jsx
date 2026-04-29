@@ -138,10 +138,32 @@ export default function EntregasEmpresa() {
       setEnviandoAval(true); setErroAval('');
       const { entrega, alvo } = modalAvaliacao;
 
-      // id_avaliado depende do alvo
-      const id_avaliado = alvo === 'utilizador'
-        ? entrega.id_usuario
-        : entrega.id_coletador_usuario; // id_usuario do coletador
+      let id_avaliado = null;
+
+      if (alvo === 'utilizador') {
+        // id_usuario do utilizador vem directamente na entrega
+        id_avaliado = entrega.id_usuario;
+      } else {
+        // Para avaliar o coletador, precisamos do id_usuario do coletador
+        // Busca via API se não vier na entrega
+        id_avaliado = entrega.id_coletador_usuario || null;
+        if (!id_avaliado && entrega.id_coletador) {
+          try {
+            const token = localStorage.getItem('token');
+            const r = await fetch(`http://localhost:3000/api/coletador/perfil/${entrega.id_coletador}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const col = await r.json();
+            id_avaliado = col.id_usuario || null;
+          } catch (e) { console.error('Erro ao buscar coletador:', e); }
+        }
+      }
+
+      if (!id_avaliado) {
+        setErroAval('Não foi possível identificar o utilizador a avaliar. Tenta novamente.');
+        setEnviandoAval(false);
+        return;
+      }
 
       await criarAvaliacao({
         id_entrega:    entrega.id_entrega,
