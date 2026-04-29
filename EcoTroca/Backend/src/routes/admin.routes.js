@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ── Envia email de notificação admin ao utilizador 
+// ── Envia email de notificação admin ao utilizador ────────────
 const enviarEmailAdmin = async (email, nome, titulo, mensagem, corTitulo = '#15803d') => {
   if (!email) return; // sem email, não envia
   try {
@@ -79,29 +79,42 @@ router.patch('/utilizadores/:id/status', auth, role('admin'), async (req, res) =
   }
 });
 
+// ── Helper: busca id_usuario a partir do id e tipo ──────────
+const getIdUsuario = async (id, tipo) => {
+  if (tipo === 'coletor') {
+    const [[row]] = await pool.query('SELECT id_usuario FROM coletador WHERE id_coletador = ?', [id]);
+    return row?.id_usuario || null;
+  }
+  if (tipo === 'empresa') {
+    const [[row]] = await pool.query('SELECT id_usuario FROM empresarecicladora WHERE id_empresa = ?', [id]);
+    return row?.id_usuario || null;
+  }
+  return id; // comum — id já é o id_usuario
+};
+
 // ── PATCH /api/admin/utilizadores/:id/advertencia ────────────
 router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
 
-    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [id_usuario]);
+    await pool.query(`UPDATE ${tabela} SET advertencias = advertencias + 1 WHERE ${campo_id} = ?`, [req.params.id]);
 
-    // Notifica o utilizador — sino
+    // Busca o id_usuario real para notificar
+    const id_usuario = await getIdUsuario(req.params.id, tipo);
+    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+
     await pool.query(
       `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
        VALUES (?, '⚠️ Advertência da EcoTroca', ?, 'sistema')`,
       [id_usuario, `Recebeste uma advertência oficial da plataforma EcoTroca Angola. Motivo: ${motivo}. Por favor cumpre as regras da plataforma para evitar sanções mais graves.`]
     );
 
-    // Notifica o utilizador — email
     const [userAdv] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
     if (userAdv.length) {
       await enviarEmailAdmin(
-        userAdv[0].email,
-        userAdv[0].nome,
+        userAdv[0].email, userAdv[0].nome,
         '⚠️ Advertência Oficial',
         `Recebeste uma advertência oficial da plataforma EcoTroca Angola.<br><br><strong>Motivo:</strong> ${motivo}<br><br>Por favor cumpre as regras da plataforma para evitar sanções mais graves como suspensão ou bloqueio da conta.`,
         '#ca8a04'
@@ -118,7 +131,6 @@ router.patch('/utilizadores/:id/advertencia', auth, role('admin'), async (req, r
 router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
 
@@ -127,10 +139,15 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
 
     await pool.query(
       `UPDATE ${tabela} SET suspenso_ate = ?, advertencias = advertencias + 1 WHERE ${campo_id} = ?`,
-      [suspensaoAte, id_usuario]
+      [suspensaoAte, req.params.id]
     );
 
-    // Notifica o utilizador — sino
+    // Busca id_usuario real e suspende na tabela usuario (bloqueia o login)
+    const id_usuario = await getIdUsuario(req.params.id, tipo);
+    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+
+    await pool.query('UPDATE usuario SET suspenso_ate = ? WHERE id_usuario = ?', [suspensaoAte, id_usuario]);
+
     const dataFim = suspensaoAte.toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' });
     await pool.query(
       `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
@@ -138,12 +155,10 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
       [id_usuario, `A tua conta foi suspensa por 7 dias até ${dataFim}. Motivo: ${motivo}. Durante este período não podes aceder à plataforma.`]
     );
 
-    // Notifica o utilizador — email
     const [userSusp] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
     if (userSusp.length) {
       await enviarEmailAdmin(
-        userSusp[0].email,
-        userSusp[0].nome,
+        userSusp[0].email, userSusp[0].nome,
         '🚫 Conta Suspensa',
         `A tua conta EcoTroca Angola foi suspensa temporariamente por 7 dias.<br><br><strong>Motivo:</strong> ${motivo}<br><strong>Suspensa até:</strong> ${dataFim}<br><br>Durante este período não consegues aceder à plataforma. Após o prazo, a conta será reactivada automaticamente.`,
         '#dc2626'
@@ -160,28 +175,33 @@ router.patch('/utilizadores/:id/suspender', auth, role('admin'), async (req, res
 router.patch('/utilizadores/:id/bloquear', auth, role('admin'), async (req, res) => {
   try {
     const { tipo, motivo } = req.body;
-    const id_usuario = req.params.id;
     const tabela   = tipo === 'coletor' ? 'coletador' : tipo === 'empresa' ? 'empresarecicladora' : 'usuario';
     const campo_id = tipo === 'coletor' ? 'id_coletador' : tipo === 'empresa' ? 'id_empresa' : 'id_usuario';
 
     await pool.query(
       `UPDATE ${tabela} SET bloqueado_permanente = 1, ativo = 0 WHERE ${campo_id} = ?`,
+      [req.params.id]
+    );
+
+    // Bloqueia também na tabela usuario para impedir o login
+    const id_usuario = await getIdUsuario(req.params.id, tipo);
+    if (!id_usuario) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+
+    await pool.query(
+      'UPDATE usuario SET ativo = 0, bloqueado_permanente = 1 WHERE id_usuario = ?',
       [id_usuario]
     );
 
-    // Notifica o utilizador — sino
     await pool.query(
       `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
        VALUES (?, '❌ Conta Bloqueada', ?, 'sistema')`,
       [id_usuario, `A tua conta foi bloqueada permanentemente pela administração da EcoTroca Angola. Motivo: ${motivo}. Se acreditas que isto foi um erro, contacta o suporte.`]
     );
 
-    // Notifica o utilizador — email
     const [userBloq] = await pool.query('SELECT nome, email FROM usuario WHERE id_usuario = ?', [id_usuario]);
     if (userBloq.length) {
       await enviarEmailAdmin(
-        userBloq[0].email,
-        userBloq[0].nome,
+        userBloq[0].email, userBloq[0].nome,
         '❌ Conta Bloqueada Permanentemente',
         `A tua conta EcoTroca Angola foi bloqueada permanentemente pela administração da plataforma.<br><br><strong>Motivo:</strong> ${motivo}<br><br>Se acreditas que isto foi um erro, contacta o suporte através do email <a href="mailto:${process.env.EMAIL_USER}">${process.env.EMAIL_USER}</a>.`,
         '#991b1b'
@@ -204,6 +224,16 @@ router.patch('/utilizadores/:id/reativar', auth, role('admin'), async (req, res)
       `UPDATE ${tabela} SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE ${campo_id} = ?`,
       [req.params.id]
     );
+
+    // Reactiva também na tabela usuario
+    const id_usuario_reativar = await getIdUsuario(req.params.id, req.body.tipo);
+    if (id_usuario_reativar) {
+      await pool.query(
+        'UPDATE usuario SET ativo = 1, suspenso_ate = NULL, bloqueado_permanente = 0 WHERE id_usuario = ?',
+        [id_usuario_reativar]
+      );
+    }
+
     res.json({ mensagem: 'Conta reactivada com sucesso.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
