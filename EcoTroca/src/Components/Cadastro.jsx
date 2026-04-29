@@ -279,7 +279,7 @@ const Cadastro = () => {
                     ? "bg-green-700 text-white border-green-700"
                     : "bg-white text-gray-700 border-gray-200 hover:bg-green-50"
                 }`}>
-                <Check size={16} /> Sim, pertenco
+                <Check size={16} /> Sim, pertenço
               </button>
               <button
                 onClick={() => { setPertenceEmpresa(false); setEmpresaSelecionada(""); }}
@@ -288,7 +288,7 @@ const Cadastro = () => {
                     ? "bg-gray-700 text-white border-gray-700"
                     : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                 }`}>
-                <X size={16} /> Nao, sou independente
+                <X size={16} /> Não, sou independente
               </button>
             </div>
 
