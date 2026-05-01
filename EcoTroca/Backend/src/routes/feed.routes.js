@@ -141,7 +141,7 @@ router.post('/', auth, async (req, res) => {
 
     const permitidos = TIPOS_PERMITIDOS[tipo_usuario] || [];
     if (!permitidos.includes(tipo_publicacao))
-      return res.status(403).json({ erro: `O teu perfil nao pode publicar o tipo "${tipo_publicacao}".` });
+      return res.status(403).json({ erro: `O teu perfil não pode publicar o tipo "${tipo_publicacao}".` });
 
     if (!titulo?.trim())
       return res.status(400).json({ erro: 'O titulo e obrigatorio.' });
