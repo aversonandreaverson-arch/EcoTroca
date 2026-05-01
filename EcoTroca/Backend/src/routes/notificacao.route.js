@@ -195,10 +195,10 @@ router.post('/:id/recusar', auth, async (req, res) => {
     const notif = rows[0];
 
     if (notif.tipo !== 'proposta')
-      return res.status(400).json({ erro: 'Esta notificacao nao e uma proposta.' });
+      return res.status(400).json({ erro: 'Esta notificação não é uma proposta.' });
 
     if (!notif.id_publicacao)
-      return res.status(400).json({ erro: 'Publicacao nao identificada nesta proposta.' });
+      return res.status(400).json({ erro: 'Publicação não identificada nesta proposta.' });
 
     // Volta publicacao para disponivel
     await pool.query(
@@ -251,7 +251,7 @@ router.patch('/:id/ler', auth, async (req, res) => {
       'UPDATE Notificacao SET lida = TRUE WHERE id_notificacao = ? AND id_usuario = ?',
       [req.params.id, req.usuario.id_usuario]
     );
-    res.json({ mensagem: 'Notificacao marcada como lida.' });
+    res.json({ mensagem: 'Notificação marcada como lida.' });
   } catch (err) {
     res.status(500).json({ erro: err.message });
   }
