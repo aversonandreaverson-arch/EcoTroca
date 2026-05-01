@@ -83,7 +83,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/ranking/medalhas ────────────────────────────────
+// ── GET /api/ranking/medalhas 
 // Medalhas do utilizador autenticado
 router.get('/medalhas', auth, async (req, res) => {
   try {
@@ -97,7 +97,7 @@ router.get('/medalhas', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/ranking/medalhas/:id ────────────────────────────
+// ── GET /api/ranking/medalhas/:id 
 // Medalhas públicas de um utilizador
 router.get('/medalhas/:id', auth, async (req, res) => {
   try {
