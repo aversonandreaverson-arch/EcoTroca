@@ -42,10 +42,10 @@ export const iniciarJobExpiracoes = () => {
         // Envia notificacao de aviso ao utilizador
         await pool.query(
           `INSERT INTO notificacao (id_usuario, titulo, mensagem, tipo)
-           VALUES (?, 'A tua publicacao expira em 24 horas', ?, 'sistema')`,
+           VALUES (?, 'A tua publicação expira em 24 horas', ?, 'sistema')`,
           [
             pub.id_usuario,
-            `A tua publicacao "${pub.titulo}" expira amanha por falta de interesse. Se ainda tens os residuos, considera renovar a publicacao.`,
+            `A tua publicação "${pub.titulo}" expira amanhã por falta de Troca. Se ainda tens os residuos, considera renovar a publicação.`,
           ]
         );
 
@@ -55,7 +55,7 @@ export const iniciarJobExpiracoes = () => {
           [pub.id_publicacao]
         );
 
-        console.log(`[JOB] Aviso de expiracao enviado para publicacao #${pub.id_publicacao} (${pub.titulo})`);
+        console.log(`[JOB] Aviso de expiracao enviado para publicação #${pub.id_publicacao} (${pub.titulo})`);
       }
 
       console.log(`[JOB] ${aExpirarAmanha.length} avisos de expiracao enviados.`);
@@ -84,7 +84,7 @@ export const iniciarJobExpiracoes = () => {
            VALUES (?, 'Publicacao expirada', ?, 'sistema')`,
           [
             pub.id_usuario,
-            `A tua publicacao "${pub.titulo}" expirou apos 7 dias sem interesse. Podes criar uma nova publicacao a qualquer momento.`,
+            `A tua publicacao "${pub.titulo}" expirou após 7 dias sem Troca. Podes criar uma nova publicacao a qualquer momento.`,
           ]
         );
 
