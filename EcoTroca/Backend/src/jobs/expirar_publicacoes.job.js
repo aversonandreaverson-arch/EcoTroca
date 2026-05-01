@@ -19,7 +19,7 @@ export const iniciarJobExpiracoes = () => {
 
   // Corre todos os dias as 08:00 da manha
   cron.schedule('0 8 * * *', async () => {
-    console.log(`[JOB] ${new Date().toISOString()} — A verificar publicacoes a expirar...`);
+    console.log(`[JOB] ${new Date().toISOString()} — A verificar publicações a expirar...`);
 
     try {
 
