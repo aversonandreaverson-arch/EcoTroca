@@ -41,16 +41,16 @@ router.post('/criar', auth, async (req, res) => {
       );
     }
 
-    res.status(201).json({ mensagem: 'Notificacao enviada com sucesso.' });
+    res.status(201).json({ mensagem: 'Notificação enviada com sucesso.' });
   } catch (err) {
-    console.error('Erro ao criar notificacao:', err);
+    console.error('Erro ao criar notificaçãoo:', err);
     res.status(500).json({ erro: err.message });
   }
 });
 
 // POST /api/notificacoes/:id/aceitar
 // Utilizador aceita proposta da empresa
-// -> cria entrega ligada a empresa + notifica empresa + muda publicacao para fechada
+// -> cria entrega ligada a empresa + notifica empresa + muda publicacao para fechada 
 router.post('/:id/aceitar', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -59,15 +59,15 @@ router.post('/:id/aceitar', auth, async (req, res) => {
     );
 
     if (!rows.length)
-      return res.status(404).json({ erro: 'Notificacao nao encontrada.' });
+      return res.status(404).json({ erro: 'Notificação não encontrada.' });
 
     const notif = rows[0];
 
     if (notif.tipo !== 'proposta')
-      return res.status(400).json({ erro: 'Esta notificacao nao e uma proposta.' });
+      return res.status(400).json({ erro: 'Esta notificação não é uma proposta.' });
 
     if (!notif.id_publicacao)
-      return res.status(400).json({ erro: 'Publicacao nao identificada nesta proposta.' });
+      return res.status(400).json({ erro: 'Publicação não identificada nesta proposta.' });
 
     // Busca dados da publicacao para saber o residuo e tipo
     const [pubRows] = await pool.query(
@@ -79,7 +79,7 @@ router.post('/:id/aceitar', auth, async (req, res) => {
     );
 
     if (!pubRows.length)
-      return res.status(404).json({ erro: 'Publicacao nao encontrada.' });
+      return res.status(404).json({ erro: 'Publicação não encontrada.' });
 
     const pub = pubRows[0];
 
