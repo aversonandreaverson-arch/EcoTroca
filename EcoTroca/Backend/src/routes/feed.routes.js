@@ -144,7 +144,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ erro: `O teu perfil não pode publicar o tipo "${tipo_publicacao}".` });
 
     if (!titulo?.trim())
-      return res.status(400).json({ erro: 'O titulo e obrigatorio.' });
+      return res.status(400).json({ erro: 'O título é obrigatório.' });
 
     const [result] = await pool.query(
       `INSERT INTO publicacao
@@ -174,7 +174,7 @@ router.post('/', auth, async (req, res) => {
       } catch { /* tabela pode nao existir */ }
     }
 
-    res.status(201).json({ mensagem: 'Publicacao criada com sucesso.', id_publicacao });
+    res.status(201).json({ mensagem: 'Publicação criada com sucesso.', id_publicacao });
   } catch (err) {
     console.error('Erro ao criar publicacao:', err);
     res.status(500).json({ erro: err.message });
@@ -198,7 +198,7 @@ router.put('/:id', auth, async (req, res) => {
 
     const eAdmin = req.usuario.tipo_usuario === 'admin';
     const eAutor = rows[0].id_usuario === req.usuario.id_usuario;
-    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissao.' });
+    if (!eAdmin && !eAutor) return res.status(403).json({ erro: 'Sem permissão.' });
 
     await pool.query(
       `UPDATE publicacao SET
@@ -223,7 +223,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/feed/:id
+// DELETE /api/feed/:id para quando o criador apagar uma pub que ja foi pub e tem uma conexao com uma empresa
 router.delete('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -253,7 +253,7 @@ router.delete('/:id', auth, async (req, res) => {
       }
       await pool.query(
         `INSERT INTO notificacao (id_usuario, titulo, mensagem) VALUES (?, 'Advertencia aplicada', ?)`,
-        [publicacao.id_usuario, 'Removeste uma publicacao que estava em negociacao. Esta accao resultou numa advertencia.']
+        [publicacao.id_usuario, 'Removeste uma publicação que estava em negociação. Esta acção resultou numa advertência.']
       );
     }
 
