@@ -158,7 +158,7 @@ router.post('/:id/aceitar', auth, async (req, res) => {
        VALUES (?, 'Proposta aceite', ?, 'geral')`,
       [
         notif.id_usuario_remetente,
-        `${nomeUtilizador} aceitou a tua proposta de troca para "${tituloPublicacao}". A entrega #${id_entrega} foi criada e pode ser gerida em Gestao de Entregas.`,
+        `${nomeUtilizador} aceitou a tua proposta de troca para "${tituloPublicacao}". A entrega #${id_entrega} foi criada e pode ser gerida em Gestão de Entregas.`,
       ]
     );
 
@@ -171,7 +171,7 @@ router.post('/:id/aceitar', auth, async (req, res) => {
     res.json({
       mensagem: 'Proposta aceite com sucesso.',
       id_entrega,
-      feedback: 'Aceitaste a troca com sucesso! A empresa sera notificada e ira definir a data de recolha.',
+      feedback: 'Aceitaste a troca com sucesso! A empresa será notificada e irá definir a data de recolha.',
     });
   } catch (err) {
     console.error('Erro ao aceitar proposta:', err);
