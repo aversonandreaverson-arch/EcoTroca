@@ -224,7 +224,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// ── PUT /api/entregas/:id ─────────────────────────────────────
+// ── PUT /api/entregas/:id 
 router.put('/:id', auth, async (req, res) => {
   try {
     const { tipo_entrega, endereco_domicilio, tipo_recompensa, observacoes, residuos, imagem } = req.body;
@@ -271,7 +271,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /api/entregas/:id/confirmar ────────────────────────
+// ── PATCH /api/entregas/:id/confirmar 
 router.patch('/:id/confirmar', auth, async (req, res) => {
   try {
     const { peso_real } = req.body;
@@ -329,7 +329,7 @@ router.patch('/:id/confirmar', auth, async (req, res) => {
   }
 });
 
-// ── PATCH /api/entregas/:id/cancelar ─────────────────────────
+// ── PATCH /api/entregas/:id/cancelar 
 router.patch('/:id/cancelar', auth, async (req, res) => {
   try {
     const [result] = await pool.query(
