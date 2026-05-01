@@ -10,7 +10,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-// ── GET /api/entregas ─────────────────────────────────────────
+// ── GET /api/entregas 
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -47,7 +47,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ── POST /api/entregas ────────────────────────────────────────
+// ── POST /api/entregas 
 // Cria a entrega e automaticamente uma Publicacao no feed
 // Se id_empresa ou id_publicacao vier no body, associa directamente
 router.post('/', auth, async (req, res) => {
@@ -101,7 +101,7 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    // ── Criação automática da Publicacao ─────────────────────
+    // ── Criação automática da Publicacao 
     // Só cria publicação automática se NÃO for uma entrega directa a empresa
     // (quando é directa, o pedido da empresa já existe no feed)
     if (id_residuo_principal && !id_publicacao) {
@@ -196,7 +196,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// ── GET /api/entregas/:id ─────────────────────────────────────
+// ── GET /api/entregas/:id 
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
