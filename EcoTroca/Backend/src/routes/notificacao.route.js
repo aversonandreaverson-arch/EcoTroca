@@ -190,7 +190,7 @@ router.post('/:id/recusar', auth, async (req, res) => {
     );
 
     if (!rows.length)
-      return res.status(404).json({ erro: 'Notificacao nao encontrada.' });
+      return res.status(404).json({ erro: 'Notificação não encontrada.' });
 
     const notif = rows[0];
 
