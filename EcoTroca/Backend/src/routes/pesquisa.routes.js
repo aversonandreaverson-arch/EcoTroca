@@ -9,7 +9,7 @@ import pool from '../config/database.js';
 
 const router = Router();
 
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => { 
   try {
     const q = (req.query.q || '').trim();
 
@@ -41,7 +41,7 @@ router.get('/', auth, async (req, res) => {
          AND (e.nome LIKE ? OR e.provincia LIKE ? OR e.municipio LIKE ?)
        ORDER BY e.nome ASC
        LIMIT 5`,
-      [like, like, like]
+      [like, like, like] 
     );
 
     // Coletadores
