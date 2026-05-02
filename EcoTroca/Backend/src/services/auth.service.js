@@ -21,7 +21,7 @@ import crypto           from 'crypto';
 import nodemailer       from 'nodemailer';
 import AfricasTalking   from 'africastalking';
 
-// ── Configuração do nodemailer (Gmail) ────────────────────────
+// ── Configuração do nodemailer (Gmail) 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -30,11 +30,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ── Configuração do Africa's Talking (SMS) ────────────────────
+// ── Configuração do Africa's Talking (SMS) 
 const AT  = AfricasTalking({ apiKey: process.env.AT_API_KEY, username: process.env.AT_USERNAME });
 const sms = AT.SMS;
 
-// ── Função auxiliar para enviar email ────────────────────────
+// ── Função auxiliar para enviar email 
 // Reutilizada no registo e na recuperação de senha
 const enviarEmail = async (para, assunto, html) => {
   try {
@@ -111,7 +111,7 @@ const registar = async ({
     );
   }
 
-  // ── Envio do email de confirmação ────────────────────────
+  // ── Envio do email de confirmação 
   if (email) {
     // Gero token aleatório seguro de 32 bytes
     const token     = crypto.randomBytes(32).toString('hex');
@@ -128,7 +128,7 @@ const registar = async ({
 
     await enviarEmail(
       email,
-      '✅ Confirma o teu email — EcoTroca Angola',
+      'Confirma o teu email — EcoTroca Angola',
       `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">
           <h2 style="color:#15803d;">EcoTroca Angola</h2>
@@ -157,7 +157,7 @@ const registar = async ({
   };
 };
 
-// ── confirmarEmail ────────────────────────────────────────────
+// ── confirmarEmail 
 // Activa a conta do utilizador após clicar no link do email
 // Muda ativo de 0 para 1 na tabela Usuario
 const confirmarEmail = async ({ token }) => {
@@ -187,7 +187,7 @@ const confirmarEmail = async ({ token }) => {
   return { mensagem: 'Email confirmado com sucesso! Já podes fazer login.' };
 };
 
-// ── login ─────────────────────────────────────────────────────
+// ── login 
 // Só deixa entrar utilizadores com ativo = 1
 // Se ativo = 0 → conta ainda não foi confirmada por email
 const login = async ({ email, senha }) => {
@@ -223,7 +223,7 @@ const login = async ({ email, senha }) => {
   return { token, tipo_usuario: usuario.tipo_usuario, nome: usuario.nome, id_usuario: usuario.id_usuario };
 };
 
-// ── recuperarSenha ────────────────────────────────────────────
+// ── recuperarSenha 
 // Gera token + envia email + SMS com link de redefinição
 const recuperarSenha = async ({ emailOuTelefone }) => {
   if (!emailOuTelefone) throw new Error('Email ou telefone é obrigatório.');
@@ -254,7 +254,7 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
   if (usuario.email) {
     await enviarEmail(
       usuario.email,
-      '🔒 Recuperação de senha — EcoTroca Angola',
+      'Recuperação de senha — EcoTroca Angola',
       `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">
           <h2 style="color:#15803d;">EcoTroca Angola</h2>
@@ -295,7 +295,7 @@ const recuperarSenha = async ({ emailOuTelefone }) => {
   return { mensagem: 'Se existir uma conta com esses dados, receberás as instruções.' };
 };
 
-// ── redefinirSenha ────────────────────────────────────────────
+// ── redefinirSenha 
 // Valida token + guarda hash da nova senha
 const redefinirSenha = async ({ token, senha }) => {
   if (!senha || senha.length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.');

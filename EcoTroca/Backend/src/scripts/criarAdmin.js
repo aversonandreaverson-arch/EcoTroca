@@ -21,7 +21,7 @@ const criarAdmin = async () => {
     );
 
     if (existente.length > 0) {
-      console.log('⚠️  Já existe uma conta com este email:', EMAIL);
+      console.log('  Já existe uma conta com este email:', EMAIL);
       console.log('    Nenhuma alteração foi feita.');
       process.exit(0);
     }

@@ -19,14 +19,14 @@
 
 import pool from '../config/database.js';
 
-// ── processarPagamento ────────────────────────────────────────
+// ── processarPagamento 
 // Chamado quando a empresa aceita uma entrega e regista o peso real.
 // peso_real -> peso efectivo pesado pela empresa no momento da recepcao.
 export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
 
   // Valida o peso real — obrigatorio e positivo
   if (!peso_real || parseFloat(peso_real) <= 0)
-    throw new Error('O peso real e obrigatorio e deve ser positivo.');
+    throw new Error('O peso real é obrigatório e deve ser positivo.');
 
   const peso = parseFloat(peso_real);
 
@@ -64,7 +64,7 @@ export const processarPagamento = async (id_entrega, id_empresa, peso_real) => {
   }
 
   if (valor_por_kg <= 0)
-    throw new Error('Valor por kg nao definido para este residuo. Verifica a configuracao do pedido.');
+    throw new Error('Valor por kg não definido para este residuo. Verifica a configuracao do pedido.');
 
   // ── Calculo do valor total com o peso real ────────────────
   const valor_total       = peso * valor_por_kg;               // valor bruto total

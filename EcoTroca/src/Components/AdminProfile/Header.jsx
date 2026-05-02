@@ -22,7 +22,7 @@ const links = [
   { label: "Relatórios",     to: "/AdminRelatorios"   },
 ];
 
-// ── Componente principal ─────────────────────────────────────
+// ── Componente principal 
 const Header = () => {
 
   // useNavigate devolve uma função para navegar para outra página
@@ -48,7 +48,7 @@ const Header = () => {
 
         {/* Logo / Nome do sistema — aparece sempre */}
         <h1 className="text-xl font-bold text-gray-800">
-          🛡️ EcoTroca — Admin
+           EcoTroca — Admin
         </h1>
 
         {/* ── Links de navegação — visíveis só em desktop (md:flex) ── */}
