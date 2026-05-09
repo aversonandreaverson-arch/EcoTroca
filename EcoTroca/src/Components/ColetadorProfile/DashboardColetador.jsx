@@ -452,12 +452,14 @@ export default function DashboardColetador() {
                 </span>
                 <div className="flex flex-col items-end gap-1">
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    e.status === "coletada" ? "bg-green-100 text-green-700"  :
-                    e.status === "aceita"   ? "bg-blue-100 text-blue-700"    :
-                                              "bg-yellow-100 text-yellow-700"
+                    e.status === "coletada"        ? "bg-green-100 text-green-700"  :
+                    e.status === "aceita"          ? "bg-blue-100 text-blue-700"    :
+                    e.status === "aguarda_pesagem" ? "bg-orange-100 text-orange-700":
+                                                    "bg-yellow-100 text-yellow-700"
                   }`}>
-                    {e.status === "coletada" ? "Concluida" :
-                     e.status === "aceita"   ? "Em curso"  : "Pendente"}
+                    {e.status === "coletada"        ? "Concluída"       :
+                     e.status === "aceita"          ? "Em curso"        :
+                     e.status === "aguarda_pesagem" ? "Aguarda Pesagem" : "Pendente"}
                   </span>
                   {e.status === "coletada" && !(jaAvaliou[e.id_entrega] || []).includes('utilizador') && (
                     <button onClick={() => abrirAvaliacao(e, 'utilizador')}
