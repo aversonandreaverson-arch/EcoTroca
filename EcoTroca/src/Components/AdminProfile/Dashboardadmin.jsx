@@ -211,6 +211,7 @@ export default function DashboardAdmin() {
 
       {/* Gráfico 3 — Tipos de resíduos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        
         <div className="bg-white/10 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <PieChart size={16} className="text-green-400" />

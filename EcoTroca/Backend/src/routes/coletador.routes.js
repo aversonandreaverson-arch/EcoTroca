@@ -241,7 +241,7 @@ router.patch('/entregas/:id/recolher', auth, role('coletor'), async (req, res) =
       [req.params.id]
     );
     if (entrega.length === 0) return res.status(404).json({ erro: 'Entrega não encontrada' });
-    if (entrega[0].id_coletador !== coletador[0].id_coletador) return res.status(403).json({ erro: 'Não tens permissão para recolher esta entrega' });
+    if (parseInt(entrega[0].id_coletador) !== parseInt(coletador[0].id_coletador)) return res.status(403).json({ erro: 'Não tens permissão para recolher esta entrega' });
     if (entrega[0].status !== 'aceita') return res.status(400).json({ erro: 'A entrega tem de estar aceite antes de ser recolhida' });
 
     // Marca como entregue na empresa — aguarda pesagem e confirmação da empresa
