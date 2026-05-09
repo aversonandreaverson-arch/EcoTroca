@@ -28,15 +28,17 @@ export default function PedidosPendentes() {
   const carregar = async () => {
     try {
       setErro("");
-      // Pendentes = todos os pedidos disponíveis para aceitar
-      // Minhas = entregas que este coletador já aceitou
-      const [pendentes, minhas] = await Promise.all([
+      // Disponíveis = pedidos sem coletador que o coletador pode aceitar
+      // Minhas = entregas que este coletador já aceitou (id_coletador = este coletador)
+      const [disponiveis, minhas] = await Promise.all([
         getEntregasPendentes(),
         getMinhasColetasColetador().catch(() => []),
       ]);
-      // Junta as duas listas — pendentes + as aceites por este coletador
-      const aceitas = (minhas || []).filter(e => e.status === 'aceita');
-      setEntregas([...(pendentes || []), ...aceitas]);
+      // Disponíveis = para aceitar (marcamos com status virtual 'disponivel')
+      const paraAceitar = (disponiveis || []).map(e => ({ ...e, _disponivel: true }));
+      // Minhas em curso = aceitas ou aguarda_pesagem
+      const emCurso = (minhas || []).filter(e => e.status === 'aceita' || e.status === 'aguarda_pesagem');
+      setEntregas([...paraAceitar, ...emCurso]);
     } catch (err) {
       setErro(err.message || "Erro ao carregar pedidos");
     } finally {
@@ -120,9 +122,9 @@ export default function PedidosPendentes() {
     }
   };
 
-  // Filtra por status
-  const pendentes = entregas.filter(e => e.status === "pendente");
-  const aceites   = entregas.filter(e => e.status === "aceita");
+  // Separa por origem — disponíveis para aceitar vs já aceites por este coletador
+  const pendentes = entregas.filter(e => e._disponivel);
+  const aceites   = entregas.filter(e => !e._disponivel);
 
   // ── Ecra do mapa ──
   if (entregaSelecionadaMapa && localizacaoColetador) {
