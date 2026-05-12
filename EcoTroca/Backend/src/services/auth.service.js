@@ -3,7 +3,7 @@
 //    registar          → cria utilizador inactivo + envia email de confirmação
 //    confirmarEmail    → activa a conta após o utilizador clicar no link
 //    login             → só deixa entrar se ativo = 1
-//    recuperarSenha    → gera token + envia email + SMS (Africa's Talking)
+//    recuperarSenha    → gera token + envia email + SMS (Africa's Talking) (inactivo)
 //    redefinirSenha    → valida token + guarda hash da nova senha
 //
 //  Fluxo de registo:
