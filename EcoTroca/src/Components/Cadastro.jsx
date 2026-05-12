@@ -5,8 +5,8 @@ import { registar, getEmpresas } from "../api.js";
 
 const PROVINCIAS_MUNICIPIOS = {
   "Luanda": ["Luanda", "Viana", "Cacuaco", "Cazenga", "Belas", "Talatona", "Kuilamba Kuiaxi"],
-  "Icolo e Bengo": ["Catete", "Calumbo", "Cassoneca", "Mucari", "Ngangula"],
-};
+/*   "Icolo e Bengo": ["Catete", "Calumbo", "Cassoneca", "Mucari", "Ngangula"],
+ */};
 const PROVINCIAS = Object.keys(PROVINCIAS_MUNICIPIOS);
 
 const validarNome = (nome) => {
