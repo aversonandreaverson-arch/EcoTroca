@@ -301,6 +301,7 @@ export default function AgenteIA({ onFechar }) {
           setMensagens(prev => [...prev, { role: 'assistant', content: textoFinal }]);
         }
       }
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       setMensagens(prev => [...prev, {
         role: 'assistant',
