@@ -57,6 +57,11 @@ import AdminRelatorios   from './Components/AdminProfile/AdminRelatorios'
 
 import RotaProtegida from './Components/RotaProtegida'
 
+//Agente IA - EcoTroca Angola
+import AgenteIA from './Components/AgenteIA.jsx';
+
+
+
 function App() {
   return (
     <Routes>
